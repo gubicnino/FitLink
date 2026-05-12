@@ -1,0 +1,21 @@
+﻿# IDE
+.idea/
+.vscode/
+*.iml
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Secrets (NIKOLI v repozitorij)
+**/google-services.json
+**/firebase-adminsdk*.json
+**/application-local.yml
+**/.env
+**/.env.local
+
+# Build outputs
+**/uploads/
