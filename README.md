@@ -51,7 +51,7 @@ Sistem deluje na principu **strokovne izmenjave**: trener nudi mentorstvo in zna
 
 ## Model izmenjave veščin
 
-| Komponenta SkillShareHub teme | Implementacija v FitLink |
+| Komponenta FitLink teme | Implementacija v FitLink |
 |---|---|
 | **Iskanje uporabnikov po interesih** | treniranci iščejo verificirane trenerje po specializaciji (Strength, Hypertrophy, Mobility, ...) |
 | **Izmenjava učnih storitev** | Trener nudi: trening načrte, komentarje na izvedbo, tečaje. Treniranec nudi: podatke o izvajanju, tedenske check-ine, feedback |
