@@ -94,28 +94,8 @@ Funkcionalnosti so razvrščene po vlogah znotraj sistema izmenjave veščin: **
 
 ## Arhitektura
 
-```
-+----------------------+         +-----------------------+
-|  React Native App    | <-----> |  Firebase Auth        |
-|  (Android, JS/TS)    |         |  (login, ID tokens)   |
-+----------------------+         +-----------------------+
-   |       |        |
-   |       |        \---- Garmin Connect API (OAuth 2.0)
-   |       \------------- Android Health Connect (lokalni API)
-   |
-   | HTTPS REST + JWT (Firebase ID Token)
-   v
-+----------------------+         +-----------------------+
-|  Spring Boot Backend | <-----> |  MongoDB              |
-|  (Java 21, Maven)    |         |  (Atlas / lokalno)    |
-|  REST + WebSocket    |         +-----------------------+
-+----------------------+
-   |              |
-   |              \------> Firebase Cloud Messaging
-   |                       (push notifikacije)
-   |
-   \----> File storage (lokalno / GridFS / S3)
-```
+<img width="1352" height="1001" alt="fitlinkdiagram3" src="https://github.com/user-attachments/assets/81ef1712-50ac-4c14-9bd0-fa506626bab7" />
+
 
 ---
 
