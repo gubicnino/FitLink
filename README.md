@@ -184,21 +184,14 @@ git clone https://github.com/gubicnino/FitLink.git
 cd FitLink
 ```
 
-### 2. Lokalni MongoDB
+### 2. Povezava z MongoDB
 
-```bash
-docker compose up -d mongo
-```
-
-Privzeto teče na `mongodb://localhost:27017`.
+v .env dodaj MONGODB_URI z connection stringom
 
 ### 3. Backend
 
 ```bash
-cd backend
-cp src/main/resources/application.example.yml src/main/resources/application-local.yml
-# uredi MongoDB URI in pot do firebase-adminsdk.json
-mvn spring-boot:run -Dspring-boot.run.profiles=local
+docker compose up --build
 ```
 
 Backend bo dosegljiv na `http://localhost:8080`.
@@ -219,10 +212,6 @@ npm run android
 ### Backend (application-local.yml)
 
 ```yaml
-spring:
-  data:
-    mongodb:
-      uri: mongodb://localhost:27017/fitlink
 
 firebase:
   service-account-path: classpath:firebase-adminsdk.json
