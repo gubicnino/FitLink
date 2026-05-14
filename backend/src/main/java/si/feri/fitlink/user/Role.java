@@ -1,4 +1,4 @@
-package si.feri.fitlink.vao;
+package si.feri.fitlink.user;
 
 public enum Role {
     TRAINEE,

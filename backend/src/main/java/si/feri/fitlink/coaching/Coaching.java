@@ -1,4 +1,4 @@
-package si.feri.fitlink.vao;
+package si.feri.fitlink.coaching;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;

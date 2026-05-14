@@ -1,0 +1,5 @@
+# application.yml
+spring:
+  data:
+    mongodb:
+      uri: ${MONGODB_URI}
