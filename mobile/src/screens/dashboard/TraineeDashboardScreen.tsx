@@ -1,0 +1,224 @@
+import React from 'react';
+import { Image, Pressable, StyleSheet, View } from 'react-native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { useNavigation } from '@react-navigation/native';
+import { ChevronRight, Flame, Play } from 'lucide-react-native';
+import { colors, radii, spacing } from '../../theme';
+import {
+  Avatar,
+  BadgeCheck,
+  Button,
+  Card,
+  Screen,
+  Sparkline,
+  StatCard,
+  Tag,
+  Text,
+} from '../../components/ui';
+import { NotificationBell, ScreenHeader } from '../../components/layout';
+import type { RootStackParamList } from '../../navigation/types';
+
+type Nav = NativeStackNavigationProp<RootStackParamList>;
+
+const HERO_IMG =
+  'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=800&q=80&auto=format';
+const COACH_IMG =
+  'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=160&q=80&auto=format';
+const ME_IMG =
+  'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=160&q=80&auto=format';
+
+export function TraineeDashboardScreen() {
+  const navigation = useNavigation<Nav>();
+
+  return (
+    <Screen scroll edges={['top']}>
+      <ScreenHeader
+        eyebrow="Thursday, May 14"
+        title="Good morning, Janez"
+        right={
+          <View style={styles.headerRight}>
+            <NotificationBell hasUnread />
+            <Avatar source={ME_IMG} size="lg" />
+          </View>
+        }
+      />
+
+      <View style={[styles.row, styles.gutter]}>
+        <StatCard
+          label="Steps"
+          value="8,421"
+          footer={<Sparkline data={[18, 15, 17, 11, 12, 7, 9, 4]} />}
+        />
+        <StatCard
+          label="Streak"
+          value="12"
+          unit="days"
+          footer={
+            <View style={styles.streakRow}>
+              <Flame size={14} color={colors.accent} fill={colors.accent} strokeWidth={2} />
+              <Text variant="micro" color="secondary">
+                Personal best
+              </Text>
+            </View>
+          }
+        />
+        <StatCard
+          label="This week"
+          value="3"
+          unit="/ 4"
+          footer={
+            <Text variant="micro" color="secondary">
+              workouts
+            </Text>
+          }
+        />
+      </View>
+
+      <View style={[styles.gutter, styles.section]}>
+        <Card padding="none" style={styles.heroCard}>
+          <View style={styles.heroImageWrap}>
+            <Image source={{ uri: HERO_IMG }} style={styles.heroImage} />
+            <View style={styles.heroOverlay} />
+            <View style={styles.heroTagWrap}>
+              <Tag label="Today" tone="overlay" uppercase />
+            </View>
+            <View style={styles.heroText}>
+              <Text variant="h3" color="inverse" style={{ lineHeight: 22 }}>
+                Push Day
+              </Text>
+              <Text variant="bodySmall" color="inverse" style={{ opacity: 0.85 }}>
+                5 exercises • 45 min
+              </Text>
+            </View>
+          </View>
+          <View style={styles.heroBody}>
+            <Text variant="bodySmall" color="secondary" style={styles.heroExercises}>
+              Bench Press, Shoulder Press, Tricep Extension, Lateral Raise, Incline Dumbbell Press
+            </Text>
+            <Button
+              label="Start workout"
+              variant="accent"
+              fullWidth
+              leftIcon={<Play size={16} color={colors.white} fill={colors.white} strokeWidth={0} />}
+              onPress={() => navigation.navigate('LiveWorkout')}
+            />
+          </View>
+        </Card>
+      </View>
+
+      <View style={[styles.gutter, styles.section]}>
+        <Card padding="md" onPress={() => navigation.navigate('FindTrainer')}>
+          <View style={styles.coachRow}>
+            <Avatar source={COACH_IMG} size="xl" />
+            <View style={styles.coachInfo}>
+              <View style={styles.coachNameRow}>
+                <Text variant="body" weight="600" numberOfLines={1}>
+                  Coach Maja Kovač
+                </Text>
+                <BadgeCheck size={15} />
+              </View>
+              <View style={styles.statusRow}>
+                <View style={styles.statusDot} />
+                <Text variant="bodySmall" color="secondary">
+                  New message
+                </Text>
+              </View>
+            </View>
+            <View style={styles.coachAction}>
+              <Text variant="bodySmall" color="brand" weight="600">
+                Coaching
+              </Text>
+              <ChevronRight size={16} color={colors.primary} strokeWidth={2.25} />
+            </View>
+          </View>
+        </Card>
+      </View>
+
+      <View style={[styles.gutter, styles.section]}>
+        <Text variant="caption" color="muted" style={styles.sectionLabel}>
+          Check-ins
+        </Text>
+        <Card padding="none">
+          <Pressable
+            style={({ pressed }) => [styles.listRow, pressed && { opacity: 0.85 }]}
+            onPress={() => navigation.navigate('WeeklyCheckIn')}
+          >
+            <View style={styles.flex}>
+              <Text variant="body" weight="600">
+                Weekly check-in
+              </Text>
+              <Text variant="bodySmall" color="secondary">
+                Due in 2 days
+              </Text>
+            </View>
+            <Tag label="Pending" tone="warning" />
+          </Pressable>
+          <View style={styles.separator} />
+          <Pressable
+            style={({ pressed }) => [styles.listRow, pressed && { opacity: 0.85 }]}
+            onPress={() => navigation.navigate('WeeklyCheckIn')}
+          >
+            <View style={styles.flex}>
+              <Text variant="body" weight="600">
+                Last week&apos;s progress
+              </Text>
+              <Text variant="bodySmall" color="secondary">
+                May 6 — May 12
+              </Text>
+            </View>
+            <ChevronRight size={18} color={colors.inkMuted} strokeWidth={2} />
+          </Pressable>
+        </Card>
+      </View>
+
+      <View style={styles.bottomSpacer} />
+    </Screen>
+  );
+}
+
+const styles = StyleSheet.create({
+  headerRight: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
+  row: { flexDirection: 'row', gap: spacing.md },
+  gutter: { paddingHorizontal: spacing.xxl },
+  section: { marginTop: spacing.xl },
+  sectionLabel: { marginBottom: spacing.md },
+  bottomSpacer: { height: spacing.huge },
+
+  heroCard: { overflow: 'hidden' },
+  heroImageWrap: { height: 120, position: 'relative' },
+  heroImage: { width: '100%', height: '100%' },
+  heroOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0,0,0,0.35)',
+  },
+  heroTagWrap: { position: 'absolute', top: spacing.lg, left: spacing.lg },
+  heroText: { position: 'absolute', bottom: spacing.lg, left: spacing.xl, right: spacing.xl },
+  heroBody: { padding: spacing.xl, gap: spacing.lg },
+  heroExercises: { lineHeight: 18 },
+
+  coachRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.lg },
+  coachInfo: { flex: 1, minWidth: 0 },
+  coachNameRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 2 },
+  statusRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+  statusDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: colors.accent,
+  },
+  coachAction: { flexDirection: 'row', alignItems: 'center', gap: 2 },
+
+  listRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: spacing.lg,
+    paddingHorizontal: spacing.xl,
+    gap: spacing.lg,
+  },
+  separator: { height: StyleSheet.hairlineWidth, backgroundColor: colors.line },
+  flex: { flex: 1 },
+
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  _r: { borderRadius: radii.lg },
+});

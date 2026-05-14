@@ -1,37 +1,23 @@
-import { StatusBar, StyleSheet, Text, useColorScheme, View } from 'react-native';
+import React from 'react';
+import { StatusBar, StyleSheet } from 'react-native';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { RootNavigator } from './src/navigation';
+import { colors } from './src/theme';
 
 function App() {
-  const isDarkMode = useColorScheme() === 'dark';
-
   return (
-    <SafeAreaProvider>
-      <StatusBar barStyle={isDarkMode ? 'light-content' : 'dark-content'} />
-      <View style={styles.container}>
-        <Text style={styles.title}>FitLink</Text>
-        <Text style={styles.subtitle}>TEST ETST TEST TEST TEST!</Text>
-      </View>
-    </SafeAreaProvider>
+    <GestureHandlerRootView style={styles.flex}>
+      <SafeAreaProvider>
+        <StatusBar barStyle="dark-content" backgroundColor={colors.bg} />
+        <RootNavigator />
+      </SafeAreaProvider>
+    </GestureHandlerRootView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#fff',
-  },
-  title: {
-    fontSize: 48,
-    fontWeight: 'bold',
-    color: '#2E5B9F',
-    marginBottom: 8,
-  },
-  subtitle: {
-    fontSize: 18,
-    color: '#606060',
-  },
+  flex: { flex: 1 },
 });
 
 export default App;
