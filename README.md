@@ -193,6 +193,12 @@ v .env dodaj MONGODB_URI z connection stringom
 ```bash
 docker compose up --build
 ```
+za razvoj na dockerju zazeni samo mongodb in backend v konzoli 
+```bash
+docker compose up mongodb
+cd backend
+mvn spring-boot:run
+```
 
 Backend bo dosegljiv na `http://localhost:8080`.
 
