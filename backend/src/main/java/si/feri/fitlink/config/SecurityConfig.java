@@ -33,7 +33,7 @@ public class SecurityConfig {
                                     "/v3/api-docs.yaml",
                                     "/swagger-resources/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/health").permitAll()
-                        .requestMatchers(HttpMethod.POST, "/api/auth/register-profile").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/auth/**", "/api/auth/login", "/api/auth/register").permitAll()
                         .anyRequest().authenticated()
                 )
                 .httpBasic(b -> b.disable())

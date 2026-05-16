@@ -38,7 +38,6 @@ public class User {
         private String gender;
         private Double heightCm;
         private Double currentWeightKg;
-        private List<String> goals;
     }
 
     @Data

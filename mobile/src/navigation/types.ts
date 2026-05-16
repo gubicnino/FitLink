@@ -2,7 +2,7 @@ import type { NavigatorScreenParams } from '@react-navigation/native';
 
 export type AuthStackParamList = {
   Login: undefined;
-  SignUp: undefined;
+  Register: undefined;
 };
 
 export type TraineeTabParamList = {

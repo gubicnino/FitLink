@@ -1,13 +1,39 @@
-import React from 'react';
+import { CommonActions, NavigationProp, useNavigation } from '@react-navigation/native';
+import React, { useEffect, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
-import { spacing } from '../../theme';
-import { Avatar, Card, Screen, Text } from '../../components/ui';
 import { ScreenHeader } from '../../components/layout';
-
+import { Avatar, Card, Screen, Text } from '../../components/ui';
+import { RootStackParamList } from '../../navigation';
+import { authService } from '../../services/authService';
+import { spacing } from '../../theme';
+import { User } from '../../types/types';
 const ME_IMG =
   'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=160&q=80&auto=format';
 
+
 export function ProfileScreen() {
+  const navigation = useNavigation<NavigationProp<RootStackParamList>>();
+  const [user, setUser] = useState<User | null>(null);
+
+  useEffect(() => {
+    const getUser = async () => {
+      const currentUser = await authService.getUser();
+      setUser(currentUser);
+    };
+
+    getUser();
+  }, [])
+
+  const handleLogout = async () => {
+    await authService.logout();
+    navigation.dispatch(
+      CommonActions.reset({
+        index: 0,
+        routes: [{ name: 'Auth' }],
+      }),
+    );
+  };
+
   return (
     <Screen scroll edges={['top']}>
       <ScreenHeader title="Profile" />
@@ -16,9 +42,9 @@ export function ProfileScreen() {
           <View style={styles.row}>
             <Avatar source={ME_IMG} size="xxl" />
             <View style={styles.info}>
-              <Text variant="h3">Janez Novak</Text>
+              <Text variant="h3">{user?.displayName}</Text>
               <Text variant="bodySmall" color="secondary">
-                janez.novak@email.com
+                {user?.email}
               </Text>
             </View>
           </View>
@@ -26,6 +52,9 @@ export function ProfileScreen() {
         <Text variant="bodySmall" color="secondary" style={styles.placeholder} align="center">
           Profile screen — settings, plan, account, support coming next.
         </Text>
+          <Text variant="button" align="center" onPress={handleLogout}>
+            Logout
+          </Text>
       </View>
     </Screen>
   );

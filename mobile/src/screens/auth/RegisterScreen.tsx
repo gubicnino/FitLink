@@ -8,7 +8,6 @@ import {
   BrandMark,
   Button,
   Divider,
-  GoogleIcon,
   Input,
   Screen,
   Text,
@@ -17,49 +16,53 @@ import type { AuthStackParamList, RootStackParamList } from '../../navigation/ty
 import { authService } from '../../services/authService';
 import { spacing } from '../../theme';
 
-type Props = NativeStackScreenProps<AuthStackParamList, 'Login'>;
+type Props = NativeStackScreenProps<AuthStackParamList, 'Register'>;
 
-export function LoginScreen({ navigation }: Props) {
+export function RegisterScreen({ navigation }: Props) {
   const rootNav = useNavigation<NavigationProp<RootStackParamList>>();
+  const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [birthDate, setBirthDate] = useState('');
+  const [gender, setGender] = useState('');
+  const [heightCm, setHeightCm] = useState<string>('');
+  const [currentWeightKg, setCurrentWeightKg] = useState<string>('');
   const [isLoading, setIsLoading] = useState(false);
 
-  const handleLogin = async () => {
-    setError('');
+  const handleRegister = async () => {
     setIsLoading(true);
-    
     try {
-      // 1. Login to Firebase
-      await authService.login(email, password);
-      
-      try {
-        // 2. Verify user exists in backend
-        const response = await apiClient.post('/auth/login');
-        
-        if (!response.data || !response.data.id) {
-          await authService.logout();
-          throw new Error('User not found in database');
-        }
-        
-        // 3. Both succeed - navigate
-        const rootRoute = response.data.role === 'TRAINER' ? 'TrainerRoot' : 'TraineeRoot';
-        rootNav.dispatch(
-          CommonActions.reset({
-            index: 0,
-            routes: [{ name: rootRoute }],
-          }),
-        );
-      } catch (backendError) {
-        await authService.logout();
-        throw backendError;
+      if (password !== confirmPassword) {
+        console.error('Passwords do not match');
+        return;
       }
-    } catch (err) {
+
+      // 1. Firebase ustvari account
+      await authService.register(email, password);
+
+      // 2. backend ustvari userja v MongoDB s tvojimi podatki
+      await apiClient.post('/auth/register', {
+        displayName: name,
+        role: 'TRAINEE',
+        profile: {
+          birthDate: birthDate,
+          gender: gender,
+          heightCm: heightCm ? Number(heightCm) : null,
+          currentWeightKg: currentWeightKg ? Number(currentWeightKg) : null,
+        },
+      });
+
+      rootNav.dispatch(
+        CommonActions.reset({
+          index: 0,
+          routes: [{ name: 'TraineeRoot' }],
+        }),
+      );
+    } catch (error) {
+      await authService.logout().catch(() => {});
       setIsLoading(false);
-      const errorMessage = err instanceof Error ? err.message : 'Login failed. Please try again.';
-      setError(errorMessage);
-      console.error('Login failed:', err);
+      console.error(error);
     }
   };
 
@@ -70,20 +73,18 @@ export function LoginScreen({ navigation }: Props) {
       </View>
 
       <Text variant="display" style={styles.title}>
-        Welcome back
+        Create account
       </Text>
       <Text variant="bodyLarge" color="secondary" style={styles.subtitle}>
-        Train smarter with your coach
+        Get started with your training
       </Text>
 
       <View style={styles.form}>
+        <Input label="Full name" value={name} onChangeText={setName} />
         <Input
           label="Email"
           value={email}
-          onChangeText={(value) => {
-            setEmail(value);
-            setError(''); // Clear error when user starts typing
-          }}
+          onChangeText={setEmail}
           autoCapitalize="none"
           keyboardType="email-address"
           autoComplete="email"
@@ -91,30 +92,29 @@ export function LoginScreen({ navigation }: Props) {
         <Input
           label="Password"
           value={password}
-          onChangeText={(value) => {
-            setPassword(value);
-            setError('');
-          }}
+          onChangeText={setPassword}
           secureTextEntry
           autoComplete="password"
         />
+        <Input
+          label="Confirm password"
+          value={confirmPassword}
+          onChangeText={setConfirmPassword}
+          secureTextEntry
+        />
+
+        <Input
+          label="Birth date (YYYY-MM-DD)"
+          value={birthDate}
+          onChangeText={setBirthDate}
+          placeholder="1990-01-31"
+        />
+        <Input label="Gender" value={gender} onChangeText={setGender} placeholder="male/female/other" />
+        <Input label="Height (cm)" value={heightCm} onChangeText={setHeightCm} keyboardType="numeric" />
+        <Input label="Current weight (kg)" value={currentWeightKg} onChangeText={setCurrentWeightKg} keyboardType="numeric" />
       </View>
 
-      {error && (
-        <View style={styles.errorContainer}>
-          <Text variant="bodySmall" weight="600">
-            {error}
-          </Text>
-        </View>
-      )}
-
-      <View style={styles.forgotRow}>
-        <Text variant="bodySmall" color="brand" weight="600" onPress={() => {}}>
-          Forgot password?
-        </Text>
-      </View>
-
-      <Button label="Log in" variant="primary" fullWidth onPress={handleLogin} />
+      <Button label="Create account" variant="primary" fullWidth onPress={handleRegister} />
 
       {isLoading && (
         <View style={styles.loaderOverlay} pointerEvents="none">
@@ -124,27 +124,14 @@ export function LoginScreen({ navigation }: Props) {
 
       <Divider label="or" style={styles.divider} />
 
-      <Button
-        label="Sign in with Google"
-        variant="ghost"
-        fullWidth
-        leftIcon={<GoogleIcon size={18} />}
-        onPress={() => {}}
-      />
-
       <View style={styles.flex} />
 
       <View style={styles.signupRow}>
         <Text variant="body" color="secondary">
-          Don&apos;t have an account?{' '}
+          Already have an account?{' '}
         </Text>
-        <Text
-          variant="body"
-          color="brand"
-          weight="600"
-          onPress={() => navigation.navigate('Register')}
-        >
-          Sign up
+        <Text variant="body" color="brand" weight="600" onPress={() => navigation.navigate('Login')}>
+          Log in
         </Text>
       </View>
     </Screen>
@@ -162,20 +149,6 @@ const styles = StyleSheet.create({
   title: { marginBottom: spacing.md },
   subtitle: { marginBottom: spacing.huge + spacing.md },
   form: { gap: spacing.lg, marginBottom: spacing.md },
-  errorContainer: {
-    backgroundColor: 'rgba(239, 68, 68, 0.1)',
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    borderRadius: 8,
-    marginBottom: spacing.md,
-    borderLeftWidth: 3,
-    borderLeftColor: '#ef4444',
-  },
-  forgotRow: {
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
-    marginBottom: spacing.xxl,
-  },
   divider: { marginVertical: spacing.xxl },
   flex: { flex: 1, minHeight: spacing.huge },
   signupRow: {
@@ -191,3 +164,5 @@ const styles = StyleSheet.create({
     zIndex: 1000,
   },
 });
+
+export default RegisterScreen;
