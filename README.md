@@ -12,6 +12,7 @@ Projekt nastaja v sklopu predmeta **Praktikum II** na FERI (Univerza v Mariboru)
 - [Model izmenjave veščin](#model-izmenjave-veščin)
 - [Funkcionalnosti](#funkcionalnosti)
 - [Arhitektura](#arhitektura)
+- [Design mockup](#design-mockup)
 - [Tehnologije](#tehnologije)
 - [Struktura repozitorija](#struktura-repozitorija)
 - [Začetek razvoja](#začetek-razvoja)
@@ -96,6 +97,13 @@ Funkcionalnosti so razvrščene po vlogah znotraj sistema izmenjave veščin: **
 
 <img width="1352" height="1001" alt="fitlinkdiagram3" src="https://github.com/user-attachments/assets/81ef1712-50ac-4c14-9bd0-fa506626bab7" />
 
+
+---
+
+## Design mockup
+
+<img width="1899" height="767" alt="image" src="https://github.com/user-attachments/assets/017d8bd0-88f1-4c55-ba71-661cef1e305c" />
+<img width="1910" height="765" alt="image" src="https://github.com/user-attachments/assets/708ca99e-d070-4f8b-97c3-abcb2686b948" />
 
 ---
 
