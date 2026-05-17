@@ -23,6 +23,8 @@ export type RootStackParamList = {
   Auth: NavigatorScreenParams<AuthStackParamList>;
   TraineeRoot: NavigatorScreenParams<TraineeTabParamList>;
   TrainerRoot: NavigatorScreenParams<TrainerTabParamList>;
+  TrainerApplication: undefined;
+  AdminApplications: undefined;
   LiveWorkout: { workoutId?: string } | undefined;
   CourseDetail: { courseId?: string } | undefined;
   WeeklyCheckIn: undefined;

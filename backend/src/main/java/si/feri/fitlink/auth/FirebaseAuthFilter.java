@@ -1,22 +1,26 @@
 package si.feri.fitlink.auth;
 
-import com.google.firebase.auth.FirebaseAuth;
-import com.google.firebase.auth.FirebaseAuthException;
-import com.google.firebase.auth.FirebaseToken;
-import jakarta.servlet.FilterChain;
-import jakarta.servlet.ServletException;
-import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpServletResponse;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
+import java.io.IOException;
+import java.util.List;
+
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
-import java.io.IOException;
-import java.util.List;
+import com.google.firebase.auth.FirebaseAuth;
+import com.google.firebase.auth.FirebaseAuthException;
+import com.google.firebase.auth.FirebaseToken;
+
+import jakarta.servlet.FilterChain;
+import jakarta.servlet.ServletException;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import si.feri.fitlink.user.User;
+import si.feri.fitlink.user.UserRepository;
 
 @Component
 @RequiredArgsConstructor
@@ -27,6 +31,7 @@ public class FirebaseAuthFilter extends OncePerRequestFilter {
     private static final String PREFIX = "Bearer ";
 
     private final FirebaseAuth firebaseAuth;
+    private final UserRepository userRepository;
 
     @Override
     protected void doFilterInternal(HttpServletRequest request,
@@ -40,8 +45,18 @@ public class FirebaseAuthFilter extends OncePerRequestFilter {
                 FirebaseToken token = firebaseAuth.verifyIdToken(idToken);
                 String uid = token.getUid();
                 String email = token.getEmail();
+                
+                // First try Firebase custom claims
                 Object roleClaim = token.getClaims().get("role");
                 String role = roleClaim != null ? roleClaim.toString() : null;
+                
+                // If role not in Firebase claims, read from database
+                if (role == null) {
+                    User user = userRepository.findByFirebaseUid(uid).orElse(null);
+                    if (user != null && user.getRole() != null) {
+                        role = user.getRole().name();
+                    }
+                }
 
                 AuthPrincipal principal = new AuthPrincipal(uid, email, role);
                 List<SimpleGrantedAuthority> authorities = role != null

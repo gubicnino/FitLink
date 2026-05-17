@@ -24,10 +24,6 @@ export function RegisterScreen({ navigation }: Props) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [birthDate, setBirthDate] = useState('');
-  const [gender, setGender] = useState('');
-  const [heightCm, setHeightCm] = useState<string>('');
-  const [currentWeightKg, setCurrentWeightKg] = useState<string>('');
   const [isLoading, setIsLoading] = useState(false);
 
   const handleRegister = async () => {
@@ -45,12 +41,6 @@ export function RegisterScreen({ navigation }: Props) {
       await apiClient.post('/auth/register', {
         displayName: name,
         role: 'TRAINEE',
-        profile: {
-          birthDate: birthDate,
-          gender: gender,
-          heightCm: heightCm ? Number(heightCm) : null,
-          currentWeightKg: currentWeightKg ? Number(currentWeightKg) : null,
-        },
       });
 
       rootNav.dispatch(
@@ -102,17 +92,8 @@ export function RegisterScreen({ navigation }: Props) {
           onChangeText={setConfirmPassword}
           secureTextEntry
         />
-
-        <Input
-          label="Birth date (YYYY-MM-DD)"
-          value={birthDate}
-          onChangeText={setBirthDate}
-          placeholder="1990-01-31"
-        />
-        <Input label="Gender" value={gender} onChangeText={setGender} placeholder="male/female/other" />
-        <Input label="Height (cm)" value={heightCm} onChangeText={setHeightCm} keyboardType="numeric" />
-        <Input label="Current weight (kg)" value={currentWeightKg} onChangeText={setCurrentWeightKg} keyboardType="numeric" />
       </View>
+      
 
       <Button label="Create account" variant="primary" fullWidth onPress={handleRegister} />
 

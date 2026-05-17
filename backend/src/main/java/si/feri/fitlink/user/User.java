@@ -42,7 +42,7 @@ public class User {
 
     @Data
     public static class TrainerInfo {
-        private String verificationStatus; // PENDING, VERIFIED, REJECTED
+        private String verificationStatus;
         private String licenseFileUrl;
         private String bio;
         private List<String> specializations;

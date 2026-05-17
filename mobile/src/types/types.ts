@@ -1,6 +1,6 @@
 export type UserRole = 'TRAINEE' | 'TRAINER' | 'ADMIN';
 
-export type VerificationStatus = 'PENDING' | 'VERIFIED' | 'REJECTED';
+export type VerificationStatus = 'PENDING' | 'APPROVED' | 'REJECTED';
 
 export interface UserProfile {
 	birthDate: string | null;
@@ -30,3 +30,4 @@ export interface User {
 	createdAt: string;
 	updatedAt: string;
 }
+

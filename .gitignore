@@ -22,4 +22,6 @@ CLAUDE.md
 
 # Build outputs
 **/uploads/
+backend/certifications/
 .env
+node_modules
