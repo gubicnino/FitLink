@@ -212,7 +212,7 @@ const styles = StyleSheet.create({
     position: 'relative',
   },
   videoImage: { width: '100%', height: '100%', opacity: 0.9 },
-  videoOverlay: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.3)' },
+  videoOverlay: { ...StyleSheet.absoluteFill, backgroundColor: 'rgba(0,0,0,0.3)' },
   playButton: {
     position: 'absolute',
     top: '50%',

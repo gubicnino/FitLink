@@ -5,7 +5,9 @@ import { ProtectedAdminApplicationsScreen } from '../screens/admin/ProtectedAdmi
 import { WeeklyCheckInScreen } from '../screens/checkin/WeeklyCheckInScreen';
 import { FindTrainerScreen } from '../screens/coach/FindTrainerScreen';
 import { CourseDetailScreen } from '../screens/courses/CourseDetailScreen';
+import { ExercisePickerScreen } from '../screens/exercises/ExercisePickerScreen';
 import { TrainerApplicationScreen } from '../screens/profile/TrainerApplicationScreen';
+import { CreateTemplateScreen } from '../screens/workouts/CreateTemplateScreen';
 import { LiveWorkoutScreen } from '../screens/workouts/LiveWorkoutScreen';
 import { AuthStack } from './AuthStack';
 import { TraineeTabs } from './TraineeTabs';
@@ -42,6 +44,12 @@ export function RootNavigator({ initialRoute = 'Auth' }: RootNavigatorProps) {
           options={{ presentation: 'modal', animation: 'slide_from_bottom' }}
         />
         <Stack.Screen name="FindTrainer" component={FindTrainerScreen} />
+        <Stack.Screen
+          name="ExercisePicker"
+          component={ExercisePickerScreen}
+          options={{ presentation: 'modal', animation: 'slide_from_bottom' }}
+        />
+        <Stack.Screen name="CreateTemplate" component={CreateTemplateScreen} />
       </Stack.Navigator>
     </NavigationContainer>
   );

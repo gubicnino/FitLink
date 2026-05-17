@@ -8,9 +8,9 @@ export interface WorkoutTemplate {
   id: string;
   name: string;
   exerciseCount: number;
-  durationMinutes: number;
-  lastUsed: string;
-  tag: string;
+  durationMinutes?: number;
+  lastUsed?: string;
+  tag?: string;
 }
 
 interface WorkoutTemplateCardProps {
@@ -19,6 +19,30 @@ interface WorkoutTemplateCardProps {
 }
 
 export function WorkoutTemplateCard({ template, onPress }: WorkoutTemplateCardProps) {
+  const metaItems: React.ReactNode[] = [
+    <Text key="count" variant="bodySmall" color="secondary">
+      {template.exerciseCount} {template.exerciseCount === 1 ? 'exercise' : 'exercises'}
+    </Text>,
+  ];
+  if (template.durationMinutes != null) {
+    metaItems.push(
+      <View key="dur" style={styles.metaInline}>
+        <Clock size={11} color={colors.inkSecondary} strokeWidth={2} />
+        <Text variant="bodySmall" color="secondary">
+          {' '}
+          ~{template.durationMinutes} min
+        </Text>
+      </View>,
+    );
+  }
+  if (template.lastUsed) {
+    metaItems.push(
+      <Text key="last" variant="bodySmall" color="secondary">
+        {template.lastUsed}
+      </Text>,
+    );
+  }
+
   return (
     <Card padding="md" onPress={onPress}>
       <View style={styles.row}>
@@ -30,26 +54,19 @@ export function WorkoutTemplateCard({ template, onPress }: WorkoutTemplateCardPr
             <Text variant="bodyLarge" weight="600">
               {template.name}
             </Text>
-            <Text variant="caption" color="muted">
-              {template.tag}
-            </Text>
+            {template.tag ? (
+              <Text variant="caption" color="muted">
+                {template.tag}
+              </Text>
+            ) : null}
           </View>
           <View style={styles.metaRow}>
-            <Text variant="bodySmall" color="secondary">
-              {template.exerciseCount} exercises
-            </Text>
-            <Dot />
-            <View style={styles.metaInline}>
-              <Clock size={11} color={colors.inkSecondary} strokeWidth={2} />
-              <Text variant="bodySmall" color="secondary">
-                {' '}
-                ~{template.durationMinutes} min
-              </Text>
-            </View>
-            <Dot />
-            <Text variant="bodySmall" color="secondary">
-              {template.lastUsed}
-            </Text>
+            {metaItems.map((node, idx) => (
+              <React.Fragment key={idx}>
+                {idx > 0 ? <Dot /> : null}
+                {node}
+              </React.Fragment>
+            ))}
           </View>
         </View>
         <ChevronRight size={18} color={colors.inkMuted} strokeWidth={2} />

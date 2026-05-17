@@ -142,7 +142,7 @@ const styles = StyleSheet.create({
   imageWrap: { height: 160, position: 'relative' },
   image: { width: '100%', height: '100%' },
   imageGradient: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     backgroundColor: 'rgba(26,31,38,0.35)',
   },
   exerciseBody: { padding: spacing.xl, gap: spacing.lg },

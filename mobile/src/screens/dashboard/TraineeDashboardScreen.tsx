@@ -178,6 +178,7 @@ export function TraineeDashboardScreen() {
 
 const styles = StyleSheet.create({
   headerRight: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
+  streakRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs },
   row: { flexDirection: 'row', gap: spacing.md },
   gutter: { paddingHorizontal: spacing.xxl },
   section: { marginTop: spacing.xl },
@@ -188,7 +189,7 @@ const styles = StyleSheet.create({
   heroImageWrap: { height: 120, position: 'relative' },
   heroImage: { width: '100%', height: '100%' },
   heroOverlay: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     backgroundColor: 'rgba(0,0,0,0.35)',
   },
   heroTagWrap: { position: 'absolute', top: spacing.lg, left: spacing.lg },
