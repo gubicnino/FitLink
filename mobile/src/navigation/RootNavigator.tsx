@@ -9,6 +9,8 @@ import { LiveWorkoutScreen } from '../screens/workouts/LiveWorkoutScreen';
 import { CourseDetailScreen } from '../screens/courses/CourseDetailScreen';
 import { WeeklyCheckInScreen } from '../screens/checkin/WeeklyCheckInScreen';
 import { FindTrainerScreen } from '../screens/coach/FindTrainerScreen';
+import { ExercisePickerScreen } from '../screens/exercises/ExercisePickerScreen';
+import { CreateTemplateScreen } from '../screens/workouts/CreateTemplateScreen';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
@@ -38,6 +40,12 @@ export function RootNavigator({ initialRoute = 'Auth' }: RootNavigatorProps) {
           options={{ presentation: 'modal', animation: 'slide_from_bottom' }}
         />
         <Stack.Screen name="FindTrainer" component={FindTrainerScreen} />
+        <Stack.Screen
+          name="ExercisePicker"
+          component={ExercisePickerScreen}
+          options={{ presentation: 'modal', animation: 'slide_from_bottom' }}
+        />
+        <Stack.Screen name="CreateTemplate" component={CreateTemplateScreen} />
       </Stack.Navigator>
     </NavigationContainer>
   );

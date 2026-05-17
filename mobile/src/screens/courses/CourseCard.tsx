@@ -52,7 +52,7 @@ const styles = StyleSheet.create({
   imageWrap: { aspectRatio: 16 / 9, position: 'relative' },
   image: { width: '100%', height: '100%' },
   imageOverlay: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     backgroundColor: 'rgba(0,0,0,0.15)',
   },
   durationPill: {

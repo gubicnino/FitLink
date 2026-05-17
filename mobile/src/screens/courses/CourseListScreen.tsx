@@ -153,7 +153,7 @@ const styles = StyleSheet.create({
   featuredImageWrap: { height: 170, position: 'relative' },
   featuredImage: { width: '100%', height: '100%' },
   featuredOverlay: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     backgroundColor: 'rgba(0,0,0,0.3)',
   },
   playButton: {
