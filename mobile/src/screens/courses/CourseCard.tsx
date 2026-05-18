@@ -9,6 +9,8 @@ export interface Course {
   author: string;
   duration: string;
   imageUrl: string;
+  category?: string;
+  level?: string;
 }
 
 interface CourseCardProps {

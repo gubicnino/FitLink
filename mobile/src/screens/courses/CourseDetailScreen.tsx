@@ -1,16 +1,16 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Image, Pressable, StyleSheet, View } from 'react-native';
-import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { useNavigation } from '@react-navigation/native';
+import type { NativeStackScreenProps } from '@react-navigation/native-stack';
+import YoutubePlayer from 'react-native-youtube-iframe';
 import {
   Bookmark,
   Check,
   ChevronLeft,
-  Play,
+  Pencil,
   Share2,
   Star,
 } from 'lucide-react-native';
-import { colors, radii, shadows, spacing } from '../../theme';
+import { colors, radii, spacing } from '../../theme';
 import {
   Avatar,
   BadgeCheck,
@@ -21,13 +21,14 @@ import {
 } from '../../components/ui';
 import { ReviewCard, Review } from './ReviewCard';
 import type { RootStackParamList } from '../../navigation/types';
+import { CourseDto, courseService } from '../../services/courseService';
+import { authService } from '../../services/authService';
+import type { User } from '../../types/types';
 
-type Nav = NativeStackNavigationProp<RootStackParamList>;
-
-const HERO_IMG =
-  'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=800&q=80&auto=format';
 const COACH_IMG =
   'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=120&q=80&auto=format';
+const FALLBACK_IMG =
+  'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=800&q=80&auto=format';
 
 const REVIEWS: Review[] = [
   {
@@ -55,25 +56,64 @@ const REVIEWS: Review[] = [
 
 const TABS = ['Overview', 'Reviews'] as const;
 type DetailTab = (typeof TABS)[number];
+type Props = NativeStackScreenProps<RootStackParamList, 'CourseDetail'>;
 
-export function CourseDetailScreen() {
-  const navigation = useNavigation<Nav>();
+export function CourseDetailScreen({ navigation, route }: Props) {
   const [tab, setTab] = useState<DetailTab>('Overview');
+  const [course, setCourse] = useState<CourseDto | null>(null);
+  const [user, setUser] = useState<User | null>(null);
+  const [playing, setPlaying] = useState(false);
+
+  useEffect(() => {
+    const load = async () => {
+      const courseId = route.params?.courseId;
+      if (!courseId) return;
+
+      try {
+        const [nextCourse, nextUser] = await Promise.all([
+          courseService.getById(courseId),
+          authService.getUser(),
+        ]);
+        setCourse(nextCourse);
+        setUser(nextUser);
+      } catch (error) {
+        console.error('Course detail load failed:', error);
+      }
+    };
+
+    load();
+  }, [route.params?.courseId]);
+
+  const canEdit = user?.role === 'TRAINER' && course?.authorId === user.firebaseUid;
+  const specializations = course?.authorSpecializations?.filter(Boolean) ?? [];
 
   return (
     <Screen background="surface" scroll edges={['top']}>
       <View style={styles.gutter}>
         <View style={styles.videoWrap}>
-          <Image source={{ uri: HERO_IMG }} style={styles.videoImage} />
-          <View style={styles.videoOverlay} />
-          <View style={[styles.playButton, shadows.modal]}>
-            <Play size={26} color={colors.inkPrimary} fill={colors.inkPrimary} strokeWidth={0} />
-          </View>
+          {course?.youtubeVideoId ? (
+            <YoutubePlayer
+              height={220}
+              play={playing}
+              videoId={course.youtubeVideoId}
+              onChangeState={(state: string) => setPlaying(state === 'playing')}
+            />
+          ) : (
+            <>
+              <Image source={{ uri: course?.thumbnailUrl ?? FALLBACK_IMG }} style={styles.videoImage} />
+              <View style={styles.videoOverlay} />
+            </>
+          )}
           <View style={styles.videoControls}>
             <IconButton variant="overlay" onPress={() => navigation.goBack()}>
               <ChevronLeft size={18} color={colors.white} strokeWidth={2.25} />
             </IconButton>
             <View style={styles.controlsRight}>
+              {canEdit ? (
+                <IconButton variant="overlay" onPress={() => navigation.navigate('AddCourses', { courseId: course.id })}>
+                  <Pencil size={16} color={colors.white} strokeWidth={2} />
+                </IconButton>
+              ) : null}
               <IconButton variant="overlay">
                 <Bookmark size={16} color={colors.white} strokeWidth={2} />
               </IconButton>
@@ -87,7 +127,7 @@ export function CourseDetailScreen() {
 
       <View style={[styles.gutter, styles.section]}>
         <Text variant="h3" style={styles.title}>
-          Complete Push Pull Legs Guide
+          {course?.title ?? 'Course'}
         </Text>
 
         <View style={styles.authorRow}>
@@ -95,21 +135,21 @@ export function CourseDetailScreen() {
           <View style={styles.authorInfo}>
             <View style={styles.authorName}>
               <Text variant="bodySmall" weight="600">
-                Coach Maja Kovač
+                {course?.authorDisplayName ?? 'Coach'}
               </Text>
-              <BadgeCheck size={14} />
+              {course?.authorVerificationStatus === 'APPROVED' ? <BadgeCheck size={14} /> : null}
             </View>
             <Text variant="micro" color="secondary">
-              Strength & Conditioning
+              {specializations.length > 0 ? specializations.join(' / ') : `${course?.category ?? 'Training'} / ${course?.level ?? 'Video'}`}
             </Text>
           </View>
           <Button label="Follow" variant="outline" size="sm" />
         </View>
 
         <View style={styles.stats}>
-          <StatItem icon={<Star size={13} color={colors.warning} fill={colors.warning} strokeWidth={0} />} value="4.8" label="Rating" />
-          <StatItem value="1.2k" label="Views" />
-          <StatItem value="12" unit="min" label="Duration" />
+          <StatItem icon={<Star size={13} color={colors.warning} fill={colors.warning} strokeWidth={0} />} value={course?.stats?.avgRating?.toFixed(1) ?? '0.0'} label="Rating" />
+          <StatItem value={String(course?.stats?.ratingsCount ?? 0)} label="Ratings" />
+          <StatItem value={String(course?.stats?.completionsCount ?? 0)} label="Done" />
         </View>
 
         <View style={styles.tabs}>
@@ -128,10 +168,19 @@ export function CourseDetailScreen() {
         {tab === 'Overview' ? (
           <>
             <Text variant="bodySmall" color="secondary" style={styles.description}>
-              A comprehensive walkthrough of the Push Pull Legs split — exercise selection, volume,
-              intensity, and how to progress from week to week. Built for intermediate lifters
-              ready to structure their training.
+              {course?.description ?? 'Loading course details...'}
             </Text>
+
+            {course?.authorBio ? (
+              <View style={styles.trainerBio}>
+                <Text variant="caption" color="muted" style={styles.trainerBioLabel}>
+                  Trainer
+                </Text>
+                <Text variant="bodySmall" color="secondary" style={styles.trainerBioText}>
+                  {course.authorBio}
+                </Text>
+              </View>
+            ) : null}
 
             <Button
               label="Mark as complete"
@@ -213,19 +262,6 @@ const styles = StyleSheet.create({
   },
   videoImage: { width: '100%', height: '100%', opacity: 0.9 },
   videoOverlay: { ...StyleSheet.absoluteFill, backgroundColor: 'rgba(0,0,0,0.3)' },
-  playButton: {
-    position: 'absolute',
-    top: '50%',
-    left: '50%',
-    width: 64,
-    height: 64,
-    marginLeft: -32,
-    marginTop: -32,
-    borderRadius: 32,
-    backgroundColor: colors.white,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
   videoControls: {
     position: 'absolute',
     top: spacing.lg,
@@ -266,6 +302,14 @@ const styles = StyleSheet.create({
   tabActive: { borderBottomColor: colors.primary },
 
   description: { lineHeight: 18, marginBottom: spacing.xxl },
+  trainerBio: {
+    paddingBottom: spacing.xxl,
+    marginBottom: spacing.xxl,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.line,
+  },
+  trainerBioLabel: { marginBottom: spacing.sm },
+  trainerBioText: { lineHeight: 18 },
   cta: { marginBottom: spacing.xxl },
 
   reviewsHeader: {

@@ -4,6 +4,7 @@ import React from 'react';
 import { ProtectedAdminApplicationsScreen } from '../screens/admin/ProtectedAdminApplicationsScreen';
 import { WeeklyCheckInScreen } from '../screens/checkin/WeeklyCheckInScreen';
 import { FindTrainerScreen } from '../screens/coach/FindTrainerScreen';
+import { AddCourses } from '../screens/courses/AddCourses';
 import { CourseDetailScreen } from '../screens/courses/CourseDetailScreen';
 import { ExercisePickerScreen } from '../screens/exercises/ExercisePickerScreen';
 import { TrainerApplicationScreen } from '../screens/profile/TrainerApplicationScreen';
@@ -39,6 +40,7 @@ export function RootNavigator({ initialRoute = 'Auth' }: RootNavigatorProps) {
           options={{ presentation: 'modal', animation: 'slide_from_bottom' }}
         />
         <Stack.Screen name="CourseDetail" component={CourseDetailScreen} />
+        <Stack.Screen name="AddCourses" component={AddCourses} />
         <Stack.Screen
           name="WeeklyCheckIn"
           component={WeeklyCheckInScreen}

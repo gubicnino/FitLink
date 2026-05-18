@@ -1,12 +1,13 @@
 import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { Home, Library, User, Users } from 'lucide-react-native';
+import { GraduationCap, Home, Library, User, Users } from 'lucide-react-native';
 import type { TrainerTabParamList } from './types';
 import { BottomTabBar } from '../components/layout';
 import { TrainerDashboardScreen } from '../screens/coach/TrainerDashboardScreen';
 import { ClientsScreen } from '../screens/coach/ClientsScreen';
 import { LibraryScreen } from '../screens/coach/LibraryScreen';
 import { ProfileScreen } from '../screens/profile/ProfileScreen';
+import { CourseListScreen } from '../screens/courses/CourseListScreen';
 
 const Tab = createBottomTabNavigator<TrainerTabParamList>();
 
@@ -39,6 +40,16 @@ export function TrainerTabs() {
           title: 'Library',
           tabBarIcon: ({ color, size }) => (
             <Library size={size} color={color} strokeWidth={1.75} />
+          ),
+        }}
+      />
+      <Tab.Screen
+        name="Courses"
+        component={CourseListScreen}
+        options={{
+          title: 'Courses',
+          tabBarIcon: ({ color, size }) => (
+            <GraduationCap size={size} color={color} strokeWidth={1.75} />
           ),
         }}
       />

@@ -15,12 +15,14 @@ export type TraineeTabParamList = {
 export type TrainerTabParamList = {
   Home: undefined;
   Clients: undefined;
+  Courses: undefined;
   Library: undefined;
   Profile: undefined;
 };
 
 export type RootStackParamList = {
   Auth: NavigatorScreenParams<AuthStackParamList>;
+  AddCourses: { courseId?: string } | undefined;
   TraineeRoot: NavigatorScreenParams<TraineeTabParamList>;
   TrainerRoot: NavigatorScreenParams<TrainerTabParamList>;
   TrainerApplication: undefined;

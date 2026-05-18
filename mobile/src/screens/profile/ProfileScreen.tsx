@@ -41,6 +41,10 @@ export function ProfileScreen() {
     }, [loadUser]),
   );
 
+  const handleAddCourse = () => {
+    navigation.navigate('AddCourses');
+  };
+
   const handleLogout = async () => {
     await authService.logout();
     navigation.dispatch(
@@ -214,6 +218,15 @@ export function ProfileScreen() {
               {error}
             </Text>
           </Card>
+        )}
+
+        {user?.role === 'TRAINER' && (
+          <Button
+            label="Add course"
+            variant="primary"
+            onPress={handleAddCourse}
+            fullWidth
+          />
         )}
         
         <Button 
