@@ -7,8 +7,9 @@ import { FindTrainerScreen } from '../screens/coach/FindTrainerScreen';
 import { CourseDetailScreen } from '../screens/courses/CourseDetailScreen';
 import { ExercisePickerScreen } from '../screens/exercises/ExercisePickerScreen';
 import { TrainerApplicationScreen } from '../screens/profile/TrainerApplicationScreen';
-import { CreateTemplateScreen } from '../screens/workouts/CreateTemplateScreen';
 import { LiveWorkoutScreen } from '../screens/workouts/LiveWorkoutScreen';
+import { TemplateDetailScreen } from '../screens/workouts/TemplateDetailScreen';
+import { TemplateFormScreen } from '../screens/workouts/TemplateFormScreen';
 import { AuthStack } from './AuthStack';
 import { TraineeTabs } from './TraineeTabs';
 import { TrainerTabs } from './TrainerTabs';
@@ -49,7 +50,8 @@ export function RootNavigator({ initialRoute = 'Auth' }: RootNavigatorProps) {
           component={ExercisePickerScreen}
           options={{ presentation: 'modal', animation: 'slide_from_bottom' }}
         />
-        <Stack.Screen name="CreateTemplate" component={CreateTemplateScreen} />
+        <Stack.Screen name="TemplateDetail" component={TemplateDetailScreen} />
+        <Stack.Screen name="TemplateForm" component={TemplateFormScreen} />
       </Stack.Navigator>
     </NavigationContainer>
   );

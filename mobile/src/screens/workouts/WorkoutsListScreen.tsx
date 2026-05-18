@@ -1,7 +1,6 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import {
   ActivityIndicator,
-  Pressable,
   RefreshControl,
   ScrollView,
   StyleSheet,
@@ -10,7 +9,7 @@ import {
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { Plus } from 'lucide-react-native';
-import { colors, radii, shadows, spacing } from '../../theme';
+import { colors, spacing } from '../../theme';
 import { Button, Screen, TabSwitcher, Text } from '../../components/ui';
 import { ScreenHeader } from '../../components/layout';
 import { WorkoutTemplateCard, WorkoutTemplate as CardTemplate } from './WorkoutTemplateCard';
@@ -47,20 +46,14 @@ export function WorkoutsListScreen() {
     }
   }, []);
 
-  // Re-fetch on screen focus so newly-created templates show up immediately.
+  // refetch on screen takka se newly created templati vidijo vcasii.
+  // useFocusEffect ze sprozi load tudi on initial mount, takka extra useEffect ni potreben.
   useFocusEffect(
     useCallback(() => {
       setLoading(true);
       load().finally(() => setLoading(false));
     }, [load]),
   );
-
-  useEffect(() => {
-    if (!loading && templates.length === 0 && sessions.length === 0 && !error) {
-      setLoading(true);
-      load().finally(() => setLoading(false));
-    }
-  }, []);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -114,7 +107,7 @@ export function WorkoutsListScreen() {
             templates.length === 0 ? (
               <EmptyState
                 title="No templates yet"
-                hint='Tap "+" to create your first workout template from the exercise library.'
+                hint='Tap "+ New" in the top right to create your first workout template from the exercise library.'
               />
             ) : (
               <View style={styles.list}>
@@ -122,7 +115,7 @@ export function WorkoutsListScreen() {
                   <WorkoutTemplateCard
                     key={t.id}
                     template={toCardTemplate(t)}
-                    onPress={() => navigation.navigate('LiveWorkout', { workoutId: t.id })}
+                    onPress={() => navigation.navigate('TemplateDetail', { templateId: t.id })}
                   />
                 ))}
               </View>
@@ -146,13 +139,6 @@ export function WorkoutsListScreen() {
         </ScrollView>
       )}
 
-      <Pressable
-        accessibilityLabel="Open exercise library"
-        onPress={() => navigation.navigate('ExercisePicker', { mode: 'select' })}
-        style={({ pressed }) => [styles.fab, shadows.fab, pressed && { opacity: 0.9 }]}
-      >
-        <Plus size={26} color={colors.white} strokeWidth={2.5} />
-      </Pressable>
     </Screen>
   );
 }
@@ -224,15 +210,4 @@ const styles = StyleSheet.create({
     gap: spacing.md,
   },
   retry: { marginTop: spacing.md },
-  fab: {
-    position: 'absolute',
-    right: spacing.xxl,
-    bottom: spacing.huge,
-    width: 56,
-    height: 56,
-    borderRadius: radii.xl,
-    backgroundColor: colors.accent,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
 });

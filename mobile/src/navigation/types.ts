@@ -29,6 +29,11 @@ export type RootStackParamList = {
   CourseDetail: { courseId?: string } | undefined;
   WeeklyCheckIn: undefined;
   FindTrainer: undefined;
-  ExercisePicker: { mode?: 'browse' | 'select' } | undefined;
-  CreateTemplate: { exerciseIds: string[] };
+  ExercisePicker:
+    | { mode?: 'browse' | 'select'; appendToTemplateId?: string }
+    | undefined;
+  TemplateDetail: { templateId: string };
+  TemplateForm:
+    | { mode: 'create'; exerciseIds: string[]; pendingExerciseIds?: string[] }
+    | { mode: 'edit'; templateId: string; pendingExerciseIds?: string[] };
 };

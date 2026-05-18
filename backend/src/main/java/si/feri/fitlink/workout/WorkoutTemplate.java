@@ -1,14 +1,15 @@
 package si.feri.fitlink.workout;
 
+import java.time.Instant;
+import java.util.List;
+
+import org.springframework.data.annotation.Id;
+import org.springframework.data.mongodb.core.mapping.Document;
+
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import org.springframework.data.annotation.Id;
-import org.springframework.data.mongodb.core.mapping.Document;
-
-import java.time.Instant;
-import java.util.List;
 
 @Document(collection = "workoutTemplates")
 @Data
@@ -38,6 +39,6 @@ public class WorkoutTemplate {
     public static class SetTarget {
         private int targetReps;
         private double targetWeightKg;
-        private int restSeconds;
+        private Integer restSeconds;
     }
 }

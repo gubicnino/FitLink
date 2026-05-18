@@ -32,7 +32,7 @@ public final class WorkoutDtos {
         public record SetTargetInput(
                 @PositiveOrZero int targetReps,
                 @PositiveOrZero double targetWeightKg,
-                @PositiveOrZero int restSeconds
+                @PositiveOrZero Integer restSeconds
         ) {}
 
         /** dejanski shape keroga dobi te client nazaj */
@@ -78,7 +78,7 @@ public final class WorkoutDtos {
                 }
         }
 
-        public record SetTargetDto(int targetReps, double targetWeightKg, int restSeconds) {
+        public record SetTargetDto(int targetReps, double targetWeightKg, Integer restSeconds) {
                 public static SetTargetDto from(WorkoutTemplate.SetTarget s) {
                 return new SetTargetDto(s.getTargetReps(), s.getTargetWeightKg(), s.getRestSeconds());
                 }

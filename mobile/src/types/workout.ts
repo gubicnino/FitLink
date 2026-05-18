@@ -3,7 +3,7 @@
 export interface SetTarget {
   targetReps: number;
   targetWeightKg: number;
-  restSeconds: number;
+  restSeconds: number | null;
 }
 
 export interface TemplateExercise {

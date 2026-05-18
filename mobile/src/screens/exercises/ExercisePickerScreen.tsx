@@ -41,6 +41,26 @@ export function ExercisePickerScreen() {
   const route = useRoute<Route>();
   const mode = route.params?.mode ?? 'select';
   const isSelect = mode === 'select';
+  const appendToTemplateId = route.params?.appendToTemplateId;
+
+  const handleContinue = useCallback(
+    (ids: string[]) => {
+      if (appendToTemplateId) {
+        navigation.navigate({
+          name: 'TemplateForm',
+          params: {
+            mode: 'edit',
+            templateId: appendToTemplateId,
+            pendingExerciseIds: ids,
+          },
+          merge: true,
+        });
+      } else {
+        navigation.navigate('TemplateForm', { mode: 'create', exerciseIds: ids });
+      }
+    },
+    [navigation, appendToTemplateId],
+  );
 
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const toggleSelected = useCallback((id: string) => {
@@ -262,7 +282,7 @@ export function ExercisePickerScreen() {
             label="Continue"
             variant="primary"
             size="lg"
-            onPress={() => navigation.navigate('CreateTemplate', { exerciseIds: selectedIds })}
+            onPress={() => handleContinue(selectedIds)}
           />
         </View>
       ) : null}
