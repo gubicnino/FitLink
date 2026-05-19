@@ -1,6 +1,8 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { Buffer } from 'buffer';
 import React, { useCallback, useEffect, useState } from 'react';
-import { Alert, FlatList, Linking, StyleSheet, View } from 'react-native';
+import { Alert, FlatList, Platform, StyleSheet, View } from 'react-native';
+import RNFS from 'react-native-fs';
 import apiClient from '../../api/apiClient';
 import { ScreenHeader } from '../../components/layout';
 import { Button, Card, Screen, Text } from '../../components/ui';
@@ -20,7 +22,19 @@ interface TrainerApplication {
   status: 'PENDING' | 'APPROVED' | 'REJECTED';
   submittedAt: string;
 }
+const getFileExtension = (fileName: string) => {
+  const lastDot = fileName.lastIndexOf('.');
+  return lastDot >= 0 ? fileName.slice(lastDot) : '';
+};
 
+const getDownloadPath = (fileName: string) => {
+  const targetDir =
+    Platform.OS === 'android'
+      ? RNFS.DownloadDirectoryPath
+      : RNFS.DocumentDirectoryPath;
+
+  return `${targetDir}/${fileName}`;
+};
 export function AdminApplicationsScreen({ navigation }: Props) {
   const [applications, setApplications] = useState<TrainerApplication[]>([]);
   const [loading, setLoading] = useState(false);
@@ -45,36 +59,40 @@ export function AdminApplicationsScreen({ navigation }: Props) {
 
   const handleDownloadCertificate = async (fileName: string) => {
     try {
-      // Build the certificate download URL using the API base URL
-      const certificateUrl = `http://10.0.2.2:8080/api/trainer-applications/certificate/${fileName}`;
-      
-      // Try to open the PDF in default viewer or browser
-      const canOpen = await Linking.canOpenURL(certificateUrl);
-      if (canOpen) {
-        await Linking.openURL(certificateUrl);
-      } else {
-        // If direct link fails, show alert with manual instructions
-        Alert.alert(
-          'Download Certificate',
-          `Certificate: ${fileName}\n\nThe file will be downloaded if you proceed.`,
-          [
-            { text: 'Cancel', style: 'cancel' },
-            { text: 'Download', onPress: async () => {
+
+      Alert.alert(
+        'Download Certificate',
+        `Certificate: ${fileName}\n\nThe file will be saved to your device.`,
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Download',
+            onPress: async () => {
               try {
-                // Attempt download via API
                 const response = await apiClient.get(`/trainer-applications/certificate/${fileName}`, {
                   responseType: 'arraybuffer',
                   timeout: 30000,
                 });
-                Alert.alert('Success', 'Certificate downloaded successfully');
+
+                const base64 = Buffer.from(response.data, 'binary').toString('base64');
+                const downloadPath = getDownloadPath(fileName);
+
+                await RNFS.writeFile(downloadPath, base64, 'base64');
+
+                Alert.alert(
+                  'Success',
+                  Platform.OS === 'android'
+                    ? `Certificate saved in Downloads: ${fileName}`
+                    : `Certificate saved in Files: ${fileName}`,
+                );
               } catch (downloadError) {
                 console.error('Download error:', downloadError);
-                Alert.alert('Error', 'Could not download the certificate');
+                Alert.alert('Error', 'Could not save the certificate on the phone');
               }
-            }},
-          ],
-        );
-      }
+            },
+          },
+        ],
+      );
     } catch (error) {
       console.error('Certificate open error:', error);
       Alert.alert('Error', 'Failed to process certificate request');
