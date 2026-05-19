@@ -145,14 +145,6 @@ export function ProfileScreen() {
             </View>
           </View>
         </Card>
-        {user?.role === 'ADMIN' ? (
-          <Button
-            label="Admin Dashboard"
-            variant="outline"
-            onPress={() => navigation.navigate('AdminApplications')}
-            fullWidth
-          />
-        ) : null}
         {user?.role !== 'TRAINER' ? (
           <Button
             label={user?.trainer?.verificationStatus === 'PENDING' ? 'Application pending' : 'Become a trainer'}

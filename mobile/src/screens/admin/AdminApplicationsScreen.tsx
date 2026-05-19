@@ -1,4 +1,3 @@
-import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { Buffer } from 'buffer';
 import React, { useCallback, useEffect, useState } from 'react';
 import { Alert, FlatList, Platform, StyleSheet, View } from 'react-native';
@@ -6,10 +5,8 @@ import RNFS from 'react-native-fs';
 import apiClient from '../../api/apiClient';
 import { ScreenHeader } from '../../components/layout';
 import { Button, Card, Screen, Text } from '../../components/ui';
-import type { RootStackParamList } from '../../navigation/types';
 import { spacing } from '../../theme';
 
-type Props = NativeStackScreenProps<RootStackParamList, 'AdminApplications'>;
 
 interface TrainerApplication {
   id: string;
@@ -35,7 +32,7 @@ const getDownloadPath = (fileName: string) => {
 
   return `${targetDir}/${fileName}`;
 };
-export function AdminApplicationsScreen({ navigation }: Props) {
+export function AdminApplicationsScreen() {
   const [applications, setApplications] = useState<TrainerApplication[]>([]);
   const [loading, setLoading] = useState(false);
   const [processingId, setProcessingId] = useState<string | null>(null);

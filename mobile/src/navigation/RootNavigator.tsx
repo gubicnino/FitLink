@@ -13,6 +13,7 @@ import { LiveWorkoutScreen } from '../screens/workouts/LiveWorkoutScreen';
 import { TemplateDetailScreen } from '../screens/workouts/TemplateDetailScreen';
 import { TemplateFormScreen } from '../screens/workouts/TemplateFormScreen';
 import { User } from '../types/types';
+import { AdminTabs } from './AdminTabs';
 import { AuthStack } from './AuthStack';
 import { TraineeTabs } from './TraineeTabs';
 import { TrainerTabs } from './TrainerTabs';
@@ -28,7 +29,7 @@ export function RootNavigator({ user }: RootNavigatorProps) {
   const getInitialRoute = (): keyof RootStackParamList => {
     if (!user) return 'Auth';
     if (user.role === 'TRAINER') return 'TrainerRoot';
-    if (user.role === 'ADMIN') return 'AdminApplications';
+    if (user.role === 'ADMIN') return 'AdminRoot';
     return 'TraineeRoot';
   };
 
@@ -41,6 +42,7 @@ export function RootNavigator({ user }: RootNavigatorProps) {
         <Stack.Screen name="Auth" component={AuthStack} />
         <Stack.Screen name="TraineeRoot" component={TraineeTabs} />
         <Stack.Screen name="TrainerRoot" component={TrainerTabs} />
+        <Stack.Screen name="AdminRoot" component={AdminTabs} />
         <Stack.Screen name="TrainerApplication" component={TrainerApplicationScreen} />
         <Stack.Screen name="AdminApplications" component={ProtectedAdminApplicationsScreen} />
         <Stack.Screen

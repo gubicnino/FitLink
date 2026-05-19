@@ -27,5 +27,5 @@ export function ProtectedAdminApplicationsScreen(props: Props) {
     checkAdminAccess();
   }, [navigation]);
 
-  return <AdminScreenComponent {...props} />;
+  return <AdminScreenComponent />;
 }

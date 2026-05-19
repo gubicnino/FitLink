@@ -19,12 +19,20 @@ export type TrainerTabParamList = {
   Library: undefined;
   Profile: undefined;
 };
+export type AdminTabParamList = {
+  Home: undefined;
+  Workouts: undefined;
+  Courses: undefined;
+  Profile: undefined;
+  Applications: undefined;
+};
 
 export type RootStackParamList = {
   Auth: NavigatorScreenParams<AuthStackParamList>;
   AddCourses: { courseId?: string } | undefined;
   TraineeRoot: NavigatorScreenParams<TraineeTabParamList>;
   TrainerRoot: NavigatorScreenParams<TrainerTabParamList>;
+  AdminRoot: NavigatorScreenParams<AdminTabParamList>;
   TrainerApplication: undefined;
   AdminApplications: undefined;
   LiveWorkout: { workoutId?: string } | undefined;
