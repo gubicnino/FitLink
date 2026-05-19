@@ -327,6 +327,9 @@ export function TemplateFormScreen() {
                 onRemove={() => removeItem(idx)}
                 onMoveUp={() => moveItem(idx, idx - 1)}
                 onMoveDown={() => moveItem(idx, idx + 1)}
+                onInfoPress={() =>
+                  navigation.navigate('ExerciseDetail', { exerciseId: it.exerciseId })
+                }
               />
             ))}
 

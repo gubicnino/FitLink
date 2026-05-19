@@ -34,6 +34,7 @@ export type RootStackParamList = {
   ExercisePicker:
     | { mode?: 'browse' | 'select'; appendToTemplateId?: string }
     | undefined;
+  ExerciseDetail: { exerciseId: string };
   TemplateDetail: { templateId: string };
   TemplateForm:
     | { mode: 'create'; exerciseIds: string[]; pendingExerciseIds?: string[] }

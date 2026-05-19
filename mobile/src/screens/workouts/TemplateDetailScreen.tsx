@@ -21,6 +21,7 @@ import {
   ChevronLeft,
   Clock,
   Dumbbell,
+  Info,
   Pencil,
   Play,
   Trash2,
@@ -279,6 +280,17 @@ export function TemplateDetailScreen() {
                     )}
                   </View>
 
+                  <Pressable
+                    onPress={() =>
+                      navigation.navigate('ExerciseDetail', { exerciseId: ex.exerciseId })
+                    }
+                    hitSlop={8}
+                    style={({ pressed }) => [styles.infoBtn, pressed && { opacity: 0.5 }]}
+                    accessibilityLabel="Exercise details"
+                  >
+                    <Info size={16} color={colors.inkSecondary} strokeWidth={2} />
+                  </Pressable>
+
                   <View
                     style={[styles.chevronWrap, isOpen && styles.chevronWrapOpen]}
                   >
@@ -466,6 +478,13 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     paddingVertical: spacing.xs,
+  },
+  infoBtn: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   chevronWrap: {
     width: 24,

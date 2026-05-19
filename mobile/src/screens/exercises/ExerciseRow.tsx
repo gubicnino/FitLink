@@ -1,6 +1,6 @@
 import React from 'react';
 import { Image, Pressable, StyleSheet, View } from 'react-native';
-import { Check, Dumbbell } from 'lucide-react-native';
+import { Check, Dumbbell, Info } from 'lucide-react-native';
 import { colors, radii, spacing } from '../../theme';
 import { Dot, Tag, Text } from '../../components/ui';
 import type { ExerciseSummary } from '../../types/exercise';
@@ -8,11 +8,18 @@ import type { ExerciseSummary } from '../../types/exercise';
 interface ExerciseRowProps {
   exercise: ExerciseSummary;
   onPress?: () => void;
+  onInfoPress?: () => void;
   selectable?: boolean;
   selected?: boolean;
 }
 
-export function ExerciseRow({ exercise, onPress, selectable, selected }: ExerciseRowProps) {
+export function ExerciseRow({
+  exercise,
+  onPress,
+  onInfoPress,
+  selectable,
+  selected,
+}: ExerciseRowProps) {
   return (
     <Pressable
       onPress={onPress}
@@ -47,6 +54,16 @@ export function ExerciseRow({ exercise, onPress, selectable, selected }: Exercis
           ) : null}
         </View>
       </View>
+      {onInfoPress ? (
+        <Pressable
+          onPress={onInfoPress}
+          hitSlop={10}
+          style={({ pressed }) => [styles.infoBtn, pressed && { opacity: 0.5 }]}
+          accessibilityLabel="Exercise details"
+        >
+          <Info size={18} color={colors.inkMuted} strokeWidth={2} />
+        </Pressable>
+      ) : null}
       {selectable ? (
         <View style={[styles.check, selected ? styles.checkOn : styles.checkOff]}>
           {selected ? <Check size={14} color={colors.white} strokeWidth={3} /> : null}
@@ -104,6 +121,13 @@ const styles = StyleSheet.create({
   rowSelected: {
     borderColor: colors.primary,
     backgroundColor: colors.primarySoft,
+  },
+  infoBtn: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   check: {
     width: 24,

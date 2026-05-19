@@ -163,9 +163,10 @@ export function ExercisePickerScreen() {
         onPress={() => {
           if (isSelect) toggleSelected(item.id);
         }}
+        onInfoPress={() => navigation.navigate('ExerciseDetail', { exerciseId: item.id })}
       />
     ),
-    [isSelect, selectedIds, toggleSelected],
+    [isSelect, selectedIds, toggleSelected, navigation],
   );
 
   return (

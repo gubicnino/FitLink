@@ -11,6 +11,7 @@ import {
   ChevronUp,
   Dumbbell,
   GripVertical,
+  Info,
   Plus,
   Trash2,
 } from 'lucide-react-native';
@@ -40,6 +41,7 @@ interface Props {
   onRemove: () => void;
   onMoveUp: () => void;
   onMoveDown: () => void;
+  onInfoPress?: () => void;
 }
 
 const DEFAULT_NEW_SET: FormSet = { reps: 10, weightKg: 0, restSeconds: null };
@@ -53,6 +55,7 @@ export function TemplateExerciseRow({
   onRemove,
   onMoveUp,
   onMoveDown,
+  onInfoPress,
 }: Props) {
   const isFirst = index === 0;
   const isLast = index === total - 1;
@@ -103,6 +106,11 @@ export function TemplateExerciseRow({
         </View>
 
         <View style={styles.headerActions}>
+          {onInfoPress ? (
+            <IconButton variant="ghost" size="sm" onPress={onInfoPress}>
+              <Info size={16} color={colors.inkSecondary} strokeWidth={2} />
+            </IconButton>
+          ) : null}
           <IconButton
             variant="ghost"
             size="sm"

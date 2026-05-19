@@ -6,6 +6,7 @@ import { WeeklyCheckInScreen } from '../screens/checkin/WeeklyCheckInScreen';
 import { FindTrainerScreen } from '../screens/coach/FindTrainerScreen';
 import { AddCourses } from '../screens/courses/AddCourses';
 import { CourseDetailScreen } from '../screens/courses/CourseDetailScreen';
+import { ExerciseDetailScreen } from '../screens/exercises/ExerciseDetailScreen';
 import { ExercisePickerScreen } from '../screens/exercises/ExercisePickerScreen';
 import { TrainerApplicationScreen } from '../screens/profile/TrainerApplicationScreen';
 import { LiveWorkoutScreen } from '../screens/workouts/LiveWorkoutScreen';
@@ -52,6 +53,7 @@ export function RootNavigator({ initialRoute = 'Auth' }: RootNavigatorProps) {
           component={ExercisePickerScreen}
           options={{ presentation: 'modal', animation: 'slide_from_bottom' }}
         />
+        <Stack.Screen name="ExerciseDetail" component={ExerciseDetailScreen} />
         <Stack.Screen name="TemplateDetail" component={TemplateDetailScreen} />
         <Stack.Screen name="TemplateForm" component={TemplateFormScreen} />
       </Stack.Navigator>
