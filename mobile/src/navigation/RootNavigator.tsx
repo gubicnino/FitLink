@@ -12,6 +12,7 @@ import { TrainerApplicationScreen } from '../screens/profile/TrainerApplicationS
 import { LiveWorkoutScreen } from '../screens/workouts/LiveWorkoutScreen';
 import { TemplateDetailScreen } from '../screens/workouts/TemplateDetailScreen';
 import { TemplateFormScreen } from '../screens/workouts/TemplateFormScreen';
+import { User } from '../types/types';
 import { AuthStack } from './AuthStack';
 import { TraineeTabs } from './TraineeTabs';
 import { TrainerTabs } from './TrainerTabs';
@@ -20,14 +21,21 @@ import type { RootStackParamList } from './types';
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
 interface RootNavigatorProps {
-  initialRoute?: keyof RootStackParamList;
+  user: User | null;
 }
+export function RootNavigator({ user }: RootNavigatorProps) {
 
-export function RootNavigator({ initialRoute = 'Auth' }: RootNavigatorProps) {
+  const getInitialRoute = (): keyof RootStackParamList => {
+    if (!user) return 'Auth';
+    if (user.role === 'TRAINER') return 'TrainerRoot';
+    if (user.role === 'ADMIN') return 'AdminApplications';
+    return 'TraineeRoot';
+  };
+
   return (
     <NavigationContainer>
       <Stack.Navigator
-        initialRouteName={initialRoute}
+        initialRouteName={getInitialRoute()}
         screenOptions={{ headerShown: false, animation: 'slide_from_right' }}
       >
         <Stack.Screen name="Auth" component={AuthStack} />
