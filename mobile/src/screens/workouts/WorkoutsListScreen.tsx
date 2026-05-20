@@ -1,18 +1,23 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useRef, useState } from 'react';
 import {
   ActivityIndicator,
+  Alert,
+  Pressable,
   RefreshControl,
   ScrollView,
   StyleSheet,
   View,
 } from 'react-native';
+
+import { Swipeable } from 'react-native-gesture-handler';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
-import { Plus } from 'lucide-react-native';
-import { colors, spacing } from '../../theme';
+import { Plus, Trash2 } from 'lucide-react-native';
+import { colors, radii, spacing } from '../../theme';
 import { Button, Screen, TabSwitcher, Text } from '../../components/ui';
 import { ScreenHeader } from '../../components/layout';
 import { WorkoutTemplateCard, WorkoutTemplate as CardTemplate } from './WorkoutTemplateCard';
+import { SessionHistoryCard } from './SessionHistoryCard';
 import { workoutApi } from '../../api/workoutApi';
 import type { WorkoutSession, WorkoutTemplate } from '../../types/workout';
 import type { RootStackParamList } from '../../navigation/types';
@@ -63,6 +68,31 @@ export function WorkoutsListScreen() {
       setRefreshing(false);
     }
   }, [load]);
+
+  const onDeleteSession = useCallback((session: WorkoutSession) => {
+    Alert.alert(
+      'Delete workout?',
+      `"${session.name}" will be removed from your history. This cannot be undone.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            setSessions(curr => curr.filter(s => s.id !== session.id));
+            try {
+              await workoutApi.deleteSession(session.id);
+            } catch (err) {
+              setSessions(curr =>
+                curr.some(s => s.id === session.id) ? curr : [session, ...curr],
+              );
+              Alert.alert('Could not delete', extractMessage(err));
+            }
+          },
+        },
+      ],
+    );
+  }, []);
 
   return (
     <Screen edges={['top']}>
@@ -127,11 +157,15 @@ export function WorkoutsListScreen() {
             />
           ) : (
             <View style={styles.list}>
+              <Text variant="caption" color="muted" style={styles.swipeHint}>
+                Swipe left on a workout to delete
+              </Text>
               {sessions.map(s => (
-                <WorkoutTemplateCard
+                <SwipeableHistoryRow
                   key={s.id}
-                  template={toCardSession(s)}
-                  onPress={() => navigation.navigate('LiveWorkout', { workoutId: s.id })}
+                  session={s}
+                  onPress={() => navigation.navigate('SessionDetail', { sessionId: s.id })}
+                  onDelete={() => onDeleteSession(s)}
                 />
               ))}
             </View>
@@ -140,6 +174,47 @@ export function WorkoutsListScreen() {
       )}
 
     </Screen>
+  );
+}
+
+
+interface SwipeableHistoryRowProps {
+  session: WorkoutSession;
+  onPress: () => void;
+  onDelete: () => void;
+}
+
+function SwipeableHistoryRow({ session, onPress, onDelete }: SwipeableHistoryRowProps) {
+  const ref = useRef<Swipeable | null>(null);
+
+  const renderRightActions = useCallback(
+    () => (
+      <Pressable
+        onPress={() => {
+          ref.current?.close();
+          onDelete();
+        }}
+        style={({ pressed }) => [styles.deleteAction, pressed && { opacity: 0.85 }]}
+        accessibilityLabel="Delete workout"
+      >
+        <Trash2 size={20} color={colors.white} strokeWidth={2.25} />
+        <Text variant="micro" weight="700" color="inverse" style={styles.deleteActionLabel}>
+          Delete
+        </Text>
+      </Pressable>
+    ),
+    [onDelete],
+  );
+
+  return (
+    <Swipeable
+      ref={ref}
+      renderRightActions={renderRightActions}
+      rightThreshold={40}
+      overshootRight={false}
+    >
+      <SessionHistoryCard session={session} onPress={onPress} />
+    </Swipeable>
   );
 }
 
@@ -164,29 +239,6 @@ function toCardTemplate(t: WorkoutTemplate): CardTemplate {
   };
 }
 
-function toCardSession(s: WorkoutSession): CardTemplate {
-  return {
-    id: s.id,
-    name: s.name,
-    exerciseCount: s.exercises?.length ?? 0,
-    durationMinutes: s.durationMinutes || undefined,
-    lastUsed: s.finishedAt ? relativeTime(s.finishedAt) : undefined,
-  };
-}
-
-function relativeTime(iso: string): string {
-  const then = new Date(iso).getTime();
-  const now = Date.now();
-  const minutes = Math.floor((now - then) / 60_000);
-  if (minutes < 1) return 'just now';
-  if (minutes < 60) return `${minutes} min ago`;
-  const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `${hours} h ago`;
-  const days = Math.floor(hours / 24);
-  if (days < 7) return `${days} d ago`;
-  return new Date(iso).toLocaleDateString();
-}
-
 function extractMessage(err: unknown): string {
   if (err && typeof err === 'object' && 'response' in err) {
     const resp = (err as { response?: { data?: { message?: string } } }).response;
@@ -200,6 +252,7 @@ const styles = StyleSheet.create({
   gutter: { paddingHorizontal: spacing.xxl },
   scrollContent: { paddingBottom: spacing.huge + 60 },
   list: { paddingHorizontal: spacing.xxl, paddingTop: spacing.xxl, gap: spacing.md },
+  swipeHint: { paddingHorizontal: spacing.xs, marginBottom: spacing.xs },
   empty: { padding: spacing.huge + spacing.xl, alignItems: 'center', gap: spacing.md },
   detail: { paddingHorizontal: spacing.xl },
   center: {
@@ -210,4 +263,14 @@ const styles = StyleSheet.create({
     gap: spacing.md,
   },
   retry: { marginTop: spacing.md },
+  deleteAction: {
+    backgroundColor: colors.danger,
+    justifyContent: 'center',
+    alignItems: 'center',
+    width: 84,
+    borderRadius: radii.lg,
+    marginLeft: spacing.sm,
+    gap: 4,
+  },
+  deleteActionLabel: { letterSpacing: 0.4 },
 });

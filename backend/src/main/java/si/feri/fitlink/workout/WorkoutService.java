@@ -95,6 +95,12 @@ public class WorkoutService {
         templateRepo.deleteById(templateId);
     }
 
+    /** Izbriše zgodovinsko session. Samo lastnik. */
+    public void deleteSession(String sessionId, String requesterId) {
+        WorkoutSession existing = getSession(sessionId, requesterId);
+        sessionRepo.deleteById(existing.getId());
+    }
+
 
     public WorkoutSession startSession(
             String userId,

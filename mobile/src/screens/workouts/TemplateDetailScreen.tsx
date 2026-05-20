@@ -99,7 +99,7 @@ export function TemplateDetailScreen() {
   }, [navigation, templateId]);
 
   const onStart = useCallback(() => {
-    navigation.navigate('LiveWorkout', { workoutId: templateId });
+    navigation.navigate('LiveWorkout', { templateId });
   }, [navigation, templateId]);
 
   const onDelete = useCallback(() => {

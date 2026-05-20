@@ -1,186 +1,495 @@
-import React, { useState } from 'react';
-import { Image, StyleSheet, View } from 'react-native';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import {
+  ActivityIndicator,
+  Alert,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  View,
+} from 'react-native';
+import {
+  CommonActions,
+  useFocusEffect,
+  useNavigation,
+  useRoute,
+  type RouteProp,
+} from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { useNavigation } from '@react-navigation/native';
-import { Check, ChevronRight, Pause, X } from 'lucide-react-native';
-import { colors, radii, spacing } from '../../theme';
-import { Button, Card, IconButton, Screen, Stepper, Tag, Text } from '../../components/ui';
+import { Flag, Plus, X } from 'lucide-react-native';
+import { colors, radii, shadows, spacing } from '../../theme';
+import { Button, IconButton, Screen, Text } from '../../components/ui';
+import { exerciseApi } from '../../api/exerciseApi';
+import { workoutApi } from '../../api/workoutApi';
+import { useElapsedTime, formatElapsed } from '../../hooks/useElapsedTime';
+import {
+  buildSessionFromTemplate,
+  useLiveSession,
+} from '../../hooks/useLiveSession';
+import type {
+  LiveSessionState,
+  SessionUpsertRequest,
+  TemplateUpsertRequest,
+} from '../../types/workout';
 import type { RootStackParamList } from '../../navigation/types';
+import { LiveExerciseCard } from './LiveExerciseCard';
+import { RestTimerOverlay } from './RestTimerOverlay';
+import { FinishWorkoutSheet, type FinishMode } from './FinishWorkoutSheet';
 
-type Nav = NativeStackNavigationProp<RootStackParamList>;
+type Nav = NativeStackNavigationProp<RootStackParamList, 'LiveWorkout'>;
+type Route = RouteProp<RootStackParamList, 'LiveWorkout'>;
 
-const EXERCISE_IMG =
-  'https://images.unsplash.com/photo-1517836357463-d25dfeac3438?w=800&q=80&auto=format';
+interface RestTimerState {
+  setId: string;
+  startedAt: string;
+  durationSeconds: number;
+}
 
 export function LiveWorkoutScreen() {
   const navigation = useNavigation<Nav>();
-  const [weight, setWeight] = useState(70);
-  const [reps, setReps] = useState(8);
+  const params = useRoute<Route>().params;
+  const templateId = params?.templateId;
+  const pendingExerciseIds = params?.pendingExerciseIds;
+
+  const {
+    session,
+    hydrated,
+    start,
+    discard,
+    updateSet,
+    toggleSetCompleted,
+    addSet,
+    removeSet,
+    removeExercise,
+    appendExercises,
+  } = useLiveSession();
+
+  const [bootstrapping, setBootstrapping] = useState(true);
+  const [bootstrapError, setBootstrapError] = useState<string | null>(null);
+  const [restTimer, setRestTimer] = useState<RestTimerState | null>(null);
+  const [finishOpen, setFinishOpen] = useState(false);
+  const [saving, setSaving] = useState(false);
+
+
+  useEffect(() => {
+    if (!hydrated) return;
+    if (!templateId) {
+      setBootstrapError('Missing template id.');
+      setBootstrapping(false);
+      return;
+    }
+
+    // If a session already exists for this templateId, samo normalno idemo dale
+    if (session && session.templateId === templateId) {
+      setBootstrapping(false);
+      return;
+    }
+
+    // If a session exists for a different template, vprašamo before discarding
+    if (session && session.templateId !== templateId) {
+      Alert.alert(
+        'Active workout in progress',
+        `You have an unfinished workout (${session.name}). Discard it and start "${templateId}" anyway?`,
+        [
+          {
+            text: 'Keep working out',
+            style: 'cancel',
+            onPress: () => navigation.goBack(),
+          },
+          {
+            text: 'Discard & start new',
+            style: 'destructive',
+            onPress: async () => {
+              await discard();
+              await bootstrapFresh();
+            },
+          },
+        ],
+      );
+      return;
+    }
+
+    bootstrapFresh();
+
+    async function bootstrapFresh() {
+      setBootstrapping(true);
+      setBootstrapError(null);
+      try {
+        const template = await workoutApi.getTemplate(templateId!);
+        const ids = template.exercises.map(e => e.exerciseId);
+        const detail = await Promise.all(ids.map(id => exerciseApi.getById(id)));
+        const lookup = new Map(
+          detail.map(d => [
+            d.id,
+            {
+              name: d.name,
+              category: d.category,
+              thumbnailUrl: pickThumb(d.images),
+            },
+          ]),
+        );
+        const fresh = buildSessionFromTemplate(template, lookup);
+        start(fresh);
+      } catch (err) {
+        setBootstrapError(extractMessage(err));
+      } finally {
+        setBootstrapping(false);
+      }
+    }
+  }, [hydrated, templateId]);
+
+
+  useFocusEffect(
+    useCallback(() => {
+      if (!pendingExerciseIds || pendingExerciseIds.length === 0) return;
+      const ids = pendingExerciseIds;
+      navigation.setParams({ pendingExerciseIds: undefined });
+      (async () => {
+        try {
+          const fetched = await Promise.all(ids.map(id => exerciseApi.getById(id)));
+          appendExercises(
+            fetched.map(e => ({
+              exerciseId: e.id,
+              name: e.name,
+              category: e.category,
+              thumbnailUrl: pickThumb(e.images),
+            })),
+          );
+        } catch (err) {
+          Alert.alert('Could not add exercise', extractMessage(err));
+        }
+      })();
+    }, [pendingExerciseIds, appendExercises, navigation]),
+  );
+
+
+  const onCompleteSet = useCallback(
+    (exerciseId: string, setId: string) => {
+      if (!session) return;
+      const ex = session.exercises.find(e => e.id === exerciseId);
+      const set = ex?.sets.find(s => s.id === setId);
+      const wasCompleted = set?.completed ?? false;
+      toggleSetCompleted(exerciseId, setId);
+
+      if (!wasCompleted && set?.restSeconds != null && set.restSeconds > 0) {
+        setRestTimer({
+          setId,
+          startedAt: new Date().toISOString(),
+          durationSeconds: set.restSeconds,
+        });
+      }
+    },
+    [session, toggleSetCompleted],
+  );
+
+  const onSkipRest = useCallback(() => setRestTimer(null), []);
+
+  const onChangeRestDuration = useCallback((next: number) => {
+    setRestTimer(prev => (prev ? { ...prev, durationSeconds: next } : prev));
+  }, []);
+
+  const onAddExercise = useCallback(() => {
+    navigation.navigate('ExercisePicker', {
+      mode: 'select',
+      appendToLiveSession: true,
+    });
+  }, [navigation]);
+
+  const onClose = useCallback(() => {
+    Alert.alert(
+      'Stop workout?',
+      "Your progress is saved on this device. You can come back to it later from the Workouts tab.",
+      [
+        { text: 'Continue workout', style: 'cancel' },
+        {
+          text: 'Stop',
+          style: 'destructive',
+          onPress: () => navigation.goBack(),
+        },
+      ],
+    );
+  }, [navigation]);
+
+  const onConfirmFinish = useCallback(
+    async (mode: FinishMode, removeSkipped: boolean) => {
+      if (!session) return;
+      setSaving(true);
+      try {
+        const sessionBody = toSessionRequest(session);
+        await workoutApi.startSession(sessionBody).then(saved =>
+
+          // If "save as template", we update the template z final structure in logged sets (med dejanskin workouton LIVE)
+          saved,
+        );
+
+        if (mode === 'save-template' && templateId) {
+          const templateBody = toTemplateRequest(session, removeSkipped);
+          await workoutApi.updateTemplate(templateId, templateBody);
+        }
+
+
+        await discard();
+        navigation.dispatch(state => {
+          const routes = state.routes.filter(r => r.name !== 'LiveWorkout');
+          return CommonActions.reset({
+            ...state,
+            routes,
+            index: routes.length - 1,
+          });
+        });
+      } catch (err) {
+        Alert.alert('Could not save workout', extractMessage(err));
+        setSaving(false);
+      }
+    },
+    [session, templateId, discard, navigation],
+  );
+
+
+  const elapsedSeconds = useElapsedTime(session?.startedAt);
+
+  const skippedExerciseNames = useMemo(() => {
+    if (!session) return [];
+    return session.exercises
+      .filter(ex => ex.sets.length === 0 || ex.sets.every(s => !s.completed))
+      .map(ex => ex.name);
+  }, [session]);
+
+  const completedSets = useMemo(() => {
+    if (!session) return 0;
+    let n = 0;
+    for (const ex of session.exercises) for (const s of ex.sets) if (s.completed) n += 1;
+    return n;
+  }, [session]);
+
+
+  if (!hydrated || bootstrapping || !session) {
+    return (
+      <Screen edges={['top']}>
+        <View style={styles.center}>
+          {bootstrapError ? (
+            <>
+              <Text variant="bodyLarge" color="danger" weight="600" align="center">
+                Could not start workout
+              </Text>
+              <Text variant="bodySmall" color="secondary" align="center" style={styles.detail}>
+                {bootstrapError}
+              </Text>
+              <Button
+                label="Go back"
+                variant="outline"
+                size="md"
+                onPress={() => navigation.goBack()}
+                style={styles.bootstrapBackBtn}
+              />
+            </>
+          ) : (
+            <ActivityIndicator color={colors.primary} />
+          )}
+        </View>
+      </Screen>
+    );
+  }
 
   return (
-    <Screen dark scroll edges={['top']}>
+    <Screen edges={['top']}>
       <View style={styles.header}>
-        <IconButton variant="dark" size="md" onPress={() => navigation.goBack()}>
-          <X size={18} color={colors.white} strokeWidth={2} />
+        <IconButton variant="surface" withBorder onPress={onClose}>
+          <X size={18} color={colors.inkPrimary} strokeWidth={2.25} />
         </IconButton>
         <View style={styles.headerCenter}>
-          <Text variant="micro" color="darkTextSecondary" style={styles.headerEyebrow}>
-            Push Day
+          <Text variant="caption" color="muted">
+            {session.name}
           </Text>
-          <Text mono tabular color="darkText" style={styles.timer}>
-            23:45
+          <Text mono tabular weight="700" style={styles.timer}>
+            {formatElapsed(elapsedSeconds)}
           </Text>
         </View>
-        <IconButton variant="dark" size="md" onPress={() => {}}>
-          <Pause size={16} color={colors.white} fill={colors.white} strokeWidth={2} />
-        </IconButton>
+        <View style={styles.headerSpacer} />
       </View>
 
-      <View style={styles.gutter}>
-        <Card variant="dark" padding="none" bordered={false} style={styles.exerciseCard}>
-          <View style={styles.imageWrap}>
-            <Image source={{ uri: EXERCISE_IMG }} style={styles.image} />
-            <View style={styles.imageGradient} />
-          </View>
-          <View style={styles.exerciseBody}>
-            <View style={styles.exerciseTitleRow}>
-              <View style={styles.flex}>
-                <Text variant="h3" color="darkText" style={{ lineHeight: 22 }}>
-                  Bench Press
-                </Text>
-                <Text variant="bodySmall" color="darkTextSecondary" style={{ marginTop: 2 }}>
-                  Set 2 of 4 • Barbell
-                </Text>
-              </View>
-              <Tag label="Active" tone="accent" />
-            </View>
-
-            <View style={styles.steppers}>
-              <Stepper
-                label="Weight"
-                value={weight}
-                unit="kg"
-                dark
-                onIncrement={() => setWeight(w => w + 2.5)}
-                onDecrement={() => setWeight(w => Math.max(0, w - 2.5))}
-                style={styles.stepperItem}
-              />
-              <Stepper
-                label="Reps"
-                value={reps}
-                dark
-                onIncrement={() => setReps(r => r + 1)}
-                onDecrement={() => setReps(r => Math.max(0, r - 1))}
-                style={styles.stepperItem}
-              />
-            </View>
-
-            <Button
-              label="Complete set"
-              variant="accent"
-              fullWidth
-              leftIcon={<Check size={18} color={colors.white} strokeWidth={2.5} />}
+      <ScrollView
+        contentContainerStyle={styles.scroll}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+      >
+        <View style={styles.list}>
+          {session.exercises.map(ex => (
+            <LiveExerciseCard
+              key={ex.id}
+              exercise={ex}
+              onCompleteSet={setId => onCompleteSet(ex.id, setId)}
+              onChangeSet={(setId, patch) => updateSet(ex.id, setId, patch)}
+              onAddSet={() => addSet(ex.id)}
+              onRemoveSet={setId => removeSet(ex.id, setId)}
+              onRemoveExercise={() =>
+                Alert.alert(
+                  'Remove exercise?',
+                  `Remove "${ex.name}" from this workout? You'll lose any logged sets.`,
+                  [
+                    { text: 'Cancel', style: 'cancel' },
+                    {
+                      text: 'Remove',
+                      style: 'destructive',
+                      onPress: () => removeExercise(ex.id),
+                    },
+                  ],
+                )
+              }
+              onInfoPress={() =>
+                navigation.navigate('ExerciseDetail', { exerciseId: ex.exerciseId })
+              }
             />
-          </View>
-        </Card>
+          ))}
 
-        <Text variant="caption" color="darkTextSecondary" style={styles.subLabel}>
-          Previous sets
-        </Text>
-        <Card variant="dark" padding="sm" bordered={false} style={styles.subCard}>
-          <View style={styles.prevRow}>
-            <View style={styles.checkBadge}>
-              <Check size={14} color={colors.success} strokeWidth={2.5} />
-            </View>
-            <Text variant="bodySmall" color="darkText" weight="500" style={styles.flex}>
-              Set 1
+          <Pressable
+            onPress={onAddExercise}
+            style={({ pressed }) => [styles.addExerciseBtn, pressed && { opacity: 0.7 }]}
+          >
+            <Plus size={18} color={colors.primary} strokeWidth={2.25} />
+            <Text variant="body" weight="600" color="brand">
+              Add exercise
             </Text>
-            <Text mono tabular color="darkTextSecondary" style={styles.prevValue}>
-              70 kg × 8 reps
-            </Text>
-          </View>
-        </Card>
+          </Pressable>
+        </View>
+      </ScrollView>
 
-        <Card variant="dark" padding="sm" bordered={false} style={styles.subCard}>
-          <View style={styles.upNextRow}>
-            <Text variant="caption" color="darkTextSecondary">
-              Up next
-            </Text>
-            <Text variant="bodySmall" color="darkText" weight="600" style={styles.flex}>
-              Shoulder Press
-            </Text>
-            <ChevronRight size={16} color={colors.dark.textSecondary} strokeWidth={2} />
-          </View>
-        </Card>
+      <View style={[styles.ctaBar, shadows.modal]}>
+        <Button
+          label="Finish workout"
+          variant="primary"
+          fullWidth
+          leftIcon={<Flag size={16} color={colors.white} strokeWidth={2.25} />}
+          onPress={() => setFinishOpen(true)}
+        />
       </View>
 
-      <View style={styles.bottomSpacer} />
+      <RestTimerOverlay
+        startedAt={restTimer?.startedAt ?? null}
+        durationSeconds={restTimer?.durationSeconds ?? 0}
+        visible={restTimer !== null}
+        onSkip={onSkipRest}
+        onChangeDuration={onChangeRestDuration}
+      />
+
+      <FinishWorkoutSheet
+        visible={finishOpen}
+        skippedExercises={skippedExerciseNames}
+        completedSets={completedSets}
+        elapsedSeconds={elapsedSeconds}
+        saving={saving}
+        onCancel={() => setFinishOpen(false)}
+        onConfirm={onConfirmFinish}
+      />
     </Screen>
   );
+}
+
+
+function pickThumb(images: string[] | null | undefined): string | null {
+  if (!images || images.length === 0) return null;
+  return images.length > 1 ? images[1] : images[0];
+}
+
+function toSessionRequest(s: LiveSessionState): SessionUpsertRequest {
+  return {
+    templateId: s.templateId,
+    name: s.name,
+    exercises: s.exercises.map(ex => ({
+      exerciseId: ex.exerciseId,
+      notes: null,
+      sets: ex.sets
+        .filter(set => set.completed) // POMEMBNO, LOGGAMO DEJANSKO SAMO SETE KERI SO "COMPLETED"
+        .map(set => ({
+          reps: set.reps,
+          weightKg: set.weightKg,
+          rpe: null,
+          completed: true,
+        })),
+    })),
+  };
+}
+
+function toTemplateRequest(s: LiveSessionState, removeSkipped: boolean): TemplateUpsertRequest {
+  // Preserve original order; if removeSkipped, drop exercises Z 0 COMPLETEDD sets
+  const kept = removeSkipped ? s.exercises.filter(ex => ex.sets.some(set => set.completed)) : s.exercises;
+  return {
+    name: s.name,
+    exercises: kept.map((ex, idx) => ({
+      exerciseId: ex.exerciseId,
+      order: idx,
+      notes: null,
+
+      // POMEMBNO: tudi tu uporabljamo samo "completed" sete, ker so samo ti relevantni za template
+      // This means that if the user added sets during the workout, those sets (with their target reps/weight/rest) will be saved into the template.
+      sets: ex.sets.map(set => ({
+        targetReps: set.reps,
+        targetWeightKg: set.weightKg,
+        restSeconds: set.restSeconds,
+      })),
+    })),
+  };
+}
+
+function extractMessage(err: unknown): string {
+  if (err && typeof err === 'object' && 'response' in err) {
+    const resp = (err as { response?: { data?: { message?: string } } }).response;
+    if (resp?.data?.message) return resp.data.message;
+  }
+  if (err instanceof Error) return err.message;
+  return 'Unknown error';
 }
 
 const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
+    paddingHorizontal: spacing.xxl,
+    paddingTop: spacing.lg,
+    paddingBottom: spacing.lg,
+    gap: spacing.lg,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.line,
+  },
+  headerCenter: { flex: 1, alignItems: 'center', gap: 2 },
+  headerSpacer: { width: 40 },
+  timer: { fontSize: 22, lineHeight: 26, letterSpacing: -0.5 },
+
+  scroll: { paddingTop: spacing.xl, paddingBottom: spacing.huge + 80 },
+  list: { paddingHorizontal: spacing.xxl, gap: spacing.md },
+
+  addExerciseBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.md,
+    paddingVertical: spacing.xl,
+    borderRadius: radii.lg,
+    borderWidth: 1.5,
+    borderColor: colors.primarySoftStrong,
+    borderStyle: 'dashed',
+    backgroundColor: colors.surface,
+  },
+
+  ctaBar: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
     paddingHorizontal: spacing.xxl,
     paddingTop: spacing.lg,
     paddingBottom: spacing.xxl,
+    backgroundColor: colors.surface,
+    borderTopWidth: 1,
+    borderTopColor: colors.line,
   },
-  headerCenter: { alignItems: 'center' },
-  headerEyebrow: {
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-    marginBottom: 2,
-  },
-  timer: { fontSize: 18 },
 
-  gutter: { paddingHorizontal: spacing.xxl },
-
-  exerciseCard: { overflow: 'hidden', marginBottom: spacing.lg },
-  imageWrap: { height: 160, position: 'relative' },
-  image: { width: '100%', height: '100%' },
-  imageGradient: {
-    ...StyleSheet.absoluteFill,
-    backgroundColor: 'rgba(26,31,38,0.35)',
-  },
-  exerciseBody: { padding: spacing.xl, gap: spacing.lg },
-  exerciseTitleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  steppers: { flexDirection: 'row', gap: spacing.lg },
-  stepperItem: { flex: 1 },
-
-  subLabel: { marginBottom: spacing.md, marginTop: spacing.md, paddingHorizontal: spacing.xs },
-  subCard: { marginBottom: spacing.lg },
-  prevRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.lg,
-    paddingHorizontal: spacing.md,
-  },
-  checkBadge: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: colors.successSoftStrong,
+  center: {
+    flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
+    paddingHorizontal: spacing.xxl,
+    gap: spacing.md,
   },
-  prevValue: { fontSize: 13 },
-  upNextRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.lg,
-    paddingHorizontal: spacing.md,
-  },
-
-  flex: { flex: 1 },
-  bottomSpacer: { height: spacing.huge },
-
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  _r: { borderRadius: radii.lg },
+  detail: { paddingHorizontal: spacing.xl },
+  bootstrapBackBtn: { marginTop: spacing.lg },
 });

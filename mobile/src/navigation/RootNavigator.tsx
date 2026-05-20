@@ -10,6 +10,7 @@ import { ExerciseDetailScreen } from '../screens/exercises/ExerciseDetailScreen'
 import { ExercisePickerScreen } from '../screens/exercises/ExercisePickerScreen';
 import { TrainerApplicationScreen } from '../screens/profile/TrainerApplicationScreen';
 import { LiveWorkoutScreen } from '../screens/workouts/LiveWorkoutScreen';
+import { SessionDetailScreen } from '../screens/workouts/SessionDetailScreen';
 import { TemplateDetailScreen } from '../screens/workouts/TemplateDetailScreen';
 import { TemplateFormScreen } from '../screens/workouts/TemplateFormScreen';
 import { User } from '../types/types';
@@ -66,6 +67,7 @@ export function RootNavigator({ user }: RootNavigatorProps) {
         <Stack.Screen name="ExerciseDetail" component={ExerciseDetailScreen} />
         <Stack.Screen name="TemplateDetail" component={TemplateDetailScreen} />
         <Stack.Screen name="TemplateForm" component={TemplateFormScreen} />
+        <Stack.Screen name="SessionDetail" component={SessionDetailScreen} />
       </Stack.Navigator>
     </NavigationContainer>
   );

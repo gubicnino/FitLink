@@ -35,15 +35,22 @@ export type RootStackParamList = {
   AdminRoot: NavigatorScreenParams<AdminTabParamList>;
   TrainerApplication: undefined;
   AdminApplications: undefined;
-  LiveWorkout: { workoutId?: string } | undefined;
+  LiveWorkout:
+    | { templateId: string; pendingExerciseIds?: string[] }
+    | undefined;
   CourseDetail: { courseId?: string } | undefined;
   WeeklyCheckIn: undefined;
   FindTrainer: undefined;
   ExercisePicker:
-    | { mode?: 'browse' | 'select'; appendToTemplateId?: string }
+    | {
+        mode?: 'browse' | 'select';
+        appendToTemplateId?: string;
+        appendToLiveSession?: boolean;
+      }
     | undefined;
   ExerciseDetail: { exerciseId: string };
   TemplateDetail: { templateId: string };
+  SessionDetail: { sessionId: string };
   TemplateForm:
     | { mode: 'create'; exerciseIds: string[]; pendingExerciseIds?: string[] }
     | { mode: 'edit'; templateId: string; pendingExerciseIds?: string[] };

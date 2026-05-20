@@ -42,10 +42,17 @@ export function ExercisePickerScreen() {
   const mode = route.params?.mode ?? 'select';
   const isSelect = mode === 'select';
   const appendToTemplateId = route.params?.appendToTemplateId;
+  const appendToLiveSession = route.params?.appendToLiveSession;
 
   const handleContinue = useCallback(
     (ids: string[]) => {
-      if (appendToTemplateId) {
+      if (appendToLiveSession) {
+        navigation.navigate({
+          name: 'LiveWorkout',
+          params: { pendingExerciseIds: ids } as never,
+          merge: true,
+        });
+      } else if (appendToTemplateId) {
         navigation.navigate({
           name: 'TemplateForm',
           params: {
@@ -59,7 +66,7 @@ export function ExercisePickerScreen() {
         navigation.navigate('TemplateForm', { mode: 'create', exerciseIds: ids });
       }
     },
-    [navigation, appendToTemplateId],
+    [navigation, appendToTemplateId, appendToLiveSession],
   );
 
   const [selectedIds, setSelectedIds] = useState<string[]>([]);

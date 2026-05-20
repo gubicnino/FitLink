@@ -69,4 +69,8 @@ export const workoutApi = {
     );
     return res.data;
   },
+
+  deleteSession: async (id: string): Promise<void> => {
+    await apiClient.delete(`/workouts/sessions/${encodeURIComponent(id)}`);
+  },
 };

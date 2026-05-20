@@ -69,3 +69,34 @@ export interface SessionUpsertRequest {
   name: string;
   exercises: SessionExercise[];
 }
+
+// Live workout
+
+// posamezen set v live workoutu
+export interface LiveSet {
+  id: string;
+  reps: number;
+  weightKg: number;
+  restSeconds: number | null;
+  completed: boolean;
+}
+
+// posamezna vaja v live workoutu
+export interface LiveExercise {
+  id: string;
+  exerciseId: string;
+  name: string;
+  category: string | null;
+  thumbnailUrl: string | null;
+  sets: LiveSet[];
+  addedLive: boolean;
+}
+
+// celoten state live workouta, persistira v AsyncStorage
+export interface LiveSessionState {
+  version: 1;
+  templateId: string;
+  name: string;
+  startedAt: string;
+  exercises: LiveExercise[];
+}

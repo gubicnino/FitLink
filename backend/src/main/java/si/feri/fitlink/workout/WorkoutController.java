@@ -40,10 +40,11 @@ import si.feri.fitlink.workout.WorkoutDtos.TemplateUpsertRequest;
  *    DELETE /api/workouts/templates/{id}    izbriši (samo lastnik)
  *
  *  Sessions
- *    GET    /api/workouts/sessions        lastnikov history (najnovejši najprej)
+ *    GET    /api/workouts/sessions          lastnikov history (najnovejši najprej)
  *    GET    /api/workouts/sessions/{id}     posamezna session (samo lastnik)
- *    POST   /api/workouts/sessions           začni session
- *    PATCH  /api/workouts/sessions/{id}    zaključi session z rezultati setov
+ *    POST   /api/workouts/sessions          začni session
+ *    PATCH  /api/workouts/sessions/{id}     zaključi session z rezultati setov
+ *    DELETE /api/workouts/sessions/{id}     izbriši zgodovinsko sejo (samo lastnik)
  */
 @RestController
 @RequestMapping("/api/workouts")
@@ -150,6 +151,15 @@ public class WorkoutController {
                 mapSessionExercises(body.exercises())
         );
         return SessionResponse.from(finished);
+    }
+
+    @DeleteMapping("/sessions/{id}")
+    public ResponseEntity<Void> deleteSession(
+            @PathVariable String id,
+            @AuthenticationPrincipal AuthPrincipal principal
+    ) {
+        workoutService.deleteSession(id, principal.uid());
+        return ResponseEntity.noContent().build();
     }
 
     // helpers
