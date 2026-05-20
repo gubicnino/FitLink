@@ -6,8 +6,9 @@ import { Text } from '../../components/ui';
 export interface Course {
   id: string;
   title: string;
+  description?: string;
   author: string;
-  duration: string;
+  type: string;
   imageUrl: string;
   category?: string;
   level?: string;
@@ -25,8 +26,8 @@ export function CourseCard({ course, onPress }: CourseCardProps) {
         <Image source={{ uri: course.imageUrl }} style={styles.image} />
         <View style={styles.imageOverlay} />
         <View style={styles.durationPill}>
-          <Text mono tabular style={styles.durationText}>
-            {course.duration}
+          <Text style={styles.durationText}>
+            {course.type}
           </Text>
         </View>
       </View>
@@ -34,6 +35,11 @@ export function CourseCard({ course, onPress }: CourseCardProps) {
         <Text variant="bodySmall" weight="600" numberOfLines={2} style={styles.title}>
           {course.title}
         </Text>
+        {course.description ? (
+          <Text variant="micro" color="secondary" numberOfLines={2} style={styles.description}>
+            {course.description}
+          </Text>
+        ) : null}
         <Text variant="micro" color="secondary">
           {course.author}
         </Text>
@@ -69,4 +75,5 @@ const styles = StyleSheet.create({
   durationText: { fontSize: 10, color: colors.white },
   body: { padding: spacing.md + 2 },
   title: { marginBottom: spacing.xs, lineHeight: 16 },
+  description: { marginBottom: spacing.xs, lineHeight: 14 },
 });

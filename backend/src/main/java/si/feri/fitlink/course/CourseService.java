@@ -75,12 +75,61 @@ public class CourseService {
     }
 
     private void applyRequest(Course course, CourseRequest request) {
+        String youtubeVideoId = request.getYoutubeVideoId() != null
+                ? request.getYoutubeVideoId().trim()
+                : "";
+        String articleUrl = request.getArticleUrl() != null
+                ? request.getArticleUrl().trim()
+                : "";
+        String pdfUrl = request.getPdfUrl() != null
+                ? request.getPdfUrl().trim()
+                : "";
+        boolean hasVideo = !youtubeVideoId.isBlank();
+        boolean hasArticle = !articleUrl.isBlank();
+        boolean hasPdf = !pdfUrl.isBlank();
+
+        if (!hasVideo && !hasArticle && !hasPdf) {
+            throw new IllegalArgumentException("Course requires a YouTube video, article URL, or PDF URL");
+        }
+
+        String contentType = normalizeContentType(request.getContentType(), hasVideo, hasArticle);
+
+        if (contentType.equals("VIDEO") && !hasVideo) {
+            throw new IllegalArgumentException("YouTube video is required for VIDEO courses");
+        }
+        if (contentType.equals("ARTICLE") && !hasArticle) {
+            throw new IllegalArgumentException("Article URL is required for ARTICLE courses");
+        }
+        if (contentType.equals("PDF") && !hasPdf) {
+            throw new IllegalArgumentException("PDF URL is required for PDF courses");
+        }
+
         course.setTitle(request.getTitle());
         course.setDescription(request.getDescription());
         course.setCategory(request.getCategory());
         course.setLevel(request.getLevel());
-        course.setYoutubeVideoId(request.getYoutubeVideoId());
+        course.setContentType(contentType);
+        course.setYoutubeVideoId(contentType.equals("VIDEO") ? youtubeVideoId : null);
+        course.setArticleUrl(contentType.equals("ARTICLE") ? articleUrl : null);
+        course.setPdfUrl(contentType.equals("PDF") ? pdfUrl : null);
         course.setThumbnailUrl(request.getThumbnailUrl());
+    }
+
+    private String normalizeContentType(String requestedType, boolean hasVideo, boolean hasArticle) {
+        if (requestedType == null || requestedType.isBlank()) {
+            if (hasVideo) return "VIDEO";
+            if (hasArticle) return "ARTICLE";
+            return "PDF";
+        }
+
+        String contentType = requestedType.trim().toUpperCase();
+        if (contentType.equals("ARTICLE_LINK")) {
+            return "ARTICLE";
+        }
+        if (!contentType.equals("VIDEO") && !contentType.equals("ARTICLE") && !contentType.equals("PDF")) {
+            throw new IllegalArgumentException("Course content type must be VIDEO, ARTICLE, or PDF");
+        }
+        return contentType;
     }
 
     private void ensureOwner(Course course, AuthPrincipal principal) {
@@ -104,10 +153,17 @@ public class CourseService {
                 .description(course.getDescription())
                 .category(course.getCategory())
                 .level(course.getLevel())
+                .contentType(course.getContentType() != null ? normalizeStoredContentType(course.getContentType()) : "VIDEO")
                 .youtubeVideoId(course.getYoutubeVideoId())
+                .articleUrl(course.getArticleUrl())
+                .pdfUrl(course.getPdfUrl())
                 .thumbnailUrl(course.getThumbnailUrl())
                 .publishedAt(course.getPublishedAt())
                 .stats(course.getStats())
                 .build();
+    }
+
+    private String normalizeStoredContentType(String contentType) {
+        return contentType.equals("ARTICLE_LINK") ? "ARTICLE" : contentType;
     }
 }

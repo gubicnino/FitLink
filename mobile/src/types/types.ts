@@ -29,5 +29,7 @@ export interface User {
 	fcmToken: string | null;
 	createdAt: string;
 	updatedAt: string;
+	avatarUrl: string | null;
+
 }
 

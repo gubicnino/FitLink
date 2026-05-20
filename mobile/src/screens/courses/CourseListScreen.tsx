@@ -130,7 +130,7 @@ export function CourseListScreen() {
               </View>
               <View style={styles.metaRow}>
                 <Text variant="micro" color="secondary">
-                  Video
+                  {getCourseTypeLabel(featured.contentType)}
                 </Text>
                 <Dot />
                 <Text variant="micro" color="secondary">
@@ -216,8 +216,9 @@ function toCourseCard(course: CourseDto): Course {
   return {
     id: course.id,
     title: course.title,
+    description: course.description,
     author: course.authorDisplayName ?? 'Coach',
-    duration: 'Video',
+    type: getCourseTypeLabel(course.contentType),
     imageUrl: getImageUrl(course),
     category: course.category,
     level: course.level,
@@ -226,4 +227,10 @@ function toCourseCard(course: CourseDto): Course {
 
 function getImageUrl(course: CourseDto) {
   return course.thumbnailUrl || (course.youtubeVideoId ? `https://img.youtube.com/vi/${course.youtubeVideoId}/hqdefault.jpg` : FALLBACK_IMG);
+}
+
+function getCourseTypeLabel(contentType?: string | null) {
+  if (contentType === 'PDF') return 'PDF';
+  if (contentType === 'ARTICLE' || contentType === 'ARTICLE_LINK') return 'ARTICLE';
+  return 'VIDEO';
 }

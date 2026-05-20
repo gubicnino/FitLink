@@ -17,7 +17,10 @@ export interface CourseDto {
   description: string;
   category: string;
   level: 'BEGINNER' | 'INTERMEDIATE' | 'ADVANCED' | string;
-  youtubeVideoId: string;
+  contentType?: 'VIDEO' | 'ARTICLE' | 'PDF' | string;
+  youtubeVideoId?: string | null;
+  articleUrl?: string | null;
+  pdfUrl?: string | null;
   thumbnailUrl?: string | null;
   publishedAt?: string;
   stats?: CourseStats | null;
@@ -25,7 +28,7 @@ export interface CourseDto {
 
 export type CoursePayload = Pick<
   CourseDto,
-  'title' | 'description' | 'category' | 'level' | 'youtubeVideoId' | 'thumbnailUrl'
+  'title' | 'description' | 'category' | 'level' | 'contentType' | 'youtubeVideoId' | 'articleUrl' | 'pdfUrl' | 'thumbnailUrl'
 >;
 
 export const courseService = {

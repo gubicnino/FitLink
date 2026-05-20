@@ -19,7 +19,10 @@ public class CourseResponse {
     private String description;
     private String category;
     private String level;
+    private String contentType;
     private String youtubeVideoId;
+    private String articleUrl;
+    private String pdfUrl;
     private String thumbnailUrl;
     private Instant publishedAt;
     private Course.CourseStats stats;

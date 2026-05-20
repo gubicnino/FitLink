@@ -17,8 +17,13 @@ public class CourseRequest {
     @NotBlank
     private String level;
 
-    @NotBlank
+    private String contentType;
+
     private String youtubeVideoId;
+
+    private String articleUrl;
+
+    private String pdfUrl;
 
     private String thumbnailUrl;
 }

@@ -12,13 +12,21 @@ type Props = NativeStackScreenProps<RootStackParamList, 'AddCourses'>;
 
 const CATEGORIES = ['Strength', 'Hypertrophy', 'Mobility', 'Cardio', 'Nutrition'];
 const LEVELS = ['BEGINNER', 'INTERMEDIATE', 'ADVANCED'];
+const CONTENT_TYPES = [
+  { label: 'Video', value: 'VIDEO' },
+  { label: 'Article', value: 'ARTICLE' },
+  { label: 'PDF', value: 'PDF' },
+] as const;
 
 const emptyForm: CoursePayload = {
   title: '',
   description: '',
   category: 'Strength',
   level: 'INTERMEDIATE',
+  contentType: 'VIDEO',
   youtubeVideoId: '',
+  articleUrl: '',
+  pdfUrl: '',
   thumbnailUrl: '',
 };
 
@@ -41,7 +49,10 @@ export function AddCourses({ navigation, route }: Props) {
           description: course.description,
           category: course.category,
           level: course.level,
+          contentType: normalizeContentType(course.contentType),
           youtubeVideoId: course.youtubeVideoId,
+          articleUrl: course.articleUrl ?? '',
+          pdfUrl: course.pdfUrl ?? '',
           thumbnailUrl: course.thumbnailUrl ?? '',
         });
       } catch (err) {
@@ -65,12 +76,27 @@ export function AddCourses({ navigation, route }: Props) {
       ...form,
       title: form.title.trim(),
       description: form.description.trim(),
-      youtubeVideoId: extractYoutubeId(form.youtubeVideoId.trim()),
+      contentType: normalizeContentType(form.contentType),
+      youtubeVideoId: form.contentType === 'VIDEO' ? extractYoutubeId(form.youtubeVideoId?.trim() ?? '') : '',
+      articleUrl: form.contentType === 'ARTICLE' ? form.articleUrl?.trim() : '',
+      pdfUrl: form.contentType === 'PDF' ? form.pdfUrl?.trim() : '',
       thumbnailUrl: form.thumbnailUrl?.trim(),
     };
 
-    if (!payload.title || !payload.description || !payload.youtubeVideoId) {
-      setError('Title, description and YouTube video are required.');
+    if (!payload.title || !payload.description) {
+      setError('Title and description are required.');
+      return null;
+    }
+    if (payload.contentType === 'VIDEO' && !payload.youtubeVideoId) {
+      setError('Add a YouTube URL or video ID.');
+      return null;
+    }
+    if (payload.contentType === 'ARTICLE' && !payload.articleUrl) {
+      setError('Add an article URL.');
+      return null;
+    }
+    if (payload.contentType === 'PDF' && !payload.pdfUrl) {
+      setError('Add a PDF URL.');
       return null;
     }
 
@@ -176,19 +202,49 @@ export function AddCourses({ navigation, route }: Props) {
                 ))}
               </FieldGroup>
 
-              <Input
-                label="YouTube video ID or URL"
-                value={form.youtubeVideoId}
-                onChangeText={value => updateField('youtubeVideoId', value)}
-                autoCapitalize="none"
-                placeholder="https://youtube.com/watch?v=..."
-              />
+              <FieldGroup label="Type">
+                {CONTENT_TYPES.map(type => (
+                  <Chip
+                    key={type.value}
+                    label={type.label}
+                    selected={form.contentType === type.value}
+                    onPress={() => updateField('contentType', type.value)}
+                  />
+                ))}
+              </FieldGroup>
+
+              {form.contentType === 'ARTICLE' ? (
+                <Input
+                  label="Article URL"
+                  value={form.articleUrl ?? ''}
+                  onChangeText={value => updateField('articleUrl', value)}
+                  autoCapitalize="none"
+                  placeholder="Paste article link"
+                />
+              ) : form.contentType === 'PDF' ? (
+                <Input
+                  label="PDF URL"
+                  value={form.pdfUrl ?? ''}
+                  onChangeText={value => updateField('pdfUrl', value)}
+                  autoCapitalize="none"
+                  placeholder="Paste PDF link"
+                />
+              ) : (
+                <Input
+                  label="YouTube video ID or URL"
+                  value={form.youtubeVideoId ?? ''}
+                  onChangeText={value => updateField('youtubeVideoId', value)}
+                  autoCapitalize="none"
+                  placeholder="Paste YouTube URL or video ID"
+                />
+              )}
+
               <Input
                 label="Thumbnail URL"
                 value={form.thumbnailUrl ?? ''}
                 onChangeText={value => updateField('thumbnailUrl', value)}
                 autoCapitalize="none"
-                placeholder="Optional"
+                placeholder="Optional image URL"
               />
             </View>
 
@@ -230,6 +286,10 @@ function FieldGroup({ label, children }: { label: string; children: React.ReactN
 function extractYoutubeId(value: string) {
   const match = value.match(/(?:v=|youtu\.be\/|embed\/|shorts\/)([a-zA-Z0-9_-]{11})/);
   return match?.[1] ?? value;
+}
+
+function normalizeContentType(value?: string | null) {
+  return value === 'ARTICLE_LINK' ? 'ARTICLE' : value ?? 'VIDEO';
 }
 
 const styles = StyleSheet.create({

@@ -8,6 +8,7 @@ import { AddCourses } from '../screens/courses/AddCourses';
 import { CourseDetailScreen } from '../screens/courses/CourseDetailScreen';
 import { ExerciseDetailScreen } from '../screens/exercises/ExerciseDetailScreen';
 import { ExercisePickerScreen } from '../screens/exercises/ExercisePickerScreen';
+import { CalorieCalculatorScreen } from '../screens/nutrition/CalorieCalculatorScreen';
 import { TrainerApplicationScreen } from '../screens/profile/TrainerApplicationScreen';
 import { LiveWorkoutScreen } from '../screens/workouts/LiveWorkoutScreen';
 import { SessionDetailScreen } from '../screens/workouts/SessionDetailScreen';
@@ -46,6 +47,7 @@ export function RootNavigator({ user }: RootNavigatorProps) {
         <Stack.Screen name="AdminRoot" component={AdminTabs} />
         <Stack.Screen name="TrainerApplication" component={TrainerApplicationScreen} />
         <Stack.Screen name="AdminApplications" component={ProtectedAdminApplicationsScreen} />
+        <Stack.Screen name="CalorieCalculator" component={CalorieCalculatorScreen} />
         <Stack.Screen
           name="LiveWorkout"
           component={LiveWorkoutScreen}

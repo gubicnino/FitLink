@@ -35,6 +35,7 @@ export type RootStackParamList = {
   AdminRoot: NavigatorScreenParams<AdminTabParamList>;
   TrainerApplication: undefined;
   AdminApplications: undefined;
+  CalorieCalculator: undefined;
   LiveWorkout:
     | { templateId: string; pendingExerciseIds?: string[] }
     | undefined;

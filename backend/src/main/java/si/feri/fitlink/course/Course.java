@@ -17,6 +17,9 @@ public class Course {
     private String category;   // Hypertrophy, Strength, Mobility...
     private String level;      // BEGINNER, INTERMEDIATE, ADVANCED
     private String youtubeVideoId;
+    private String contentType; // VIDEO, ARTICLE, PDF
+    private String articleUrl;
+    private String pdfUrl;
     private String thumbnailUrl;
     private Instant publishedAt;
     private CourseStats stats;

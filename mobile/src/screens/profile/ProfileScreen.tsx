@@ -161,6 +161,12 @@ export function ProfileScreen() {
             </Text>
           </Card>
         ) : null}
+        <Button
+          label="Calorie calculator"
+          variant="outline"
+          onPress={() => navigation.navigate('CalorieCalculator')}
+          fullWidth
+        />
           
       </View>
       <View style={styles.formSection}>

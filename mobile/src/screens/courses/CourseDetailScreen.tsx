@@ -1,11 +1,12 @@
 import React, { useEffect, useState } from 'react';
-import { Image, Pressable, StyleSheet, View } from 'react-native';
+import { Image, Linking, Pressable, StyleSheet, View } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import YoutubePlayer from 'react-native-youtube-iframe';
 import {
   Bookmark,
   Check,
   ChevronLeft,
+  ExternalLink,
   Pencil,
   Share2,
   Star,
@@ -86,12 +87,21 @@ export function CourseDetailScreen({ navigation, route }: Props) {
 
   const canEdit = user?.role === 'TRAINER' && course?.authorId === user.firebaseUid;
   const specializations = course?.authorSpecializations?.filter(Boolean) ?? [];
+  const contentType = normalizeContentType(course?.contentType);
+  const isVideo = contentType === 'VIDEO';
+  const isPdf = contentType === 'PDF';
+
+  const handleOpenSource = async () => {
+    const sourceUrl = isPdf ? course?.pdfUrl : course?.articleUrl;
+    if (!sourceUrl) return;
+    await Linking.openURL(sourceUrl);
+  };
 
   return (
     <Screen background="surface" scroll edges={['top']}>
       <View style={styles.gutter}>
         <View style={styles.videoWrap}>
-          {course?.youtubeVideoId ? (
+          {course?.youtubeVideoId && isVideo ? (
             <YoutubePlayer
               height={220}
               play={playing}
@@ -102,6 +112,13 @@ export function CourseDetailScreen({ navigation, route }: Props) {
             <>
               <Image source={{ uri: course?.thumbnailUrl ?? FALLBACK_IMG }} style={styles.videoImage} />
               <View style={styles.videoOverlay} />
+              {!isVideo ? (
+                <View style={styles.articlePill}>
+                  <Text variant="caption" color="inverse" weight="700">
+                    {contentType}
+                  </Text>
+                </View>
+              ) : null}
             </>
           )}
           <View style={styles.videoControls}>
@@ -182,13 +199,24 @@ export function CourseDetailScreen({ navigation, route }: Props) {
               </View>
             ) : null}
 
-            <Button
-              label="Mark as complete"
-              variant="primary"
-              fullWidth
-              leftIcon={<Check size={16} color={colors.white} strokeWidth={2.5} />}
-              style={styles.cta}
-            />
+            {!isVideo ? (
+              <Button
+                label={isPdf ? 'Open PDF' : 'Open article'}
+                variant="primary"
+                fullWidth
+                onPress={handleOpenSource}
+                leftIcon={<ExternalLink size={16} color={colors.white} strokeWidth={2.5} />}
+                style={styles.cta}
+              />
+            ) : (
+              <Button
+                label="Mark as complete"
+                variant="primary"
+                fullWidth
+                leftIcon={<Check size={16} color={colors.white} strokeWidth={2.5} />}
+                style={styles.cta}
+              />
+            )}
 
             <View style={styles.reviewsHeader}>
               <Text variant="caption" color="muted">
@@ -262,6 +290,15 @@ const styles = StyleSheet.create({
   },
   videoImage: { width: '100%', height: '100%', opacity: 0.9 },
   videoOverlay: { ...StyleSheet.absoluteFill, backgroundColor: 'rgba(0,0,0,0.3)' },
+  articlePill: {
+    position: 'absolute',
+    bottom: spacing.lg,
+    left: spacing.lg,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.sm,
+    borderRadius: radii.pill,
+    backgroundColor: 'rgba(0,0,0,0.65)',
+  },
   videoControls: {
     position: 'absolute',
     top: spacing.lg,
@@ -322,3 +359,9 @@ const styles = StyleSheet.create({
 
   bottomSpacer: { height: spacing.huge },
 });
+
+function normalizeContentType(value?: string | null) {
+  if (value === 'PDF') return 'PDF';
+  if (value === 'ARTICLE' || value === 'ARTICLE_LINK') return 'ARTICLE';
+  return 'VIDEO';
+}
