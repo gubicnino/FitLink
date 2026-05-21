@@ -77,6 +77,13 @@ public class ExerciseService {
         return mongo.findDistinct("level", Exercise.class, String.class);
     }
 
+    public List<String> distinctMuscles() {
+        return mongo.findDistinct("primaryMuscles", Exercise.class, String.class).stream()
+                .filter(ExerciseService::notBlank)
+                .sorted()
+                .toList();
+    }
+
     private static boolean notBlank(String s) {
         return s != null && !s.isBlank();
     }

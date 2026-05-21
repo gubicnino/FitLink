@@ -56,7 +56,8 @@ public class ExerciseController {
     public Map<String, List<String>> facets() {
         return Map.of(
                 "categories", exerciseService.distinctCategories(),
-                "levels", exerciseService.distinctLevels()
+                "levels", exerciseService.distinctLevels(),
+                "muscles", exerciseService.distinctMuscles()
         );
     }
 }

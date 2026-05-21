@@ -3,17 +3,17 @@ import {
   ActivityIndicator,
   FlatList,
   Keyboard,
+  Pressable,
   RefreshControl,
   StyleSheet,
   View,
 } from 'react-native';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { ChevronLeft, Search, X } from 'lucide-react-native';
-import { colors, shadows, spacing } from '../../theme';
+import { ChevronDown, ChevronLeft, Search, SlidersHorizontal, X } from 'lucide-react-native';
+import { colors, radii, shadows, spacing } from '../../theme';
 import {
   Button,
-  Chip,
   IconButton,
   Input,
   Screen,
@@ -29,9 +29,9 @@ import type {
 } from '../../types/exercise';
 import { ExerciseRow } from './ExerciseRow';
 import type { RootStackParamList } from '../../navigation/types';
+import { ALL_VALUE, FilterPickerSheet } from '../../components/filters/FilterPickerSheet';
 
 const PAGE_SIZE = 30;
-const ALL = 'All';
 
 type Nav = NativeStackNavigationProp<RootStackParamList, 'ExercisePicker'>;
 type Route = RouteProp<RootStackParamList, 'ExercisePicker'>;
@@ -79,8 +79,10 @@ export function ExercisePickerScreen() {
   const [searchInput, setSearchInput] = useState('');
   const debouncedQuery = useDebouncedValue(searchInput, 300);
 
-  const [category, setCategory] = useState<string>(ALL);
-  const [facets, setFacets] = useState<ExerciseFacets>({ categories: [], levels: [] });
+  const [category, setCategory] = useState<string>(ALL_VALUE);
+  const [muscle, setMuscle] = useState<string>(ALL_VALUE);
+  const [facets, setFacets] = useState<ExerciseFacets>({ categories: [], levels: [], muscles: [] });
+  const [openPicker, setOpenPicker] = useState<'category' | 'muscle' | null>(null);
 
   const [items, setItems] = useState<ExerciseSummary[]>([]);
   const [page, setPage] = useState<PageResponse<ExerciseSummary> | null>(null);
@@ -113,7 +115,8 @@ export function ExercisePickerScreen() {
       const result = await exerciseApi.list({
         page: 0,
         size: PAGE_SIZE,
-        category: category === ALL ? undefined : category,
+        category: category === ALL_VALUE ? undefined : category,
+        muscle: muscle === ALL_VALUE ? undefined : muscle,
         q: debouncedQuery.trim() || undefined,
       });
       setItems(result.content);
@@ -125,7 +128,7 @@ export function ExercisePickerScreen() {
     } finally {
       setLoading(false);
     }
-  }, [category, debouncedQuery]);
+  }, [category, muscle, debouncedQuery]);
 
   useEffect(() => {
     fetchFirstPage();
@@ -138,7 +141,8 @@ export function ExercisePickerScreen() {
       const next = await exerciseApi.list({
         page: page.page + 1,
         size: PAGE_SIZE,
-        category: category === ALL ? undefined : category,
+        category: category === ALL_VALUE ? undefined : category,
+        muscle: muscle === ALL_VALUE ? undefined : muscle,
         q: debouncedQuery.trim() || undefined,
       });
       setItems(prev => prev.concat(next.content));
@@ -148,7 +152,7 @@ export function ExercisePickerScreen() {
     } finally {
       setLoadingMore(false);
     }
-  }, [page, category, debouncedQuery, loading, loadingMore]);
+  }, [page, category, muscle, debouncedQuery, loading, loadingMore]);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -159,7 +163,31 @@ export function ExercisePickerScreen() {
     }
   }, [fetchFirstPage]);
 
-  const categoryOptions = useMemo(() => [ALL, ...facets.categories], [facets.categories]);
+  const categoryOptions = useMemo(
+    () => [
+      { value: ALL_VALUE, label: 'All categories' },
+      ...facets.categories.map(c => ({ value: c, label: titleCase(c) })),
+    ],
+    [facets.categories],
+  );
+  const muscleOptions = useMemo(
+    () => [
+      { value: ALL_VALUE, label: 'All muscles' },
+      ...facets.muscles.map(m => ({ value: m, label: titleCase(m) })),
+    ],
+    [facets.muscles],
+  );
+
+  const categoryLabel =
+    category === ALL_VALUE ? 'Category' : (categoryOptions.find(o => o.value === category)?.label ?? 'Category');
+  const muscleLabel =
+    muscle === ALL_VALUE ? 'Muscle' : (muscleOptions.find(o => o.value === muscle)?.label ?? 'Muscle');
+
+  const activeCount = (category !== ALL_VALUE ? 1 : 0) + (muscle !== ALL_VALUE ? 1 : 0);
+  const onClearAll = useCallback(() => {
+    setCategory(ALL_VALUE);
+    setMuscle(ALL_VALUE);
+  }, []);
 
   const renderItem = useCallback(
     ({ item }: { item: ExerciseSummary }) => (
@@ -209,21 +237,50 @@ export function ExercisePickerScreen() {
         </View>
       </View>
 
-      <FlatList
-        horizontal
-        data={categoryOptions}
-        keyExtractor={c => c}
-        renderItem={({ item }) => (
-          <Chip
-            label={titleCase(item)}
-            selected={item === category}
-            onPress={() => setCategory(item)}
+      <View style={styles.filterBar}>
+        <View style={styles.filterPillsRow}>
+          <FilterPill
+            icon={<SlidersHorizontal size={14} color={colors.inkSecondary} strokeWidth={2.25} />}
+            label={categoryLabel}
+            active={category !== ALL_VALUE}
+            onPress={() => setOpenPicker('category')}
           />
-        )}
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.chipsRow}
-        style={styles.chipsList}
-      />
+          <FilterPill
+            label={muscleLabel}
+            active={muscle !== ALL_VALUE}
+            onPress={() => setOpenPicker('muscle')}
+          />
+          {activeCount > 0 ? (
+            <Pressable
+              onPress={onClearAll}
+              hitSlop={6}
+              style={({ pressed }) => [styles.clearAllBtn, pressed && { opacity: 0.5 }]}
+              accessibilityLabel="Clear all filters"
+            >
+              <Text variant="micro" weight="700" color="secondary">
+                Clear
+              </Text>
+            </Pressable>
+          ) : null}
+        </View>
+
+        {activeCount > 0 ? (
+          <View style={styles.activeChipsRow}>
+            {category !== ALL_VALUE ? (
+              <ActiveChip
+                label={categoryLabel}
+                onRemove={() => setCategory(ALL_VALUE)}
+              />
+            ) : null}
+            {muscle !== ALL_VALUE ? (
+              <ActiveChip
+                label={muscleLabel}
+                onRemove={() => setMuscle(ALL_VALUE)}
+              />
+            ) : null}
+          </View>
+        ) : null}
+      </View>
 
       {loading ? (
         <View style={styles.center}>
@@ -294,7 +351,87 @@ export function ExercisePickerScreen() {
           />
         </View>
       ) : null}
+
+      <FilterPickerSheet
+        visible={openPicker === 'category'}
+        title="Category"
+        subtitle="Filter exercises by type"
+        options={categoryOptions}
+        value={category}
+        onSelect={next => {
+          setCategory(next);
+          setOpenPicker(null);
+        }}
+        onCancel={() => setOpenPicker(null)}
+      />
+
+      <FilterPickerSheet
+        visible={openPicker === 'muscle'}
+        title="Muscle group"
+        subtitle="Filter by primary muscle worked"
+        options={muscleOptions}
+        value={muscle}
+        searchable
+        onSelect={next => {
+          setMuscle(next);
+          setOpenPicker(null);
+        }}
+        onCancel={() => setOpenPicker(null)}
+      />
     </Screen>
+  );
+}
+
+interface FilterPillProps {
+  label: string;
+  active: boolean;
+  onPress: () => void;
+  icon?: React.ReactNode;
+}
+
+function FilterPill({ label, active, onPress, icon }: FilterPillProps) {
+  return (
+    <Pressable
+      onPress={onPress}
+      hitSlop={4}
+      accessibilityRole="button"
+      style={({ pressed }) => [
+        styles.pill,
+        active && styles.pillActive,
+        pressed && { opacity: 0.7 },
+      ]}
+    >
+      {icon}
+      <Text
+        variant="bodySmall"
+        weight="600"
+        style={[styles.pillLabel, active && { color: colors.primary }]}
+        numberOfLines={1}
+      >
+        {label}
+      </Text>
+      <ChevronDown
+        size={14}
+        color={active ? colors.primary : colors.inkMuted}
+        strokeWidth={2.25}
+      />
+    </Pressable>
+  );
+}
+
+function ActiveChip({ label, onRemove }: { label: string; onRemove: () => void }) {
+  return (
+    <Pressable
+      onPress={onRemove}
+      hitSlop={4}
+      accessibilityLabel={`Remove ${label} filter`}
+      style={({ pressed }) => [styles.activeChip, pressed && { opacity: 0.7 }]}
+    >
+      <Text variant="micro" weight="700" style={{ color: colors.primary }}>
+        {label}
+      </Text>
+      <X size={12} color={colors.primary} strokeWidth={2.5} />
+    </Pressable>
   );
 }
 
@@ -326,12 +463,53 @@ const styles = StyleSheet.create({
   searchInputContainer: { flex: 1 },
   searchInput: { paddingLeft: spacing.lg },
 
-  chipsList: { flexGrow: 0, marginBottom: spacing.xl },
-  chipsRow: {
+  filterBar: {
     paddingHorizontal: spacing.xxl,
-    paddingVertical: spacing.xs,
+    marginBottom: spacing.xl,
     gap: spacing.md,
+  },
+  filterPillsRow: {
+    flexDirection: 'row',
     alignItems: 'center',
+    gap: spacing.sm,
+  },
+  pill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: 8,
+    borderRadius: radii.pill,
+    borderWidth: 1,
+    borderColor: colors.line,
+    backgroundColor: colors.surface,
+    maxWidth: 180,
+  },
+  pillActive: {
+    borderColor: colors.primaryBorder,
+    backgroundColor: colors.primarySoft,
+  },
+  pillLabel: { flexShrink: 1 },
+  clearAllBtn: {
+    marginLeft: 'auto',
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 6,
+  },
+  activeChipsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: spacing.sm,
+  },
+  activeChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingLeft: spacing.md,
+    paddingRight: spacing.sm,
+    paddingVertical: 4,
+    borderRadius: radii.pill,
+    backgroundColor: colors.primarySoftStrong,
   },
 
   listContent: {

@@ -34,6 +34,7 @@ export interface PageResponse<T> {
 export interface ExerciseFacets {
   categories: string[];
   levels: string[];
+  muscles: string[];
 }
 
 export interface ExerciseListParams {
