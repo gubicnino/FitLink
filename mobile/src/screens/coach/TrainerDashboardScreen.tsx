@@ -1,6 +1,6 @@
 import { Check, ChevronRight, X } from 'lucide-react-native';
 import React, { useEffect, useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { Modal, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { coachingApi } from '../../api/coachingApi';
 import { NotificationBell, ScreenHeader } from '../../components/layout';
 import {
@@ -12,8 +12,10 @@ import {
     StatCard,
     Text,
 } from '../../components/ui';
+import { authService } from '../../services/authService';
 import { colors, spacing } from '../../theme';
 import { Coaching } from '../../types/coaching';
+import { User } from '../../types/types';
 
 interface PendingClient {
   id: string;
@@ -48,24 +50,39 @@ const CLIENTS: ActiveClient[] = [
 
 export function TrainerDashboardScreen() {
   const [pendingRequests, setPendingRequests] = useState<Coaching[]>([]);
+  const [selectedRequest, setSelectedRequest] = useState<Coaching | null>(null);
+  const [trainee, setTrainee] = useState<User | null>(null);
   useEffect(() => {
     const fetchPendingRequests = async () => {
       const requests = await coachingApi.getCoachingRequestsForTrainer();
       setPendingRequests(requests);
     };
     fetchPendingRequests();
+    const fetchTrainee = async () => {
+            const fetchedTrainee = await authService.getUser();
+            setTrainee(fetchedTrainee!);
+        };
+        fetchTrainee();
   }, []);
   const truncate = (text?: string | null, max = 200) => {
     if (!text) return 'No message provided.';
     return text.length > max ? text.slice(0, max) + '...' : text;
   };
+  const openRequestModal = (request: Coaching) => {
+    setSelectedRequest(request);
+  };
+  const closeRequestModal = () => {
+    setSelectedRequest(null);
+  };
   const handleAccept = async (id: string) => {
     await coachingApi.acceptCoachingRequest(id);
     setPendingRequests(prev => prev.filter(r => r.id !== id));
+    closeRequestModal();
   }
   const handleReject = async (id: string) => {
     await coachingApi.rejectCoachingRequest(id);
     setPendingRequests(prev => prev.filter(r => r.id !== id));
+    closeRequestModal();
   }
 
   return (
@@ -105,7 +122,7 @@ export function TrainerDashboardScreen() {
       ) : (
         pendingRequests.map(request => (
           <View style={[styles.gutter, styles.section]} key={request.id}>
-            <Card padding="md" style={styles.requestCard} bordered>
+            <Card padding="md" style={styles.requestCard} bordered onPress={() => openRequestModal(request)}>
               <View style={styles.requestDot} />
               <Text variant="caption" color="brand" style={styles.requestEyebrow}>
                 New client request
@@ -114,10 +131,11 @@ export function TrainerDashboardScreen() {
                 <Avatar source={{ uri: 'https://images.unsplash.com/photo-1463453091185-61582044d556?w=120&q=80&auto=format' }} size="xl" />
                 <View style={styles.requestInfo}>
                   <Text variant="body" weight="600">
-                    {request.traineeId || 'Unknown User'}
+                    {trainee?.displayName || 'Pending request'}
                   </Text>
+                  
                   <Text variant="micro" color="secondary" style={styles.requestSub}>
-                    {truncate(request.requestMessage, 40)}
+                    {truncate(request.requestMessage, 50)}
                   </Text>
                 </View>
               </View>
@@ -144,8 +162,59 @@ export function TrainerDashboardScreen() {
               </View>
             </Card>
           </View>
+
         )))
       }
+
+      <Modal visible={selectedRequest !== null} transparent animationType="fade" onRequestClose={closeRequestModal}>
+        <Pressable style={styles.modalBackdrop} onPress={closeRequestModal}>
+          <View style={styles.modalCard}>
+            {selectedRequest ? (
+              <Card padding="md" style={styles.requestCard} bordered>
+                <ScrollView contentContainerStyle={styles.modalScrollContent} showsVerticalScrollIndicator={false}>
+                  <View style={styles.modalHeaderRow}>
+                    <Avatar source={{ uri: 'https://images.unsplash.com/photo-1463453091185-61582044d556?w=120&q=80&auto=format' }} size="xl" />
+                    <View style={styles.modalHeaderText}>
+                      <Text variant="body" weight="600" numberOfLines={1}>
+                        {trainee?.displayName || 'Pending request'}
+                      </Text>
+                      <Text variant="bodySmall" color="secondary" numberOfLines={1}>
+                        {trainee?.email || 'No email provided'}
+                      </Text>
+                    </View>
+                  </View>
+
+                  <Text variant="bodySmall" color="secondary" style={styles.modalMessage}>
+                    {selectedRequest.requestMessage || 'No message provided.'}
+                  </Text>
+
+                  <View style={styles.modalActions}>
+                    
+                    <Button
+                      label="Accept"
+                      variant="primary"
+                      size="md"
+                      fullWidth
+                      onPress={() => handleAccept(selectedRequest.id)}
+                      leftIcon={<Check size={14} color={colors.white} strokeWidth={2.5} />}
+                      style={styles.actionBtn}
+                    />
+                    <Button
+                      label="Reject"
+                      variant="ghost"
+                      size="md"
+                      fullWidth
+                      onPress={() => handleReject(selectedRequest.id)}
+                      leftIcon={<X size={14} color={colors.inkSecondary} strokeWidth={2.5} />}
+                      style={styles.actionBtn}
+                    />
+                  </View>
+                </ScrollView>
+              </Card>
+            ) : null}
+          </View>
+        </Pressable>
+      </Modal>
 
       <View style={[styles.gutter, styles.section]}>
         <View style={styles.sectionHeader}>
@@ -252,6 +321,21 @@ const styles = StyleSheet.create({
   requestSub: { lineHeight: 14, marginTop: 2 },
   requestActions: { flexDirection: 'row', gap: spacing.md },
   actionBtn: { flex: 1 },
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(15, 23, 42, 0.52)',
+    justifyContent: 'center',
+    paddingHorizontal: spacing.xl,
+  },
+  modalCard: {
+    width: '100%',
+    maxHeight: '84%',
+  },
+  modalScrollContent: { gap: spacing.lg },
+  modalHeaderRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.lg },
+  modalHeaderText: { flex: 1, minWidth: 0 },
+  modalMessage: { lineHeight: 20 },
+  modalActions: { flexDirection: 'row', gap: spacing.md, marginTop: spacing.xs },
 
   clientRow: {
     flexDirection: 'row',

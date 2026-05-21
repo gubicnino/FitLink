@@ -1,35 +1,54 @@
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { ChevronRight, Flame, Play } from 'lucide-react-native';
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Image, Pressable, StyleSheet, View } from 'react-native';
+import { coachingApi } from '../../api/coachingApi';
 import { NotificationBell, ScreenHeader } from '../../components/layout';
 import {
     Avatar,
-    BadgeCheck,
     Button,
     Card,
     Screen,
     Sparkline,
     StatCard,
     Tag,
-    Text,
+    Text
 } from '../../components/ui';
+import CoachingCard from '../../components/ui/CoachingCard';
 import type { RootStackParamList } from '../../navigation/types';
 import { colors, radii, spacing } from '../../theme';
+import { Coaching } from '../../types/coaching';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 
 const HERO_IMG =
   'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=800&q=80&auto=format';
-const COACH_IMG =
-  'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=160&q=80&auto=format';
+
 const ME_IMG =
   'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=160&q=80&auto=format';
 
 export function TraineeDashboardScreen() {
   const navigation = useNavigation<Nav>();
-
+  const [coachings, setCoachings] = useState<Coaching[] | []>([]);
+  const [activeCoaching, setActiveCoaching] = useState<Coaching | null>(null);
+  useEffect(() => {
+    const fetchCoachings = async () => {
+      try {
+        const coachings = await coachingApi.getMyCoachings();
+        setCoachings(coachings);
+        for (const coaching of coachings) {
+          if (coaching.status === 'ACTIVE') {
+            setActiveCoaching(coaching);
+            break;
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching coachings:', error);
+      }
+    };
+    fetchCoachings();
+  }, []);
   return (
     <Screen scroll edges={['top']}>
       <ScreenHeader
@@ -105,42 +124,26 @@ export function TraineeDashboardScreen() {
           </View>
         </Card>
       </View>
-
-      <View style={[styles.gutter, styles.section]}>
-        <Card padding="md" onPress={() => navigation.navigate('FindTrainer')}>
-          <View style={styles.coachRow}>
-            <Avatar source={COACH_IMG} size="xl" />
-            <View style={styles.coachInfo}>
-              <View style={styles.coachNameRow}>
-                <Text variant="body" weight="600" numberOfLines={1}>
-                  Coach Maja Kovač
-                </Text>
-                <BadgeCheck size={15} />
-              </View>
-              <View style={styles.statusRow}>
-                <View style={styles.statusDot} />
-                <Text variant="bodySmall" color="secondary">
-                  New message
-                </Text>
-              </View>
-            </View>
-            <View style={styles.coachAction}>
-              <Text variant="bodySmall" color="brand" weight="600">
-                Coaching
-              </Text>
-              <ChevronRight size={16} color={colors.primary} strokeWidth={2.25} />
-            </View>
+      {activeCoaching ?  (
+          <View style={[styles.gutter, styles.section]}>
+            <Text variant="caption" color="muted" style={styles.sectionLabel}>
+              Your Coach
+            </Text>
+            <CoachingCard coaching={activeCoaching} />
           </View>
-        </Card>
-      </View>
-      <View style={[styles.gutter, styles.section]}>
-        <Button
-              label="Find your coach"
-              variant="primary"
-              fullWidth
-              onPress={() => navigation.navigate('FindTrainer')}
-            />
-      </View>
+      ) : (
+          <View style={[styles.gutter, styles.section]}>
+            <Button
+                  label="Find your coach"
+                  variant="primary"
+                  fullWidth
+                  onPress={() => navigation.navigate('FindTrainer')}
+                />
+          </View>
+      )
+    }
+      
+      
 
       <View style={[styles.gutter, styles.section]}>
         <Text variant="caption" color="muted" style={styles.sectionLabel}>
