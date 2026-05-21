@@ -33,6 +33,7 @@ import { exerciseApi } from '../../api/exerciseApi';
 import { workoutApi } from '../../api/workoutApi';
 import type { SetResult, WorkoutSession } from '../../types/workout';
 import type { RootStackParamList } from '../../navigation/types';
+import { setTypeMeta } from '../../utils/setTypeMeta';
 
 type Nav = NavigationProp<RootStackParamList>;
 type Route = RouteProp<RootStackParamList, 'SessionDetail'>;
@@ -315,17 +316,31 @@ function SetTable({
       </View>
       {sets.map((s, sIdx) => {
         const isTop = topSet != null && s === topSet;
+        const meta = setTypeMeta(s.setType);
+        const isNormal = (s.setType ?? 'NORMAL') === 'NORMAL';
         return (
           <View key={sIdx} style={[styles.setTableRow, isTop && styles.setTableRowTop]}>
-            <Text
-              variant="bodySmall"
-              weight="700"
-              mono
-              tabular
-              style={styles.setColIdx}
-            >
-              {sIdx + 1}
-            </Text>
+            <View style={styles.setColIdx}>
+              <View
+                style={[
+                  styles.setBadge,
+                  {
+                    backgroundColor: meta.badgeBg,
+                    borderColor: isNormal ? colors.line : meta.badgeFg,
+                  },
+                ]}
+              >
+                <Text
+                  variant="micro"
+                  weight="700"
+                  mono
+                  tabular
+                  style={{ color: meta.badgeFg }}
+                >
+                  {isNormal ? String(sIdx + 1) : meta.shortLabel}
+                </Text>
+              </View>
+            </View>
             <Text mono tabular variant="bodySmall" style={styles.setColReps}>
               {s.reps}
             </Text>
@@ -499,7 +514,15 @@ const styles = StyleSheet.create({
   setTableRowTop: {
     backgroundColor: colors.warningSoft,
   },
-  setColIdx: { width: 32, textAlign: 'left' },
+  setColIdx: { width: 32, textAlign: 'left', alignItems: 'flex-start', justifyContent: 'center' },
+  setBadge: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1.5,
+  },
   setColReps: { flex: 1, textAlign: 'center' },
   setColWeight: { flex: 1.2, textAlign: 'center' },
   setColVolume: { flex: 1, textAlign: 'right' },

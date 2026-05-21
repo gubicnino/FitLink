@@ -17,12 +17,16 @@ import {
 } from 'lucide-react-native';
 import { colors, radii, spacing } from '../../theme';
 import { IconButton, Text } from '../../components/ui';
+import type { SetType } from '../../types/workout';
+import { setTypeMeta } from '../../utils/setTypeMeta';
+import { SetTypePickerSheet } from './SetTypePickerSheet';
 
 // single set znotraj vaje v template formi
 export interface FormSet {
   reps: number;
   weightKg: number;
   restSeconds: number | null;
+  setType: SetType;
 }
 
 export interface TemplateFormExercise {
@@ -44,7 +48,7 @@ interface Props {
   onInfoPress?: () => void;
 }
 
-const DEFAULT_NEW_SET: FormSet = { reps: 10, weightKg: 0, restSeconds: null };
+const DEFAULT_NEW_SET: FormSet = { reps: 10, weightKg: 0, restSeconds: null, setType: 'NORMAL' };
 
 
 export function TemplateExerciseRow({
@@ -68,9 +72,18 @@ export function TemplateExerciseRow({
 
   const addSet = () => {
     const last = item.sets[item.sets.length - 1] ?? DEFAULT_NEW_SET;
-    // OBDRZIMO INFO OD PREJSNJOGA SETA TAKKA TE SAMO ZHRIHTAMO DEJANSKI DIFF
+    // OBDRZIMO INFO OD PREJSNJOGA SETA TAKKA TE SAMO ZHRIHTAMO DEJANSKI DIFF.
+    // setType pa vedno by deafult starta z NORMAL ker user redko hoce dva warm-upa zaporedoma
     onChange({
-      sets: [...item.sets, { reps: last.reps, weightKg: last.weightKg, restSeconds: last.restSeconds }],
+      sets: [
+        ...item.sets,
+        {
+          reps: last.reps,
+          weightKg: last.weightKg,
+          restSeconds: last.restSeconds,
+          setType: 'NORMAL',
+        },
+      ],
     });
   };
 
@@ -78,6 +91,9 @@ export function TemplateExerciseRow({
     if (item.sets.length <= 1) return;
     onChange({ sets: item.sets.slice(0, -1) });
   };
+
+  const [pickerForSetIdx, setPickerForSetIdx] = useState<number | null>(null);
+  const pickerSet = pickerForSetIdx != null ? item.sets[pickerForSetIdx] : null;
 
   return (
     <View style={styles.card}>
@@ -175,14 +191,35 @@ export function TemplateExerciseRow({
           </Text>
         </View>
 
-        {item.sets.map((set, idx) => (
+        {item.sets.map((set, idx) => {
+          const meta = setTypeMeta(set.setType);
+          const isNormal = (set.setType ?? 'NORMAL') === 'NORMAL';
+          return (
           <View key={idx} style={styles.row}>
             <View style={styles.colSet}>
-              <View style={styles.setBadge}>
-                <Text variant="micro" weight="700" mono tabular>
-                  {idx + 1}
+              <Pressable
+                onPress={() => setPickerForSetIdx(idx)}
+                hitSlop={6}
+                style={({ pressed }) => [
+                  styles.setBadge,
+                  {
+                    backgroundColor: meta.badgeBg,
+                    borderColor: isNormal ? colors.line : meta.badgeFg,
+                  },
+                  pressed && { opacity: 0.6 },
+                ]}
+                accessibilityLabel={`Set ${idx + 1} type: ${meta.fullLabel}. Tap to change.`}
+              >
+                <Text
+                  variant="micro"
+                  weight="700"
+                  mono
+                  tabular
+                  style={{ color: meta.badgeFg }}
+                >
+                  {isNormal ? String(idx + 1) : meta.shortLabel}
                 </Text>
-              </View>
+              </Pressable>
             </View>
 
             <View style={styles.colReps}>
@@ -228,7 +265,8 @@ export function TemplateExerciseRow({
               )}
             </View>
           </View>
-        ))}
+          );
+        })}
 
         <View style={styles.setActions}>
           <Pressable
@@ -253,6 +291,19 @@ export function TemplateExerciseRow({
           ) : null}
         </View>
       </View>
+
+      <SetTypePickerSheet
+        visible={pickerForSetIdx !== null}
+        value={pickerSet?.setType ?? 'NORMAL'}
+        setIndex={pickerForSetIdx ?? 0}
+        onSelect={next => {
+          if (pickerForSetIdx !== null) {
+            updateSet(pickerForSetIdx, { setType: next });
+          }
+          setPickerForSetIdx(null);
+        }}
+        onCancel={() => setPickerForSetIdx(null)}
+      />
     </View>
   );
 }
@@ -495,19 +546,19 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.sm,
   },
 
-  colSet: { width: 32, alignItems: 'flex-start' },
+  colSet: { width: 36, alignItems: 'flex-start' },
   colReps: { flex: 1, alignItems: 'center' },
   colWeight: { flex: 1.2, alignItems: 'center' },
   colRest: { flex: 1.1, alignItems: 'flex-end' },
 
   setBadge: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
     backgroundColor: colors.surface,
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 1,
+    borderWidth: 1.5,
     borderColor: colors.line,
   },
 

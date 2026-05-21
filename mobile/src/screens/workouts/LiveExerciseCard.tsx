@@ -17,6 +17,7 @@ import {
 import { colors, radii, spacing } from '../../theme';
 import { IconButton, Text } from '../../components/ui';
 import type { LiveExercise, LiveSet } from '../../types/workout';
+import { setTypeMeta } from '../../utils/setTypeMeta';
 
 interface Props {
   exercise: LiveExercise;
@@ -26,6 +27,7 @@ interface Props {
   onRemoveSet: (setId: string) => void;
   onRemoveExercise: () => void;
   onInfoPress: () => void;
+  onSetTypePress: (setId: string, setIdx: number) => void;
 }
 
 
@@ -37,6 +39,7 @@ export function LiveExerciseCard({
   onRemoveSet,
   onRemoveExercise,
   onInfoPress,
+  onSetTypePress,
 }: Props) {
   const allDone = exercise.sets.length > 0 && exercise.sets.every(s => s.completed);
 
@@ -104,6 +107,7 @@ export function LiveExerciseCard({
             onComplete={() => onCompleteSet(set.id)}
             onChange={patch => onChangeSet(set.id, patch)}
             onRemove={exercise.sets.length > 1 ? () => onRemoveSet(set.id) : undefined}
+            onTypePress={() => onSetTypePress(set.id, idx)}
           />
         ))}
 
@@ -128,9 +132,12 @@ interface SetRowProps {
   onComplete: () => void;
   onChange: (patch: Partial<LiveSet>) => void;
   onRemove?: () => void;
+  onTypePress: () => void;
 }
 
-function SetRow({ set, index, onComplete, onChange, onRemove }: SetRowProps) {
+function SetRow({ set, index, onComplete, onChange, onRemove, onTypePress }: SetRowProps) {
+  const meta = setTypeMeta(set.setType);
+  const isNormal = (set.setType ?? 'NORMAL') === 'NORMAL';
   return (
     <View
       style={[
@@ -139,11 +146,30 @@ function SetRow({ set, index, onComplete, onChange, onRemove }: SetRowProps) {
       ]}
     >
       <View style={styles.colSet}>
-        <View style={[styles.setBadge, set.completed && styles.setBadgeDone]}>
-          <Text variant="micro" weight="700" mono tabular color={set.completed ? 'inverse' : 'primary'}>
-            {index + 1}
+        <Pressable
+          onPress={onTypePress}
+          hitSlop={6}
+          style={({ pressed }) => [
+            styles.setBadge,
+            {
+              backgroundColor: meta.badgeBg,
+              borderColor: isNormal ? colors.line : meta.badgeFg,
+            },
+            set.completed && styles.setBadgeDone,
+            pressed && { opacity: 0.6 },
+          ]}
+          accessibilityLabel={`Set ${index + 1} type: ${meta.fullLabel}. Tap to change.`}
+        >
+          <Text
+            variant="micro"
+            weight="700"
+            mono
+            tabular
+            style={{ color: set.completed ? colors.white : meta.badgeFg }}
+          >
+            {isNormal ? String(index + 1) : meta.shortLabel}
           </Text>
-        </View>
+        </Pressable>
       </View>
 
       <View style={styles.colReps}>

@@ -138,7 +138,7 @@ export function FinishWorkoutSheet({
                     Save values
                   </Text>
                   <Text variant="micro" color="secondary">
-                    Log this session. Template stays the same.
+                    Log this session and update reps, weights & set types in the template.
                   </Text>
                 </View>
                 <ChevronRight size={18} color={colors.inkMuted} strokeWidth={2} />
@@ -157,7 +157,7 @@ export function FinishWorkoutSheet({
                     Save values & update template
                   </Text>
                   <Text variant="micro" color="secondary">
-                    Apply today&apos;s changes (sets, weights, added exercises) back to the template.
+                    Also add live-added exercises to the template, and optionally remove skipped ones.
                   </Text>
                 </View>
                 <ChevronRight size={18} color={colors.inkMuted} strokeWidth={2} />

@@ -39,6 +39,7 @@ import { exerciseApi } from '../../api/exerciseApi';
 import { workoutApi } from '../../api/workoutApi';
 import type { RootStackParamList } from '../../navigation/types';
 import type { WorkoutTemplate } from '../../types/workout';
+import { setTypeMeta } from '../../utils/setTypeMeta';
 
 type Nav = NativeStackNavigationProp<RootStackParamList, 'TemplateDetail'>;
 type Route = RouteProp<RootStackParamList, 'TemplateDetail'>;
@@ -318,11 +319,32 @@ export function TemplateDetailScreen() {
                         Rest
                       </Text>
                     </View>
-                    {ex.sets.map((s, sIdx) => (
+                    {ex.sets.map((s, sIdx) => {
+                      const meta = setTypeMeta(s.setType);
+                      const isNormal = (s.setType ?? 'NORMAL') === 'NORMAL';
+                      return (
                       <View key={sIdx} style={styles.setTableRow}>
-                        <Text variant="bodySmall" weight="700" mono tabular style={styles.setColIdx}>
-                          {sIdx + 1}
-                        </Text>
+                        <View style={styles.setColIdx}>
+                          <View
+                            style={[
+                              styles.setBadge,
+                              {
+                                backgroundColor: meta.badgeBg,
+                                borderColor: isNormal ? colors.line : meta.badgeFg,
+                              },
+                            ]}
+                          >
+                            <Text
+                              variant="micro"
+                              weight="700"
+                              mono
+                              tabular
+                              style={{ color: meta.badgeFg }}
+                            >
+                              {isNormal ? String(sIdx + 1) : meta.shortLabel}
+                            </Text>
+                          </View>
+                        </View>
                         <Text mono tabular variant="bodySmall" style={styles.setColReps}>
                           {s.targetReps}
                         </Text>
@@ -333,7 +355,8 @@ export function TemplateDetailScreen() {
                           {s.restSeconds != null ? formatSeconds(s.restSeconds) : '—'}
                         </Text>
                       </View>
-                    ))}
+                      );
+                    })}
                   </View>
                 ) : null}
               </View>
@@ -496,7 +519,15 @@ const styles = StyleSheet.create({
     transform: [{ rotate: '180deg' }],
   },
 
-  setColIdx: { width: 32, textAlign: 'left' },
+  setColIdx: { width: 32, textAlign: 'left', alignItems: 'flex-start', justifyContent: 'center' },
+  setBadge: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1.5,
+  },
   setColReps: { flex: 1, textAlign: 'center' },
   setColWeight: { flex: 1.2, textAlign: 'center' },
   setColRest: { flex: 1, textAlign: 'right' },

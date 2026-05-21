@@ -36,6 +36,7 @@ export function buildSessionFromTemplate(
           weightKg: s.targetWeightKg,
           restSeconds: s.restSeconds,
           completed: false,
+          setType: s.setType ?? 'NORMAL',
         })),
       };
     }),
@@ -143,6 +144,7 @@ export function useLiveSession() {
             weightKg: last?.weightKg ?? 0,
             restSeconds: last?.restSeconds ?? null,
             completed: false,
+            setType: 'NORMAL',
           };
           return { ...ex, sets: [...ex.sets, newSet] };
         }),
@@ -186,6 +188,7 @@ export function useLiveSession() {
               weightKg: 0,
               restSeconds: null,
               completed: false,
+              setType: 'NORMAL',
             },
           ],
         }));

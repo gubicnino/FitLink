@@ -49,6 +49,7 @@ function defaultSets(count: number = DEFAULT_SET_COUNT): FormSet[] {
     reps: DEFAULT_REPS,
     weightKg: DEFAULT_WEIGHT,
     restSeconds: null,
+    setType: 'NORMAL',
   }));
 }
 
@@ -97,6 +98,7 @@ export function TemplateFormScreen() {
                 reps: s.targetReps,
                 weightKg: s.targetWeightKg,
                 restSeconds: s.restSeconds,
+                setType: s.setType ?? 'NORMAL',
               }))
             : defaultSets(1);
         return {
@@ -248,6 +250,7 @@ export function TemplateFormScreen() {
           targetReps: s.reps,
           targetWeightKg: s.weightKg,
           restSeconds: s.restSeconds,
+          setType: s.setType,
         })),
       })),
     };

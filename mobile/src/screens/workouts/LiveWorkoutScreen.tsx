@@ -34,6 +34,7 @@ import type { RootStackParamList } from '../../navigation/types';
 import { LiveExerciseCard } from './LiveExerciseCard';
 import { RestTimerOverlay } from './RestTimerOverlay';
 import { FinishWorkoutSheet, type FinishMode } from './FinishWorkoutSheet';
+import { SetTypePickerSheet } from './SetTypePickerSheet';
 
 type Nav = NativeStackNavigationProp<RootStackParamList, 'LiveWorkout'>;
 type Route = RouteProp<RootStackParamList, 'LiveWorkout'>;
@@ -68,6 +69,9 @@ export function LiveWorkoutScreen() {
   const [restTimer, setRestTimer] = useState<RestTimerState | null>(null);
   const [finishOpen, setFinishOpen] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [typePicker, setTypePicker] = useState<
+    { exerciseId: string; setId: string; setIdx: number } | null
+  >(null);
 
 
   useEffect(() => {
@@ -215,14 +219,17 @@ export function LiveWorkoutScreen() {
       setSaving(true);
       try {
         const sessionBody = toSessionRequest(session);
-        await workoutApi.startSession(sessionBody).then(saved =>
+        await workoutApi.startSession(sessionBody);
 
-          // If "save as template", we update the template z final structure in logged sets (med dejanskin workouton LIVE)
-          saved,
-        );
+        // "Save values" mode: user hoče shraniti samo rep/weight/rest/setType, ne pa strukture (torej ne briše dodanih live vaj, ne briše skippanih vaj, ne dodaja novih vaj v template).
+        // "Save values & update template" mode: user hoče shraniti tudi strukturo (torej briše dodane live vaje, opcijsko briše skippane vaje, dodaja nove vaje v template).
 
-        if (mode === 'save-template' && templateId) {
-          const templateBody = toTemplateRequest(session, removeSkipped);
+        if (templateId) {
+          const templateBody = toTemplateRequest(
+            session,
+            mode === 'save-template' ? 'structural' : 'values-only',
+            removeSkipped,
+          );
           await workoutApi.updateTemplate(templateId, templateBody);
         }
 
@@ -338,6 +345,9 @@ export function LiveWorkoutScreen() {
               onInfoPress={() =>
                 navigation.navigate('ExerciseDetail', { exerciseId: ex.exerciseId })
               }
+              onSetTypePress={(setId, setIdx) =>
+                setTypePicker({ exerciseId: ex.id, setId, setIdx })
+              }
             />
           ))}
 
@@ -380,6 +390,25 @@ export function LiveWorkoutScreen() {
         onCancel={() => setFinishOpen(false)}
         onConfirm={onConfirmFinish}
       />
+
+      <SetTypePickerSheet
+        visible={typePicker !== null}
+        value={
+          (typePicker
+            ? session.exercises
+                .find(e => e.id === typePicker.exerciseId)
+                ?.sets.find(s => s.id === typePicker.setId)?.setType
+            : null) ?? 'NORMAL'
+        }
+        setIndex={typePicker?.setIdx ?? 0}
+        onSelect={next => {
+          if (typePicker) {
+            updateSet(typePicker.exerciseId, typePicker.setId, { setType: next });
+          }
+          setTypePicker(null);
+        }}
+        onCancel={() => setTypePicker(null)}
+      />
     </Screen>
   );
 }
@@ -404,27 +433,49 @@ function toSessionRequest(s: LiveSessionState): SessionUpsertRequest {
           weightKg: set.weightKg,
           rpe: null,
           completed: true,
+          setType: set.setType,
         })),
     })),
   };
 }
 
-function toTemplateRequest(s: LiveSessionState, removeSkipped: boolean): TemplateUpsertRequest {
-  // Preserve original order; if removeSkipped, drop exercises Z 0 COMPLETEDD sets
-  const kept = removeSkipped ? s.exercises.filter(ex => ex.sets.some(set => set.completed)) : s.exercises;
+/**
+ * Build the PUT /templates/{id} body from the live session state.
+ *
+ * 2 opciji, controlled by "mode":
+ *
+ *   values-only ("Save values"):
+ *     - Obdrzimo original template structure (only sets that came from the template).
+ *     - Drop exercises added LIVE during the workout ("addedLive=true").
+ *     - Do NOT drop skipped exercises — the template definition stays intact.
+ *     - Propagate edited reps/weight/rest/setType + any extra sets the user added to an existing exercise.
+ *
+ *   structural ("Save values & update template"):
+ *     - Include every exercise currently in the session (skupaj z "added-live").
+ *     - If "removeSkipped" = true, drop exercises with zero completed sets.
+ */
+
+function toTemplateRequest(
+  s: LiveSessionState,
+  mode: 'values-only' | 'structural',
+  removeSkipped: boolean,
+): TemplateUpsertRequest {
+  const base = mode === 'values-only' ? s.exercises.filter(ex => !ex.addedLive) : s.exercises;
+  const kept =
+    mode === 'structural' && removeSkipped
+      ? base.filter(ex => ex.sets.some(set => set.completed))
+      : base;
   return {
     name: s.name,
     exercises: kept.map((ex, idx) => ({
       exerciseId: ex.exerciseId,
       order: idx,
       notes: null,
-
-      // POMEMBNO: tudi tu uporabljamo samo "completed" sete, ker so samo ti relevantni za template
-      // This means that if the user added sets during the workout, those sets (with their target reps/weight/rest) will be saved into the template.
       sets: ex.sets.map(set => ({
         targetReps: set.reps,
         targetWeightKg: set.weightKg,
         restSeconds: set.restSeconds,
+        setType: set.setType,
       })),
     })),
   };

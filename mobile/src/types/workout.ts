@@ -1,9 +1,11 @@
 // Template
+export type SetType = 'NORMAL' | 'WARMUP' | 'FAILURE' | 'DROPSET';
 
 export interface SetTarget {
   targetReps: number;
   targetWeightKg: number;
   restSeconds: number | null;
+  setType?: SetType | null;
 }
 
 export interface TemplateExercise {
@@ -37,6 +39,7 @@ export interface SetResult {
   weightKg: number;
   rpe: number | null;
   completed: boolean;
+  setType?: SetType | null;
 }
 
 export interface SessionExercise {
@@ -79,6 +82,7 @@ export interface LiveSet {
   weightKg: number;
   restSeconds: number | null;
   completed: boolean;
+  setType: SetType;
 }
 
 // posamezna vaja v live workoutu

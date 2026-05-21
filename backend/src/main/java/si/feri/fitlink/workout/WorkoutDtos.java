@@ -32,7 +32,8 @@ public final class WorkoutDtos {
         public record SetTargetInput(
                 @PositiveOrZero int targetReps,
                 @PositiveOrZero double targetWeightKg,
-                @PositiveOrZero Integer restSeconds
+                @PositiveOrZero Integer restSeconds,
+                String setType
         ) {}
 
         /** dejanski shape keroga dobi te client nazaj */
@@ -78,9 +79,19 @@ public final class WorkoutDtos {
                 }
         }
 
-        public record SetTargetDto(int targetReps, double targetWeightKg, Integer restSeconds) {
+        public record SetTargetDto(
+                int targetReps,
+                double targetWeightKg,
+                Integer restSeconds,
+                String setType
+        ) {
                 public static SetTargetDto from(WorkoutTemplate.SetTarget s) {
-                return new SetTargetDto(s.getTargetReps(), s.getTargetWeightKg(), s.getRestSeconds());
+                        return new SetTargetDto(
+                                s.getTargetReps(),
+                                s.getTargetWeightKg(),
+                                s.getRestSeconds(),
+                                s.getSetType()
+                        );
                 }
         }
 
@@ -100,7 +111,8 @@ public final class WorkoutDtos {
                 @PositiveOrZero int reps,
                 @PositiveOrZero double weightKg,
                 Integer rpe,
-                boolean completed
+                boolean completed,
+                String setType
         ) {}
 
         public record SessionResponse(
@@ -145,9 +157,21 @@ public final class WorkoutDtos {
                 }
         }
 
-        public record SetResultDto(int reps, double weightKg, Integer rpe, boolean completed) {
+        public record SetResultDto(
+                int reps,
+                double weightKg,
+                Integer rpe,
+                boolean completed,
+                String setType
+        ) {
                 public static SetResultDto from(WorkoutSession.SetResult s) {
-                return new SetResultDto(s.getReps(), s.getWeightKg(), s.getRpe(), s.isCompleted());
+                        return new SetResultDto(
+                                s.getReps(),
+                                s.getWeightKg(),
+                                s.getRpe(),
+                                s.isCompleted(),
+                                s.getSetType()
+                        );
                 }
         }
 

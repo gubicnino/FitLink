@@ -40,5 +40,6 @@ public class WorkoutTemplate {
         private int targetReps;
         private double targetWeightKg;
         private Integer restSeconds;
+        private String setType;
     }
 }

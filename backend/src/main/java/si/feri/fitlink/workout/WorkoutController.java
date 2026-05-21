@@ -187,6 +187,7 @@ public class WorkoutController {
         out.setTargetReps(s.targetReps());
         out.setTargetWeightKg(s.targetWeightKg());
         out.setRestSeconds(s.restSeconds());
+        out.setSetType(s.setType());
         return out;
     }
 
@@ -207,6 +208,7 @@ public class WorkoutController {
         out.setWeightKg(s.weightKg());
         out.setRpe(s.rpe());
         out.setCompleted(s.completed());
+        out.setSetType(s.setType());
         return out;
     }
 }
