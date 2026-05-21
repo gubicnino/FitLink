@@ -1,6 +1,17 @@
 import { Buffer } from 'buffer';
 import React, { useCallback, useEffect, useState } from 'react';
-import { Alert, FlatList, Platform, StyleSheet, View } from 'react-native';
+import {
+    Alert,
+    FlatList,
+    Keyboard,
+    KeyboardAvoidingView,
+    Modal,
+    Platform,
+    StyleSheet,
+    TextInput,
+    TouchableWithoutFeedback,
+    View,
+} from 'react-native';
 import RNFS from 'react-native-fs';
 import apiClient from '../../api/apiClient';
 import { ScreenHeader } from '../../components/layout';
@@ -110,38 +121,44 @@ export function AdminApplicationsScreen() {
     }
   };
 
-  const handleDecline = async (applicationId: string) => {
-    Alert.prompt(
-      'Decline Application',
-      'Provide a rejection reason:',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Decline',
-          onPress: async (rejectionReason:any) => {
-            if (!rejectionReason?.trim()) {
-              Alert.alert('Error', 'Rejection reason is required');
-              return;
-            }
+  const [rejectModalVisible, setRejectModalVisible] = useState(false);
+  const [selectedApplicationId, setSelectedApplicationId] = useState<string | null>(null);
+  const [rejectionReason, setRejectionReason] = useState('');
 
-            setProcessingId(applicationId);
-            try {
-              await apiClient.post(`/trainer-applications/${applicationId}/reject`, {
-                rejectionReason: rejectionReason.trim(),
-              });
-              Alert.alert('Success', 'Application rejected');
-              loadApplications();
-            } catch (error) {
-              console.error('Reject failed:', error);
-              Alert.alert('Error', 'Failed to reject application');
-            } finally {
-              setProcessingId(null);
-            }
-          },
-        },
-      ],
-      'plain-text',
-    );
+  const openDeclineModal = (applicationId: string) => {
+    setSelectedApplicationId(applicationId);
+    setRejectionReason('');
+    setRejectModalVisible(true);
+  };
+
+  const closeDeclineModal = () => {
+    setRejectModalVisible(false);
+    setSelectedApplicationId(null);
+    setRejectionReason('');
+  };
+
+  const submitDecline = async () => {
+    const appId = selectedApplicationId;
+    if (!appId) return;
+    if (!rejectionReason?.trim()) {
+      Alert.alert('Error', 'Rejection reason is required');
+      return;
+    }
+
+    setProcessingId(appId);
+    try {
+      await apiClient.post(`/trainer-applications/${appId}/reject`, {
+        rejectionReason: rejectionReason.trim(),
+      });
+      Alert.alert('Success', 'Application rejected');
+      closeDeclineModal();
+      loadApplications();
+    } catch (error) {
+      console.error('Reject failed:', error);
+      Alert.alert('Error', 'Failed to reject application');
+    } finally {
+      setProcessingId(null);
+    }
   };
 
   const renderApplicationCard = ({ item }: { item: TrainerApplication }) => (
@@ -206,7 +223,7 @@ export function AdminApplicationsScreen() {
         <Button
           label="Decline"
           variant="outline"
-          onPress={() => handleDecline(item.id)}
+          onPress={() => openDeclineModal(item.id)}
           loading={processingId === item.id}
           fullWidth
         />
@@ -234,6 +251,48 @@ export function AdminApplicationsScreen() {
           />
         )}
       </View>
+      <Modal
+        visible={rejectModalVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={closeDeclineModal}
+      >
+        <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+          <KeyboardAvoidingView
+            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+            style={styles.modalBackdrop}
+          >
+            <Card padding="lg" style={styles.modalCard}>
+              <Text variant="h3">Decline Application</Text>
+              <Text variant="bodySmall" color="secondary" style={{ marginTop: spacing.sm }}>
+                Provide a rejection reason:
+              </Text>
+              <TextInput
+                style={styles.reasonInput}
+                placeholder="Reason for rejection"
+                multiline
+                numberOfLines={4}
+                value={rejectionReason}
+                onChangeText={setRejectionReason}
+                editable={processingId !== selectedApplicationId}
+              />
+
+              <View style={styles.modalActions}>
+                <View style={styles.modalButton}>
+                  <Button label="Cancel" variant="outline" onPress={closeDeclineModal} />
+                </View>
+                <View style={styles.modalButton}>
+                  <Button
+                    label="Decline"
+                    onPress={submitDecline}
+                    loading={processingId === selectedApplicationId}
+                  />
+                </View>
+              </View>
+            </Card>
+          </KeyboardAvoidingView>
+        </TouchableWithoutFeedback>
+      </Modal>
     </Screen>
   );
 }
@@ -298,6 +357,34 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  modalBackdrop: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    padding: spacing.lg,
+  },
+  modalCard: {
+    width: '100%',
+    maxWidth: 720,
+    gap: spacing.md,
+  },
+  reasonInput: {
+    minHeight: 100,
+    borderColor: '#E5E7EB',
+    borderWidth: 1,
+    borderRadius: 8,
+    padding: spacing.md,
+    textAlignVertical: 'top',
+    backgroundColor: '#FFF',
+  },
+  modalActions: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+  },
+  modalButton: {
+    flex: 1,
   },
 });
 

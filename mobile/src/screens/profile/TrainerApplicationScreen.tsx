@@ -10,7 +10,7 @@ import { spacing } from '../../theme';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'TrainerApplication'>;
 
-const SPECIALIZATION_OPTIONS = ['Strength', 'Weight loss', 'Mobility', 'Hypertrophy'] as const;
+const SPECIALIZATION_OPTIONS = ['Strength', 'Weight loss', 'Mobility', 'Hypertrophy', 'Nutrition'] as const;
 
 export function TrainerApplicationScreen({ navigation }: Props) {
   const [bio, setBio] = useState('');
