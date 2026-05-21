@@ -1,61 +1,55 @@
-import React from 'react';
-import { ScrollView, StyleSheet, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
-import { ChevronLeft, ChevronDown, SlidersHorizontal } from 'lucide-react-native';
-import { colors, spacing } from '../../theme';
-import { Chip, IconButton, Screen, Text } from '../../components/ui';
+import { ChevronDown, ChevronLeft, SlidersHorizontal } from 'lucide-react-native';
+import React, { useEffect, useState } from 'react';
+import { ScrollView, StyleSheet, View } from 'react-native';
+import apiClient from '../../api/apiClient';
+import { coachingApi } from '../../api/coachingApi';
 import { ScreenHeader } from '../../components/layout';
-import { TrainerListCard, Trainer } from './TrainerListCard';
+import { Chip, IconButton, Screen, Text } from '../../components/ui';
+import { colors, spacing } from '../../theme';
+import { User } from '../../types/types';
+import { Trainer, TrainerListCard } from './TrainerListCard';
 
-const TRAINERS: Trainer[] = [
-  {
-    id: '1',
-    name: 'Maja Kovač',
-    specialty: 'Strength • Powerlifting',
-    rating: 4.9,
-    reviews: 24,
-    priceFrom: '€50',
-    bio: 'Certified PT with 5 years experience. Powerlifter, focused on technique and sustainable progression.',
-    avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=200&q=80&auto=format',
-  },
-  {
-    id: '2',
-    name: 'Tomaž Horvat',
-    specialty: 'Hypertrophy • Bodybuilding',
-    rating: 4.8,
-    reviews: 31,
-    priceFrom: '€45',
-    bio: 'Former competitor. 8 years coaching. Specializes in physique transformation and contest prep.',
-    avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=200&q=80&auto=format',
-  },
-  {
-    id: '3',
-    name: 'Eva Petrič',
-    specialty: 'Mobility • Rehab',
-    rating: 5.0,
-    reviews: 18,
-    priceFrom: '€55',
-    bio: 'Physio + PT. Works with lifters recovering from injury and athletes improving range of motion.',
-    avatar: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=200&q=80&auto=format',
-  },
-  {
-    id: '4',
-    name: 'Luka Krajnc',
-    specialty: 'Conditioning • CrossFit',
-    rating: 4.7,
-    reviews: 42,
-    priceFrom: '€40',
-    bio: 'CrossFit L2 coach. 6 years experience programming for general and competitive athletes.',
-    avatar: 'https://images.unsplash.com/photo-1463453091185-61582044d556?w=200&q=80&auto=format',
-  },
-];
 
 const FILTERS = ['Specialty', 'Price', 'Language'];
 
 export function FindTrainerScreen() {
+  const [trainers, setTrainers] = useState<Trainer[]>([]);
+  const [requestedTrainerIds, setRequestedTrainerIds] = useState<string[]>([]);
+  useEffect(() => {
+    const fetchTrainers = async () => {
+      try {
+        const [trainersRes, coachingsRes] = await Promise.all([
+          apiClient.get<User[]>('/user/trainers'),
+          coachingApi.getMyCoachings(),
+        ]);
+
+        setTrainers(trainersRes.data.map(mapUserToTrainer));
+        setRequestedTrainerIds(
+          coachingsRes
+            .filter(coaching => coaching.status === 'PENDING' || coaching.status === 'ACTIVE')
+            .map(coaching => coaching.trainerId),
+        );
+      } catch (error) {
+        console.error('Error fetching trainers:', error);
+      }
+    };
+    fetchTrainers();
+  }, []);
+
+  const mapUserToTrainer = (user: User): Trainer => ({
+    id: user.id,
+    name: user.displayName,
+    specialty: user.trainer?.specializations?.toString() ?? 'General Fitness',
+    rating: 0,
+    reviews: 0,
+    priceFrom: null,
+    bio: user.trainer?.bio ?? '',
+    avatar: user.avatarUrl ?? null,
+  });
   const navigation = useNavigation();
   return (
-    <Screen scroll edges={['top']}>
+    <Screen edges={['top']} contentStyle={styles.screen}>
       <ScreenHeader
         title="Find your coach"
         left={
@@ -65,47 +59,58 @@ export function FindTrainerScreen() {
         }
       />
 
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.filtersRow}
-      >
-        <IconButton variant="surface" withBorder>
-          <SlidersHorizontal size={15} color={colors.inkPrimary} strokeWidth={2} />
-        </IconButton>
-        {FILTERS.map(f => (
-          <Chip
-            key={f}
-            label={f}
-            rightIcon={<ChevronDown size={12} color={colors.inkMuted} strokeWidth={2} />}
-          />
-        ))}
-      </ScrollView>
+      <View style={styles.body}>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.filtersRow}
+        >
+          <IconButton variant="surface" withBorder>
+            <SlidersHorizontal size={15} color={colors.inkPrimary} strokeWidth={2} />
+          </IconButton>
+          {FILTERS.map(f => (
+            <Chip
+              key={f}
+              label={f}
+              rightIcon={<ChevronDown size={12} color={colors.inkMuted} strokeWidth={2} />}
+            />
+          ))}
+        </ScrollView>
 
-      <View style={[styles.gutter, styles.summaryRow]}>
-        <Text variant="bodySmall" color="secondary">
-          <Text variant="bodySmall" weight="600">
-            24
-          </Text>{' '}
-          coaches in Slovenia
-        </Text>
-        <Text variant="caption" color="brand">
-          Top rated
-        </Text>
+        <View style={[styles.gutter, styles.summaryRow]}>
+          <Text variant="bodySmall" color="secondary">
+            <Text variant="bodySmall" weight="600">
+              {trainers.length}
+            </Text>{' '}
+            coaches available
+          </Text>
+          <Text variant="caption" color="brand">
+            Top rated
+          </Text>
+        </View>
+
+        <View style={[styles.gutter, styles.list]}>
+          {trainers.map(t => (
+            <TrainerListCard
+              key={t.id}
+              trainer={t}
+              requestDisabled={requestedTrainerIds.includes(t.id)}
+            />
+          ))}
+        </View>
       </View>
 
-      <View style={[styles.gutter, styles.list]}>
-        {TRAINERS.map(t => (
-          <TrainerListCard key={t.id} trainer={t} />
-        ))}
-      </View>
-
-      <View style={styles.bottomSpacer} />
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
+  screen: {
+    flex: 1,
+  },
+  body: {
+    flexDirection: 'column',
+  },
   filtersRow: {
     paddingHorizontal: spacing.xxl,
     paddingBottom: spacing.lg,
@@ -120,5 +125,4 @@ const styles = StyleSheet.create({
     marginBottom: spacing.md,
   },
   list: { gap: spacing.lg },
-  bottomSpacer: { height: spacing.huge },
 });

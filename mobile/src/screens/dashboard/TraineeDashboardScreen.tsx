@@ -1,22 +1,22 @@
+import { useNavigation } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { ChevronRight, Flame, Play } from 'lucide-react-native';
 import React from 'react';
 import { Image, Pressable, StyleSheet, View } from 'react-native';
-import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { useNavigation } from '@react-navigation/native';
-import { ChevronRight, Flame, Play } from 'lucide-react-native';
-import { colors, radii, spacing } from '../../theme';
-import {
-  Avatar,
-  BadgeCheck,
-  Button,
-  Card,
-  Screen,
-  Sparkline,
-  StatCard,
-  Tag,
-  Text,
-} from '../../components/ui';
 import { NotificationBell, ScreenHeader } from '../../components/layout';
+import {
+    Avatar,
+    BadgeCheck,
+    Button,
+    Card,
+    Screen,
+    Sparkline,
+    StatCard,
+    Tag,
+    Text,
+} from '../../components/ui';
 import type { RootStackParamList } from '../../navigation/types';
+import { colors, radii, spacing } from '../../theme';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 
@@ -132,6 +132,14 @@ export function TraineeDashboardScreen() {
             </View>
           </View>
         </Card>
+      </View>
+      <View style={[styles.gutter, styles.section]}>
+        <Button
+              label="Find your coach"
+              variant="primary"
+              fullWidth
+              onPress={() => navigation.navigate('FindTrainer')}
+            />
       </View>
 
       <View style={[styles.gutter, styles.section]}>

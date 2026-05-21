@@ -1,17 +1,19 @@
-import React from 'react';
-import { StyleSheet, View } from 'react-native';
 import { Check, ChevronRight, X } from 'lucide-react-native';
-import { colors, spacing } from '../../theme';
-import {
-  Avatar,
-  Button,
-  Card,
-  ProgressBar,
-  Screen,
-  StatCard,
-  Text,
-} from '../../components/ui';
+import React, { useEffect, useState } from 'react';
+import { StyleSheet, View } from 'react-native';
+import { coachingApi } from '../../api/coachingApi';
 import { NotificationBell, ScreenHeader } from '../../components/layout';
+import {
+    Avatar,
+    Button,
+    Card,
+    ProgressBar,
+    Screen,
+    StatCard,
+    Text,
+} from '../../components/ui';
+import { colors, spacing } from '../../theme';
+import { Coaching } from '../../types/coaching';
 
 interface PendingClient {
   id: string;
@@ -45,6 +47,27 @@ const CLIENTS: ActiveClient[] = [
 ];
 
 export function TrainerDashboardScreen() {
+  const [pendingRequests, setPendingRequests] = useState<Coaching[]>([]);
+  useEffect(() => {
+    const fetchPendingRequests = async () => {
+      const requests = await coachingApi.getCoachingRequestsForTrainer();
+      setPendingRequests(requests);
+    };
+    fetchPendingRequests();
+  }, []);
+  const truncate = (text?: string | null, max = 200) => {
+    if (!text) return 'No message provided.';
+    return text.length > max ? text.slice(0, max) + '...' : text;
+  };
+  const handleAccept = async (id: string) => {
+    await coachingApi.acceptCoachingRequest(id);
+    setPendingRequests(prev => prev.filter(r => r.id !== id));
+  }
+  const handleReject = async (id: string) => {
+    await coachingApi.rejectCoachingRequest(id);
+    setPendingRequests(prev => prev.filter(r => r.id !== id));
+  }
+
   return (
     <Screen scroll edges={['top']}>
       <ScreenHeader
@@ -72,43 +95,57 @@ export function TrainerDashboardScreen() {
         <StatCard label="New request" value="1" valueColor="brand" footer={<Text variant="micro" color="secondary" />} />
       </View>
 
-      <View style={[styles.gutter, styles.section]}>
-        <Card padding="md" style={styles.requestCard} bordered>
-          <View style={styles.requestDot} />
-          <Text variant="caption" color="brand" style={styles.requestEyebrow}>
-            New client request
+
+      {pendingRequests.length === 0 ? (
+        <View style={[styles.gutter, styles.section]}>
+          <Text variant="body" color="muted" style={{ textAlign: 'center' }}>
+            No pending coaching requests.
           </Text>
-          <View style={styles.requestRow}>
-            <Avatar source={PENDING[0].avatar} size="xl" />
-            <View style={styles.requestInfo}>
-              <Text variant="body" weight="600">
-                {PENDING[0].name}
+        </View>
+      ) : (
+        pendingRequests.map(request => (
+          <View style={[styles.gutter, styles.section]} key={request.id}>
+            <Card padding="md" style={styles.requestCard} bordered>
+              <View style={styles.requestDot} />
+              <Text variant="caption" color="brand" style={styles.requestEyebrow}>
+                New client request
               </Text>
-              <Text variant="micro" color="secondary" style={styles.requestSub}>
-                Strength focus • Has been training 1 year
-              </Text>
-            </View>
+              <View style={styles.requestRow}>
+                <Avatar source={{ uri: 'https://images.unsplash.com/photo-1463453091185-61582044d556?w=120&q=80&auto=format' }} size="xl" />
+                <View style={styles.requestInfo}>
+                  <Text variant="body" weight="600">
+                    {request.traineeId || 'Unknown User'}
+                  </Text>
+                  <Text variant="micro" color="secondary" style={styles.requestSub}>
+                    {truncate(request.requestMessage, 40)}
+                  </Text>
+                </View>
+              </View>
+
+              <View style={styles.requestActions}>
+                <Button
+                  label="Accept"
+                  variant="primary"
+                  size="md"
+                  fullWidth
+                  onPress={() => handleAccept(request.id)}
+                  leftIcon={<Check size={14} color={colors.white} strokeWidth={2.5} />}
+                  style={styles.actionBtn}
+                />
+                <Button
+                  label="Decline"
+                  variant="ghost"
+                  size="md"
+                  fullWidth
+                  onPress={() => handleReject(request.id)}
+                  leftIcon={<X size={14} color={colors.inkSecondary} strokeWidth={2.5} />}
+                  style={styles.actionBtn}
+                />
+              </View>
+            </Card>
           </View>
-          <View style={styles.requestActions}>
-            <Button
-              label="Accept"
-              variant="primary"
-              size="md"
-              fullWidth
-              leftIcon={<Check size={14} color={colors.white} strokeWidth={2.5} />}
-              style={styles.actionBtn}
-            />
-            <Button
-              label="Decline"
-              variant="ghost"
-              size="md"
-              fullWidth
-              leftIcon={<X size={14} color={colors.inkSecondary} strokeWidth={2.5} />}
-              style={styles.actionBtn}
-            />
-          </View>
-        </Card>
-      </View>
+        )))
+      }
 
       <View style={[styles.gutter, styles.section]}>
         <View style={styles.sectionHeader}>
@@ -228,5 +265,5 @@ const styles = StyleSheet.create({
   progressLabel: { fontSize: 10 },
   lastCheckIn: { marginTop: 4 },
   actionInline: { flexDirection: 'row', alignItems: 'center', gap: 2 },
-  separator: { height: StyleSheet.hairlineWidth, backgroundColor: colors.line },
+  separator: { height: StyleSheet.hairlineWidth, backgroundColor: colors.line, marginHorizontal: spacing.lg },
 });
