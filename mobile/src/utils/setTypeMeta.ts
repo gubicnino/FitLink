@@ -35,7 +35,7 @@ export const SET_TYPE_META: Readonly<Record<SetType, SetTypeMeta>> = {
     shortLabel: 'F',
     fullLabel: 'Failure',
     description:
-      'A set taken to muscular failure — the point where you cannot complete another rep with good form. Used sparingly for high-intensity work.',
+      'A set taken to muscular failure - the point where you cannot complete another rep with good form. Used sparingly for high-intensity work.',
     badgeBg: 'rgba(239, 68, 68, 0.12)',
     badgeFg: colors.danger,
   },

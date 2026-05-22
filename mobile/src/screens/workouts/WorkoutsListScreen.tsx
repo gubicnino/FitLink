@@ -12,12 +12,14 @@ import {
 import { Swipeable } from 'react-native-gesture-handler';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
-import { Plus, Trash2 } from 'lucide-react-native';
-import { colors, radii, spacing } from '../../theme';
+import { Dumbbell, History, Plus, Trash2 } from 'lucide-react-native';
+import { colors, radii, shadows, spacing } from '../../theme';
 import { Button, Screen, TabSwitcher, Text } from '../../components/ui';
 import { ScreenHeader } from '../../components/layout';
 import { WorkoutTemplateCard, WorkoutTemplate as CardTemplate } from './WorkoutTemplateCard';
 import { SessionHistoryCard } from './SessionHistoryCard';
+import { ResumeHero, WeeklySummary } from './WorkoutsHeroCards';
+import { useLiveSession } from '../../hooks/useLiveSession';
 import { workoutApi } from '../../api/workoutApi';
 import type { WorkoutSession, WorkoutTemplate } from '../../types/workout';
 import type { RootStackParamList } from '../../navigation/types';
@@ -30,6 +32,8 @@ type Tab = (typeof TABS)[number];
 export function WorkoutsListScreen() {
   const navigation = useNavigation<Nav>();
   const [tab, setTab] = useState<Tab>('Templates');
+
+  const { session: liveSession, hydrated: liveHydrated } = useLiveSession();
 
   const [templates, setTemplates] = useState<WorkoutTemplate[]>([]);
   const [sessions, setSessions] = useState<WorkoutSession[]>([]);
@@ -51,8 +55,6 @@ export function WorkoutsListScreen() {
     }
   }, []);
 
-  // refetch on screen takka se newly created templati vidijo vcasii.
-  // useFocusEffect ze sprozi load tudi on initial mount, takka extra useEffect ni potreben.
   useFocusEffect(
     useCallback(() => {
       setLoading(true);
@@ -94,19 +96,20 @@ export function WorkoutsListScreen() {
     );
   }, []);
 
+  const onResumeLive = useCallback(() => {
+    if (!liveSession) return;
+    navigation.navigate('LiveWorkout', { templateId: liveSession.templateId });
+  }, [liveSession, navigation]);
+
+  const onNewTemplate = useCallback(() => {
+    navigation.navigate('ExercisePicker', { mode: 'select' });
+  }, [navigation]);
+
+  const showResume = liveHydrated && liveSession != null;
+
   return (
     <Screen edges={['top']}>
-      <ScreenHeader
-        title="My Workouts"
-        right={
-          <Button
-            label="New"
-            size="sm"
-            leftIcon={<Plus size={15} color={colors.white} strokeWidth={2.5} />}
-            onPress={() => navigation.navigate('ExercisePicker', { mode: 'select' })}
-          />
-        }
-      />
+      <ScreenHeader title="My Workouts" />
 
       <View style={styles.gutter}>
         <TabSwitcher<Tab> tabs={TABS} value={tab} onChange={setTab} />
@@ -134,46 +137,110 @@ export function WorkoutsListScreen() {
           }
         >
           {tab === 'Templates' ? (
-            templates.length === 0 ? (
+            <View style={styles.section}>
+              {showResume ? (
+                <ResumeHero session={liveSession!} onResume={onResumeLive} />
+              ) : null}
+
+              {templates.length === 0 ? (
+                <EmptyState
+                  icon={<Dumbbell size={28} color={colors.primary} strokeWidth={2} />}
+                  title="No templates yet"
+                  hint="Build your first workout from the exercise library. Add exercises, set targets, save."
+                  ctaLabel="Create template"
+                  onPress={onNewTemplate}
+                />
+              ) : (
+                <>
+                  <SectionHeader
+                    label="My templates"
+                    count={templates.length}
+                  />
+                  <View style={styles.list}>
+                    {templates.map(t => (
+                      <WorkoutTemplateCard
+                        key={t.id}
+                        template={toCardTemplate(t)}
+                        onPress={() => navigation.navigate('TemplateDetail', { templateId: t.id })}
+                      />
+                    ))}
+                  </View>
+                </>
+              )}
+            </View>
+          ) : sessions.length === 0 ? (
+            <View style={styles.section}>
               <EmptyState
-                title="No templates yet"
-                hint='Tap "+ New" in the top right to create your first workout template from the exercise library.'
+                icon={<History size={28} color={colors.primary} strokeWidth={2} />}
+                title="No completed workouts yet"
+                hint="Start a session from a template - once you finish, it shows up here with stats and progress."
               />
-            ) : (
+            </View>
+          ) : (
+            <View style={styles.section}>
+              <WeeklySummary sessions={sessions} />
+
+              <SectionHeader
+                label="Recent workouts"
+                count={sessions.length}
+                hint="Swipe left to delete"
+              />
+
               <View style={styles.list}>
-                {templates.map(t => (
-                  <WorkoutTemplateCard
-                    key={t.id}
-                    template={toCardTemplate(t)}
-                    onPress={() => navigation.navigate('TemplateDetail', { templateId: t.id })}
+                {sessions.map(s => (
+                  <SwipeableHistoryRow
+                    key={s.id}
+                    session={s}
+                    onPress={() => navigation.navigate('SessionDetail', { sessionId: s.id })}
+                    onDelete={() => onDeleteSession(s)}
                   />
                 ))}
               </View>
-            )
-          ) : sessions.length === 0 ? (
-            <EmptyState
-              title="No completed workouts yet"
-              hint="Start a session from a template to see your history here."
-            />
-          ) : (
-            <View style={styles.list}>
-              <Text variant="caption" color="muted" style={styles.swipeHint}>
-                Swipe left on a workout to delete
-              </Text>
-              {sessions.map(s => (
-                <SwipeableHistoryRow
-                  key={s.id}
-                  session={s}
-                  onPress={() => navigation.navigate('SessionDetail', { sessionId: s.id })}
-                  onDelete={() => onDeleteSession(s)}
-                />
-              ))}
             </View>
           )}
         </ScrollView>
       )}
 
+      {tab === 'Templates' && !loading && !error && templates.length > 0 ? (
+        <Pressable
+          onPress={onNewTemplate}
+          style={({ pressed }) => [styles.fab, shadows.modal, pressed && { opacity: 0.88 }]}
+          accessibilityRole="button"
+          accessibilityLabel="Create new template"
+        >
+          <Plus size={22} color={colors.white} strokeWidth={2.5} />
+        </Pressable>
+      ) : null}
     </Screen>
+  );
+}
+
+
+function SectionHeader({
+  label,
+  count,
+  hint,
+}: {
+  label: string;
+  count: number;
+  hint?: string;
+}) {
+  return (
+    <View style={styles.sectionHeader}>
+      <View style={styles.sectionTitleRow}>
+        <Text variant="caption" weight="700" style={styles.sectionLabel}>
+          {label}
+        </Text>
+        <Text variant="caption" color="muted" mono tabular>
+          {count}
+        </Text>
+      </View>
+      {hint ? (
+        <Text variant="micro" color="muted">
+          {hint}
+        </Text>
+      ) : null}
+    </View>
   );
 }
 
@@ -218,24 +285,47 @@ function SwipeableHistoryRow({ session, onPress, onDelete }: SwipeableHistoryRow
   );
 }
 
-function EmptyState({ title, hint }: { title: string; hint: string }) {
+interface EmptyStateProps {
+  icon: React.ReactNode;
+  title: string;
+  hint: string;
+  ctaLabel?: string;
+  onPress?: () => void;
+}
+
+function EmptyState({ icon, title, hint, ctaLabel, onPress }: EmptyStateProps) {
   return (
     <View style={styles.empty}>
-      <Text variant="bodyLarge" weight="600" align="center">
+      <View style={styles.emptyIcon}>{icon}</View>
+      <Text variant="h3" weight="700" align="center">
         {title}
       </Text>
       <Text variant="bodySmall" color="secondary" align="center" style={styles.detail}>
         {hint}
       </Text>
+      {ctaLabel && onPress ? (
+        <Button
+          label={ctaLabel}
+          variant="primary"
+          size="md"
+          leftIcon={<Plus size={15} color={colors.white} strokeWidth={2.5} />}
+          onPress={onPress}
+          style={styles.emptyCta}
+        />
+      ) : null}
     </View>
   );
 }
 
 function toCardTemplate(t: WorkoutTemplate): CardTemplate {
+  const exerciseCount = t.exercises?.length ?? 0;
+  const setCount = t.exercises?.reduce((sum, e) => sum + (e.sets?.length ?? 0), 0) ?? 0;
   return {
     id: t.id,
     name: t.name,
-    exerciseCount: t.exercises?.length ?? 0,
+    exerciseCount,
+    setCount,
+    durationMinutes: setCount > 0 ? Math.max(1, Math.round((setCount * 105) / 60)) : undefined,
   };
 }
 
@@ -250,11 +340,42 @@ function extractMessage(err: unknown): string {
 
 const styles = StyleSheet.create({
   gutter: { paddingHorizontal: spacing.xxl },
-  scrollContent: { paddingBottom: spacing.huge + 60 },
-  list: { paddingHorizontal: spacing.xxl, paddingTop: spacing.xxl, gap: spacing.md },
-  swipeHint: { paddingHorizontal: spacing.xs, marginBottom: spacing.xs },
-  empty: { padding: spacing.huge + spacing.xl, alignItems: 'center', gap: spacing.md },
+  scrollContent: { paddingBottom: spacing.huge + 100 },
+
+  section: {
+    paddingHorizontal: spacing.xxl,
+    paddingTop: spacing.xl,
+    gap: spacing.lg,
+  },
+
+  sectionHeader: { gap: 4, paddingHorizontal: 2 },
+  sectionTitleRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'baseline',
+  },
+  sectionLabel: { letterSpacing: 1, textTransform: 'uppercase', color: colors.inkSecondary },
+
+  list: { gap: spacing.md },
   detail: { paddingHorizontal: spacing.xl },
+
+  empty: {
+    paddingVertical: spacing.huge,
+    paddingHorizontal: spacing.xl,
+    alignItems: 'center',
+    gap: spacing.md,
+  },
+  emptyIcon: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: colors.primarySoft,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: spacing.sm,
+  },
+  emptyCta: { marginTop: spacing.lg },
+
   center: {
     flex: 1,
     alignItems: 'center',
@@ -263,6 +384,19 @@ const styles = StyleSheet.create({
     gap: spacing.md,
   },
   retry: { marginTop: spacing.md },
+
+  fab: {
+    position: 'absolute',
+    right: spacing.xxl,
+    bottom: spacing.xxl + 60,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
   deleteAction: {
     backgroundColor: colors.danger,
     justifyContent: 'center',

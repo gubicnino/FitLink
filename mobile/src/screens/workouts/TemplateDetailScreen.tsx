@@ -21,6 +21,7 @@ import {
   ChevronLeft,
   Clock,
   Dumbbell,
+  Hash,
   Info,
   Pencil,
   Play,
@@ -188,31 +189,42 @@ export function TemplateDetailScreen() {
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.hero}>
+          <Text variant="micro" weight="700" style={styles.heroEyebrow}>
+            WORKOUT TEMPLATE
+          </Text>
           <Text variant="display" style={styles.heroTitle}>
             {template.name}
           </Text>
-          <View style={styles.metaRow}>
-            <View style={styles.metaItem}>
-              <Dumbbell size={13} color={colors.inkSecondary} strokeWidth={2} />
-              <Text variant="bodySmall" color="secondary">
-                {' '}
-                {template.exercises.length}{' '}
-                {template.exercises.length === 1 ? 'exercise' : 'exercises'}
-              </Text>
-            </View>
-            <Dot />
-            <Text variant="bodySmall" color="secondary">
-              {totalSets} sets
-            </Text>
-            <Dot />
-            <View style={styles.metaItem}>
-              <Clock size={13} color={colors.inkSecondary} strokeWidth={2} />
-              <Text variant="bodySmall" color="secondary">
-                {' '}
-                ~{estimatedMinutes} min
-              </Text>
-            </View>
+
+          <View style={styles.heroStats}>
+            <HeroStat
+              icon={<Dumbbell size={14} color={colors.white} strokeWidth={2.25} />}
+              value={String(template.exercises.length)}
+              label={template.exercises.length === 1 ? 'exercise' : 'exercises'}
+            />
+            <View style={styles.heroStatDivider} />
+            <HeroStat
+              icon={<Hash size={14} color={colors.white} strokeWidth={2.25} />}
+              value={String(totalSets)}
+              label={totalSets === 1 ? 'set' : 'sets'}
+            />
+            <View style={styles.heroStatDivider} />
+            <HeroStat
+              icon={<Clock size={14} color={colors.white} strokeWidth={2.25} />}
+              value={`~${estimatedMinutes}`}
+              unit="min"
+              label="duration"
+            />
           </View>
+        </View>
+
+        <View style={styles.sectionHeader}>
+          <Text variant="caption" weight="700" style={styles.sectionLabel}>
+            EXERCISES
+          </Text>
+          <Text variant="caption" color="muted" mono tabular>
+            {template.exercises.length}
+          </Text>
         </View>
 
         {/* accordion: kliknes na row ka expandas table, samo 1 open naenkrat */}
@@ -349,10 +361,10 @@ export function TemplateDetailScreen() {
                           {s.targetReps}
                         </Text>
                         <Text mono tabular variant="bodySmall" style={styles.setColWeight}>
-                          {s.targetWeightKg > 0 ? `${formatNumber(s.targetWeightKg)} kg` : '—'}
+                          {s.targetWeightKg > 0 ? `${formatNumber(s.targetWeightKg)} kg` : '-'}
                         </Text>
                         <Text mono tabular variant="bodySmall" color="secondary" style={styles.setColRest}>
-                          {s.restSeconds != null ? formatSeconds(s.restSeconds) : '—'}
+                          {s.restSeconds != null ? formatSeconds(s.restSeconds) : '-'}
                         </Text>
                       </View>
                       );
@@ -384,6 +396,36 @@ export function TemplateDetailScreen() {
         />
       </View>
     </Screen>
+  );
+}
+
+interface HeroStatProps {
+  icon?: React.ReactNode;
+  value: string;
+  unit?: string;
+  label: string;
+}
+
+function HeroStat({ icon, value, unit, label }: HeroStatProps) {
+  return (
+    <View style={styles.heroStat}>
+      <View style={styles.heroStatHeader}>
+        {icon}
+        <Text variant="micro" style={styles.heroStatLabel}>
+          {label}
+        </Text>
+      </View>
+      <View style={styles.heroStatValueRow}>
+        <Text mono tabular weight="800" style={styles.heroStatValue}>
+          {value}
+        </Text>
+        {unit ? (
+          <Text variant="micro" style={styles.heroStatUnit}>
+            {unit}
+          </Text>
+        ) : null}
+      </View>
+    </View>
   );
 }
 
@@ -438,17 +480,53 @@ function extractMessage(err: unknown): string {
 }
 
 const styles = StyleSheet.create({
-  scroll: { paddingBottom: spacing.huge + 80 },
+  scroll: { paddingBottom: spacing.huge + 80, paddingTop: spacing.xs },
 
   hero: {
-    paddingHorizontal: spacing.xxl,
-    paddingTop: spacing.md,
-    paddingBottom: spacing.xxl,
+    marginHorizontal: spacing.xxl,
+    paddingHorizontal: spacing.xl,
+    paddingTop: spacing.xl,
+    paddingBottom: spacing.lg,
+    gap: spacing.sm,
+    backgroundColor: colors.primary,
+    borderRadius: radii.xl,
+    overflow: 'hidden',
+  },
+  heroEyebrow: { color: 'rgba(255,255,255,0.75)', letterSpacing: 1.2 },
+  heroTitle: { letterSpacing: -0.4, color: colors.white },
+
+  heroStats: {
+    flexDirection: 'row',
+    alignItems: 'stretch',
+    marginTop: spacing.md,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.md,
+    backgroundColor: 'rgba(255,255,255,0.10)',
+    borderRadius: radii.md,
     gap: spacing.md,
   },
-  heroTitle: { letterSpacing: -0.4 },
-  metaRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, flexWrap: 'wrap' },
-  metaItem: { flexDirection: 'row', alignItems: 'center' },
+  heroStat: { flex: 1, gap: 2 },
+  heroStatHeader: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  heroStatLabel: {
+    letterSpacing: 0.3,
+    textTransform: 'uppercase',
+    fontSize: 9,
+    color: 'rgba(255,255,255,0.7)',
+  },
+  heroStatValueRow: { flexDirection: 'row', alignItems: 'baseline' },
+  heroStatValue: { fontSize: 22, lineHeight: 24, letterSpacing: -0.5, color: colors.white },
+  heroStatUnit: { marginLeft: 4, color: 'rgba(255,255,255,0.7)' },
+  heroStatDivider: { width: 1, backgroundColor: 'rgba(255,255,255,0.15)', marginVertical: 4 },
+
+  sectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'baseline',
+    paddingHorizontal: spacing.xxl,
+    paddingTop: spacing.xl,
+    paddingBottom: spacing.md,
+  },
+  sectionLabel: { letterSpacing: 1, textTransform: 'uppercase', color: colors.inkSecondary },
 
   list: { paddingHorizontal: spacing.xxl, gap: spacing.sm },
   row: {

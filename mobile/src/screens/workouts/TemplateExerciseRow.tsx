@@ -10,7 +10,6 @@ import {
   ChevronDown,
   ChevronUp,
   Dumbbell,
-  GripVertical,
   Info,
   Plus,
   Trash2,
@@ -98,8 +97,10 @@ export function TemplateExerciseRow({
   return (
     <View style={styles.card}>
       <View style={styles.header}>
-        <View style={styles.grip}>
-          <GripVertical size={16} color={colors.inkMuted} strokeWidth={2} />
+        <View style={styles.gripCol}>
+          <Text variant="micro" weight="700" color="muted" mono tabular style={styles.gripIdx}>
+            {String(index + 1).padStart(2, '0')}
+          </Text>
         </View>
 
         <View style={styles.thumb}>
@@ -111,7 +112,7 @@ export function TemplateExerciseRow({
         </View>
 
         <View style={styles.headerText}>
-          <Text variant="body" weight="600" numberOfLines={1}>
+          <Text variant="body" weight="700" numberOfLines={1}>
             {item.name}
           </Text>
           {item.category ? (
@@ -122,37 +123,49 @@ export function TemplateExerciseRow({
         </View>
 
         <View style={styles.headerActions}>
+          <View style={styles.reorderPill}>
+            <Pressable
+              onPress={onMoveUp}
+              disabled={isFirst}
+              hitSlop={4}
+              style={({ pressed }) => [
+                styles.reorderBtn,
+                isFirst && styles.reorderBtnDisabled,
+                pressed && !isFirst && { opacity: 0.5 },
+              ]}
+              accessibilityLabel="Move up"
+            >
+              <ChevronUp
+                size={14}
+                color={isFirst ? colors.inkMuted : colors.inkPrimary}
+                strokeWidth={2.5}
+              />
+            </Pressable>
+            <View style={styles.reorderDivider} />
+            <Pressable
+              onPress={onMoveDown}
+              disabled={isLast}
+              hitSlop={4}
+              style={({ pressed }) => [
+                styles.reorderBtn,
+                isLast && styles.reorderBtnDisabled,
+                pressed && !isLast && { opacity: 0.5 },
+              ]}
+              accessibilityLabel="Move down"
+            >
+              <ChevronDown
+                size={14}
+                color={isLast ? colors.inkMuted : colors.inkPrimary}
+                strokeWidth={2.5}
+              />
+            </Pressable>
+          </View>
+
           {onInfoPress ? (
             <IconButton variant="ghost" size="sm" onPress={onInfoPress}>
               <Info size={16} color={colors.inkSecondary} strokeWidth={2} />
             </IconButton>
           ) : null}
-          <IconButton
-            variant="ghost"
-            size="sm"
-            onPress={onMoveUp}
-            disabled={isFirst}
-            style={isFirst ? styles.disabled : undefined}
-          >
-            <ChevronUp
-              size={16}
-              color={isFirst ? colors.inkMuted : colors.inkPrimary}
-              strokeWidth={2.25}
-            />
-          </IconButton>
-          <IconButton
-            variant="ghost"
-            size="sm"
-            onPress={onMoveDown}
-            disabled={isLast}
-            style={isLast ? styles.disabled : undefined}
-          >
-            <ChevronDown
-              size={16}
-              color={isLast ? colors.inkMuted : colors.inkPrimary}
-              strokeWidth={2.25}
-            />
-          </IconButton>
           <IconButton variant="ghost" size="sm" onPress={onRemove}>
             <Trash2 size={15} color={colors.danger} strokeWidth={2} />
           </IconButton>
@@ -507,6 +520,32 @@ const styles = StyleSheet.create({
 
   header: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
   grip: { paddingVertical: spacing.xs },
+  gripCol: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 2,
+    paddingVertical: spacing.xs,
+    paddingRight: 2,
+  },
+  gripIdx: { fontSize: 10, letterSpacing: 0.4 },
+
+  reorderPill: {
+    flexDirection: 'column',
+    backgroundColor: colors.surfaceElevated,
+    borderRadius: radii.sm,
+    borderWidth: 1,
+    borderColor: colors.line,
+    marginRight: 2,
+  },
+  reorderBtn: {
+    width: 30,
+    height: 22,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  reorderBtnDisabled: { opacity: 0.35 },
+  reorderDivider: { height: 1, backgroundColor: colors.line },
+
   thumb: {
     width: 36,
     height: 36,

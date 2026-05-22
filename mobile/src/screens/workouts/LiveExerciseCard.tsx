@@ -30,7 +30,6 @@ interface Props {
   onSetTypePress: (setId: string, setIdx: number) => void;
 }
 
-
 export function LiveExerciseCard({
   exercise,
   onCompleteSet,
@@ -41,7 +40,9 @@ export function LiveExerciseCard({
   onInfoPress,
   onSetTypePress,
 }: Props) {
-  const allDone = exercise.sets.length > 0 && exercise.sets.every(s => s.completed);
+  const completed = exercise.sets.filter(s => s.completed).length;
+  const total = exercise.sets.length;
+  const allDone = total > 0 && completed === total;
 
   return (
     <View style={[styles.card, allDone && styles.cardDone]}>
@@ -54,21 +55,28 @@ export function LiveExerciseCard({
           )}
         </View>
         <View style={styles.headerText}>
-          <Text variant="body" weight="600" numberOfLines={1}>
+          <Text variant="bodyLarge" weight="700" numberOfLines={1} style={styles.exerciseName}>
             {exercise.name}
           </Text>
           <View style={styles.headerMeta}>
+            <Text variant="micro" weight="700" style={styles.progressLabel}>
+              {completed}/{total} sets
+            </Text>
             {exercise.category ? (
-              <Text variant="micro" color="secondary">
-                {capitalize(exercise.category)}
-              </Text>
+              <>
+                <View style={styles.metaDot} />
+                <Text variant="micro" color="secondary">
+                  {capitalize(exercise.category)}
+                </Text>
+              </>
             ) : null}
             {exercise.addedLive ? (
-              <View style={styles.addedLiveBadge}>
-                <Text variant="micro" weight="700" color="brand">
-                  Added live
+              <>
+                <View style={styles.metaDot} />
+                <Text variant="micro" weight="700" style={{ color: colors.primary }}>
+                  LIVE
                 </Text>
-              </View>
+              </>
             ) : null}
           </View>
         </View>
@@ -82,21 +90,31 @@ export function LiveExerciseCard({
         </View>
       </View>
 
+      {total > 0 ? (
+        <View style={styles.miniProgress}>
+          <View
+            style={[
+              styles.miniProgressFill,
+              { width: `${(completed / total) * 100}%` },
+              allDone && { backgroundColor: colors.success },
+            ]}
+          />
+        </View>
+      ) : null}
+
       <View style={styles.table}>
         <View style={styles.tableHeader}>
-          <Text variant="caption" color="muted" style={[styles.colSet, styles.headerAlignStart]}>
-            Set
+          <Text variant="caption" color="muted" style={[styles.colSet, styles.headerCell]}>
+            SET
           </Text>
-          <Text variant="caption" color="muted" style={[styles.colReps, styles.headerAlignCenter]}>
-            Reps
+          <Text variant="caption" color="muted" style={[styles.colReps, styles.headerCell]}>
+            REPS
           </Text>
-          <Text variant="caption" color="muted" style={[styles.colWeight, styles.headerAlignCenter]}>
-            Weight
+          <Text variant="caption" color="muted" style={[styles.colWeight, styles.headerCell]}>
+            KG
           </Text>
           <View style={styles.colRemove} />
-          <Text variant="caption" color="muted" style={[styles.colDone, styles.headerAlignEnd]}>
-            ✓
-          </Text>
+          <View style={styles.colDone} />
         </View>
 
         {exercise.sets.map((set, idx) => (
@@ -114,9 +132,11 @@ export function LiveExerciseCard({
         <Pressable
           onPress={onAddSet}
           style={({ pressed }) => [styles.addSetBtn, pressed && { opacity: 0.7 }]}
+          accessibilityRole="button"
+          accessibilityLabel="Add set"
         >
-          <Plus size={12} color={colors.primary} strokeWidth={2.25} />
-          <Text variant="micro" weight="700" color="brand">
+          <Plus size={14} color={colors.primary} strokeWidth={2.5} />
+          <Text variant="bodySmall" weight="700" color="brand">
             Add set
           </Text>
         </Pressable>
@@ -138,6 +158,7 @@ interface SetRowProps {
 function SetRow({ set, index, onComplete, onChange, onRemove, onTypePress }: SetRowProps) {
   const meta = setTypeMeta(set.setType);
   const isNormal = (set.setType ?? 'NORMAL') === 'NORMAL';
+
   return (
     <View
       style={[
@@ -148,7 +169,7 @@ function SetRow({ set, index, onComplete, onChange, onRemove, onTypePress }: Set
       <View style={styles.colSet}>
         <Pressable
           onPress={onTypePress}
-          hitSlop={6}
+          hitSlop={8}
           style={({ pressed }) => [
             styles.setBadge,
             {
@@ -161,8 +182,8 @@ function SetRow({ set, index, onComplete, onChange, onRemove, onTypePress }: Set
           accessibilityLabel={`Set ${index + 1} type: ${meta.fullLabel}. Tap to change.`}
         >
           <Text
-            variant="micro"
-            weight="700"
+            variant="bodySmall"
+            weight="800"
             mono
             tabular
             style={{ color: set.completed ? colors.white : meta.badgeFg }}
@@ -190,7 +211,6 @@ function SetRow({ set, index, onComplete, onChange, onRemove, onTypePress }: Set
           min={0}
           max={500}
           step={0.25}
-          unit="kg"
           disabled={set.completed}
           onChange={weightKg => onChange({ weightKg })}
         />
@@ -204,7 +224,7 @@ function SetRow({ set, index, onComplete, onChange, onRemove, onTypePress }: Set
             style={({ pressed }) => [styles.removeBtn, pressed && { opacity: 0.5 }]}
             accessibilityLabel={`Remove set ${index + 1}`}
           >
-            <X size={14} color={colors.inkMuted} strokeWidth={2} />
+            <X size={14} color={colors.inkMuted} strokeWidth={2.25} />
           </Pressable>
         ) : null}
       </View>
@@ -212,7 +232,7 @@ function SetRow({ set, index, onComplete, onChange, onRemove, onTypePress }: Set
       <View style={styles.colDone}>
         <Pressable
           onPress={onComplete}
-          hitSlop={8}
+          hitSlop={4}
           style={({ pressed }) => [
             styles.checkbox,
             set.completed ? styles.checkboxOn : styles.checkboxOff,
@@ -221,7 +241,7 @@ function SetRow({ set, index, onComplete, onChange, onRemove, onTypePress }: Set
           accessibilityRole="checkbox"
           accessibilityState={{ checked: set.completed }}
         >
-          {set.completed ? <Check size={16} color={colors.white} strokeWidth={3} /> : null}
+          {set.completed ? <Check size={20} color={colors.white} strokeWidth={3} /> : null}
         </Pressable>
       </View>
     </View>
@@ -235,7 +255,6 @@ interface NumberControlProps {
   max: number;
   step: number;
   integer?: boolean;
-  unit?: string;
   disabled?: boolean;
   onChange: (next: number) => void;
 }
@@ -246,7 +265,6 @@ function NumberControl({
   max,
   step,
   integer = false,
-  unit,
   disabled,
   onChange,
 }: NumberControlProps) {
@@ -289,6 +307,7 @@ function NumberControl({
         onPress={dec}
         hitSlop={8}
         style={({ pressed }) => [styles.stepBtn, pressed && styles.stepBtnPressed]}
+        accessibilityLabel="Decrease"
       >
         <Text variant="bodySmall" weight="700" color="secondary">
           −
@@ -308,11 +327,6 @@ function NumberControl({
             style={styles.numInput}
             maxLength={6}
           />
-          {unit ? (
-            <Text variant="micro" color="muted" style={styles.numUnit}>
-              {unit}
-            </Text>
-          ) : null}
         </View>
       ) : (
         <Pressable
@@ -323,20 +337,16 @@ function NumberControl({
           hitSlop={6}
           style={styles.numValueWrap}
         >
-          <Text mono tabular weight="700" style={styles.numValue}>
+          <Text mono tabular weight="800" style={styles.numValue}>
             {formatNumber(value)}
           </Text>
-          {unit ? (
-            <Text variant="micro" color="muted" style={styles.numUnit}>
-              {unit}
-            </Text>
-          ) : null}
         </Pressable>
       )}
       <Pressable
         onPress={inc}
         hitSlop={8}
         style={({ pressed }) => [styles.stepBtn, pressed && styles.stepBtnPressed]}
+        accessibilityLabel="Increase"
       >
         <Text variant="bodySmall" weight="700" color="secondary">
           +
@@ -368,61 +378,73 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.line,
     padding: spacing.lg,
-    gap: spacing.lg,
+    gap: spacing.md,
   },
   cardDone: { borderColor: colors.success, backgroundColor: colors.successSoft },
 
   header: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
   thumb: {
-    width: 36,
-    height: 36,
+    width: 44,
+    height: 44,
     borderRadius: radii.md,
     backgroundColor: colors.primarySoft,
     alignItems: 'center',
     justifyContent: 'center',
     overflow: 'hidden',
   },
-  thumbImage: { width: 36, height: 36 },
-  headerText: { flex: 1, minWidth: 0 },
-  headerMeta: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginTop: 1 },
-  addedLiveBadge: {
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 1,
-    borderRadius: radii.xs,
-    backgroundColor: colors.primarySoftStrong,
+  thumbImage: { width: 44, height: 44 },
+  headerText: { flex: 1, minWidth: 0, gap: 2 },
+  exerciseName: { letterSpacing: -0.2 },
+  headerMeta: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+  progressLabel: { color: colors.inkSecondary, letterSpacing: 0.3 },
+  metaDot: {
+    width: 3,
+    height: 3,
+    borderRadius: 1.5,
+    backgroundColor: colors.inkMuted,
+    opacity: 0.6,
   },
   headerActions: { flexDirection: 'row', alignItems: 'center' },
+
+  miniProgress: {
+    height: 3,
+    borderRadius: 2,
+    backgroundColor: colors.line,
+    overflow: 'hidden',
+  },
+  miniProgressFill: {
+    height: '100%',
+    backgroundColor: colors.primary,
+  },
 
   table: {
     backgroundColor: colors.surfaceElevated,
     borderRadius: radii.md,
-    paddingVertical: spacing.md,
+    paddingVertical: spacing.sm,
     paddingHorizontal: spacing.sm,
   },
   tableHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: spacing.xs,
-    marginBottom: spacing.sm,
+    paddingBottom: spacing.xs,
   },
-  headerAlignStart: { textAlign: 'left' },
-  headerAlignCenter: { textAlign: 'center' },
-  headerAlignEnd: { textAlign: 'right' },
+  headerCell: { fontSize: 10, letterSpacing: 0.6, textAlign: 'center' },
 
   row: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: spacing.xs,
-    paddingVertical: spacing.sm,
+    paddingVertical: spacing.xs,
     borderRadius: radii.sm,
   },
   rowDone: { backgroundColor: colors.successSoft },
 
   colSet: { width: 36, alignItems: 'flex-start' },
   colReps: { flex: 1, alignItems: 'center' },
-  colWeight: { flex: 1.3, alignItems: 'center' },
-  colRemove: { width: 28, alignItems: 'center' },
-  colDone: { width: 44, alignItems: 'flex-end' },
+  colWeight: { flex: 1.2, alignItems: 'center' },
+  colRemove: { width: 24, alignItems: 'center' },
+  colDone: { width: 40, alignItems: 'flex-end' },
 
   removeBtn: {
     width: 24,
@@ -433,13 +455,13 @@ const styles = StyleSheet.create({
   },
 
   setBadge: {
-    width: 26,
-    height: 26,
-    borderRadius: 13,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
     backgroundColor: colors.surface,
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 1,
+    borderWidth: 1.5,
     borderColor: colors.line,
   },
   setBadgeDone: {
@@ -450,7 +472,7 @@ const styles = StyleSheet.create({
   checkbox: {
     width: 32,
     height: 32,
-    borderRadius: 8,
+    borderRadius: 10,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -464,34 +486,35 @@ const styles = StyleSheet.create({
   },
 
   numWrap: { flexDirection: 'row', alignItems: 'center', gap: 2 },
-  numWrapDisabled: { opacity: 0.4 },
+  numWrapDisabled: { opacity: 0.5 },
   numValueWrap: {
-    flexDirection: 'row',
-    alignItems: 'baseline',
-    justifyContent: 'center',
-    minWidth: 48,
+    minWidth: 44,
     paddingHorizontal: 2,
+    paddingVertical: 2,
+    borderRadius: radii.sm,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  numValue: { fontSize: 15, lineHeight: 18 },
-  numUnit: { marginLeft: 2, fontSize: 10 },
+  numValue: { fontSize: 15, lineHeight: 18, letterSpacing: -0.2 },
   numInput: {
     fontSize: 15,
-    fontWeight: '700',
+    fontWeight: '800',
     color: colors.inkPrimary,
     fontVariant: ['tabular-nums'],
-    minWidth: 40,
+    minWidth: 44,
     paddingVertical: 0,
-    paddingHorizontal: 4,
-    borderBottomWidth: 1,
+    paddingHorizontal: 2,
+    borderBottomWidth: 1.5,
     borderBottomColor: colors.primary,
     textAlign: 'center',
   },
   stepBtn: {
-    width: 22,
-    height: 22,
-    borderRadius: 11,
+    width: 24,
+    height: 24,
+    borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
+    backgroundColor: colors.surface,
   },
   stepBtnPressed: { opacity: 0.5 },
 
@@ -499,9 +522,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 4,
-    paddingVertical: spacing.sm + 2,
-    marginTop: spacing.sm,
-    borderRadius: radii.pill,
+    gap: 6,
+    paddingVertical: spacing.md,
+    marginTop: spacing.xs,
+    borderRadius: radii.md,
   },
 });

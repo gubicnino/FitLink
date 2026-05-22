@@ -299,22 +299,43 @@ export function TemplateFormScreen() {
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
-          <View style={styles.section}>
+          <View style={styles.hero}>
+            <Text variant="micro" weight="700" style={styles.heroEyebrow}>
+              {isEdit ? 'EDITING TEMPLATE' : 'NEW TEMPLATE'}
+            </Text>
             <Input
-              label="Template name"
               placeholder="Push Day"
               value={name}
               onChangeText={setName}
               autoCapitalize="words"
               returnKeyType="done"
+              style={styles.heroTitleInput}
             />
+
+            <View style={styles.heroStats}>
+              <HeroStat
+                value={String(items.length)}
+                label={items.length === 1 ? 'exercise' : 'exercises'}
+              />
+              <View style={styles.heroStatDivider} />
+              <HeroStat
+                value={String(totalSetsCount(items))}
+                label="sets"
+              />
+              <View style={styles.heroStatDivider} />
+              <HeroStat
+                value={`~${estimateMinutes(items)}`}
+                unit="min"
+                label="duration"
+              />
+            </View>
           </View>
 
           <View style={styles.listHeader}>
-            <Text variant="caption" color="muted">
-              Exercises
+            <Text variant="caption" weight="700" style={styles.sectionLabel}>
+              EXERCISES
             </Text>
-            <Text variant="caption" color="muted">
+            <Text variant="caption" color="muted" mono tabular>
               {items.length}
             </Text>
           </View>
@@ -340,29 +361,96 @@ export function TemplateFormScreen() {
               onPress={onAddExercise}
               style={({ pressed }) => [styles.addRow, pressed && { opacity: 0.7 }]}
               accessibilityRole="button"
+              accessibilityLabel="Add exercise"
             >
-              <Plus size={18} color={colors.primary} strokeWidth={2.25} />
-              <Text variant="body" weight="600" color="brand">
-                Add exercise
-              </Text>
+              <View style={styles.addRowIcon}>
+                <Plus size={18} color={colors.primary} strokeWidth={2.5} />
+              </View>
+              <View style={styles.addRowText}>
+                <Text variant="body" weight="700" color="brand">
+                  Add exercise
+                </Text>
+                <Text variant="micro" color="muted">
+                  Browse the library or search
+                </Text>
+              </View>
             </Pressable>
+
+            {items.length === 0 ? (
+              <View style={styles.emptyHint}>
+                <Text variant="bodySmall" color="secondary" align="center">
+                  Start by adding exercises from the library
+                </Text>
+              </View>
+            ) : null}
           </View>
         </ScrollView>
       )}
 
       {!loading && !error ? (
         <View style={[styles.ctaBar, shadows.modal]}>
+          <View style={styles.ctaInfo}>
+            <Text variant="micro" color="muted" style={styles.ctaInfoLabel}>
+              {items.length} {items.length === 1 ? 'exercise' : 'exercises'} · {totalSetsCount(items)} sets
+            </Text>
+            <Text variant="bodySmall" weight="700" numberOfLines={1}>
+              {name.trim() || (isEdit ? 'Edit template' : 'New template')}
+            </Text>
+          </View>
           <Button
-            label={saving ? 'Saving…' : isEdit ? 'Save changes' : 'Save template'}
+            label={saving ? 'Saving…' : isEdit ? 'Save' : 'Save'}
             variant="primary"
-            fullWidth
+            size="lg"
             loading={saving}
             onPress={onSave}
+            style={styles.ctaButton}
           />
         </View>
       ) : null}
     </Screen>
   );
+}
+
+interface HeroStatProps {
+  value: string;
+  unit?: string;
+  label: string;
+}
+
+function HeroStat({ value, unit, label }: HeroStatProps) {
+  return (
+    <View style={styles.heroStat}>
+      <View style={styles.heroStatValueRow}>
+        <Text mono tabular weight="800" style={styles.heroStatValue}>
+          {value}
+        </Text>
+        {unit ? (
+          <Text variant="micro" style={styles.heroStatUnit}>
+            {unit}
+          </Text>
+        ) : null}
+      </View>
+      <Text variant="micro" style={styles.heroStatLabel}>
+        {label}
+      </Text>
+    </View>
+  );
+}
+
+function totalSetsCount(items: TemplateFormExercise[]): number {
+  return items.reduce((sum, it) => sum + it.sets.length, 0);
+}
+
+function estimateMinutes(items: TemplateFormExercise[]): number {
+  const FALLBACK_REST_SECONDS = 60;
+  let totalSeconds = 0;
+  for (const it of items) {
+    for (const set of it.sets) {
+      totalSeconds += 45;
+      totalSeconds += set.restSeconds ?? FALLBACK_REST_SECONDS;
+    }
+  }
+  return Math.max(0, Math.round(totalSeconds / 60));
 }
 
 
@@ -381,36 +469,98 @@ function extractMessage(err: unknown): string {
 }
 
 const styles = StyleSheet.create({
-  scroll: { paddingBottom: spacing.huge + 80 },
-  section: { paddingHorizontal: spacing.xxl, marginBottom: spacing.xl },
+  scroll: { paddingBottom: spacing.huge + 80, paddingTop: spacing.xs },
 
+  // Hero card
+  hero: {
+    marginHorizontal: spacing.xxl,
+    paddingHorizontal: spacing.xl,
+    paddingTop: spacing.xl,
+    paddingBottom: spacing.lg,
+    gap: spacing.md,
+    backgroundColor: colors.primary,
+    borderRadius: radii.xl,
+    overflow: 'hidden',
+    marginBottom: spacing.xl,
+  },
+  heroEyebrow: { color: 'rgba(255,255,255,0.75)', letterSpacing: 1.2 },
+  heroTitleInput: {
+    backgroundColor: 'rgba(255,255,255,0.12)',
+    borderColor: 'rgba(255,255,255,0.18)',
+    color: colors.white,
+    fontSize: 22,
+    fontWeight: '800',
+    letterSpacing: -0.3,
+  },
+
+  heroStats: {
+    flexDirection: 'row',
+    alignItems: 'stretch',
+    marginTop: spacing.xs,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.md,
+    backgroundColor: 'rgba(255,255,255,0.10)',
+    borderRadius: radii.md,
+    gap: spacing.md,
+  },
+  heroStat: { flex: 1, gap: 2 },
+  heroStatValueRow: { flexDirection: 'row', alignItems: 'baseline' },
+  heroStatValue: { fontSize: 20, lineHeight: 22, letterSpacing: -0.4, color: colors.white },
+  heroStatUnit: { marginLeft: 3, color: 'rgba(255,255,255,0.7)', fontSize: 10 },
+  heroStatLabel: {
+    letterSpacing: 0.3,
+    textTransform: 'uppercase',
+    fontSize: 9,
+    color: 'rgba(255,255,255,0.7)',
+  },
+  heroStatDivider: { width: 1, backgroundColor: 'rgba(255,255,255,0.15)', marginVertical: 4 },
+
+  // Section
   listHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
+    alignItems: 'baseline',
     paddingHorizontal: spacing.xxl,
     marginBottom: spacing.md,
   },
+  sectionLabel: { letterSpacing: 1, textTransform: 'uppercase', color: colors.inkSecondary },
+
   list: { paddingHorizontal: spacing.xxl, gap: spacing.md },
 
+  // Add exercise CTA
   addRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
     gap: spacing.md,
-    paddingVertical: spacing.xl,
+    paddingVertical: spacing.lg,
+    paddingHorizontal: spacing.lg,
     borderRadius: radii.lg,
     borderWidth: 1.5,
-    borderColor: colors.primarySoftStrong,
+    borderColor: colors.primaryBorder,
     borderStyle: 'dashed',
-    backgroundColor: colors.surface,
+    backgroundColor: colors.primarySoft,
   },
+  addRowIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: colors.primarySoftStrong,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  addRowText: { flex: 1, gap: 2 },
 
+  emptyHint: { paddingVertical: spacing.lg, alignItems: 'center' },
+
+  // Sticky save bar
   ctaBar: {
     position: 'absolute',
     left: 0,
     right: 0,
     bottom: 0,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
     paddingHorizontal: spacing.xxl,
     paddingTop: spacing.lg,
     paddingBottom: spacing.xxl,
@@ -418,6 +568,9 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: colors.line,
   },
+  ctaInfo: { flex: 1, minWidth: 0, gap: 2 },
+  ctaInfoLabel: { letterSpacing: 0.3 },
+  ctaButton: { minWidth: 110 },
 
   center: {
     flex: 1,

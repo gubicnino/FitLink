@@ -268,6 +268,13 @@ export function LiveWorkoutScreen() {
     return n;
   }, [session]);
 
+  const totalSets = useMemo(() => {
+    if (!session) return 0;
+    let n = 0;
+    for (const ex of session.exercises) n += ex.sets.length;
+    return n;
+  }, [session]);
+
 
   if (!hydrated || bootstrapping || !session) {
     return (
@@ -300,18 +307,46 @@ export function LiveWorkoutScreen() {
   return (
     <Screen edges={['top']}>
       <View style={styles.header}>
-        <IconButton variant="surface" withBorder onPress={onClose}>
-          <X size={18} color={colors.inkPrimary} strokeWidth={2.25} />
-        </IconButton>
-        <View style={styles.headerCenter}>
-          <Text variant="caption" color="muted">
-            {session.name}
-          </Text>
-          <Text mono tabular weight="700" style={styles.timer}>
+        <View style={styles.headerTopRow}>
+          <IconButton variant="surface" withBorder onPress={onClose}>
+            <X size={18} color={colors.inkPrimary} strokeWidth={2.25} />
+          </IconButton>
+          <View style={styles.headerCenter}>
+            <Text variant="micro" weight="700" style={styles.headerEyebrow}>
+              ACTIVE WORKOUT
+            </Text>
+            <Text variant="bodySmall" weight="600" numberOfLines={1} style={styles.headerName}>
+              {session.name}
+            </Text>
+          </View>
+          <View style={styles.headerSpacer} />
+        </View>
+
+        <View style={styles.timerRow}>
+          <Text mono tabular weight="800" style={styles.timer}>
             {formatElapsed(elapsedSeconds)}
           </Text>
+          <View style={styles.timerStats}>
+            <Text mono tabular weight="800" style={styles.timerStatValue}>
+              {completedSets}
+              <Text mono tabular weight="600" style={styles.timerStatTotal}>
+                /{totalSets}
+              </Text>
+            </Text>
+            <Text variant="micro" color="muted" style={styles.timerStatLabel}>
+              SETS DONE
+            </Text>
+          </View>
         </View>
-        <View style={styles.headerSpacer} />
+
+        <View style={styles.progressBar}>
+          <View
+            style={[
+              styles.progressFill,
+              { width: `${totalSets > 0 ? (completedSets / totalSets) * 100 : 0}%` },
+            ]}
+          />
+        </View>
       </View>
 
       <ScrollView
@@ -364,12 +399,25 @@ export function LiveWorkoutScreen() {
       </ScrollView>
 
       <View style={[styles.ctaBar, shadows.modal]}>
+        <View style={styles.ctaInfo}>
+          <Text variant="micro" color="muted" style={styles.ctaInfoLabel}>
+            COMPLETED
+          </Text>
+          <Text mono tabular weight="800" style={styles.ctaInfoValue}>
+            {completedSets}
+            <Text mono tabular weight="600" style={styles.ctaInfoTotal}>
+              {' / '}
+              {totalSets}
+            </Text>
+          </Text>
+        </View>
         <Button
-          label="Finish workout"
+          label="Finish"
           variant="primary"
-          fullWidth
+          size="lg"
           leftIcon={<Flag size={16} color={colors.white} strokeWidth={2.25} />}
           onPress={() => setFinishOpen(true)}
+          style={styles.ctaButton}
         />
       </View>
 
@@ -492,18 +540,59 @@ function extractMessage(err: unknown): string {
 
 const styles = StyleSheet.create({
   header: {
-    flexDirection: 'row',
-    alignItems: 'center',
     paddingHorizontal: spacing.xxl,
-    paddingTop: spacing.lg,
+    paddingTop: spacing.md,
     paddingBottom: spacing.lg,
-    gap: spacing.lg,
+    gap: spacing.md,
+    backgroundColor: colors.surface,
     borderBottomWidth: 1,
     borderBottomColor: colors.line,
   },
-  headerCenter: { flex: 1, alignItems: 'center', gap: 2 },
+  headerTopRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+  },
+  headerCenter: { flex: 1, alignItems: 'flex-start', gap: 2, minWidth: 0 },
+  headerEyebrow: { color: colors.primary, letterSpacing: 1.2 },
+  headerName: { letterSpacing: -0.1 },
   headerSpacer: { width: 40 },
-  timer: { fontSize: 22, lineHeight: 26, letterSpacing: -0.5 },
+
+  timerRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    justifyContent: 'space-between',
+    gap: spacing.lg,
+    paddingTop: spacing.xs,
+  },
+  timer: {
+    fontSize: 44,
+    lineHeight: 44,
+    letterSpacing: -1.5,
+    color: colors.inkPrimary,
+  },
+  timerStats: { alignItems: 'flex-end', gap: 2 },
+  timerStatValue: {
+    fontSize: 22,
+    lineHeight: 24,
+    letterSpacing: -0.5,
+    color: colors.inkPrimary,
+  },
+  timerStatTotal: { fontSize: 18, color: colors.inkMuted },
+  timerStatLabel: { letterSpacing: 0.6, fontSize: 9 },
+
+  progressBar: {
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: colors.line,
+    overflow: 'hidden',
+    marginTop: spacing.xs,
+  },
+  progressFill: {
+    height: '100%',
+    backgroundColor: colors.primary,
+    borderRadius: 2,
+  },
 
   scroll: { paddingTop: spacing.xl, paddingBottom: spacing.huge + 80 },
   list: { paddingHorizontal: spacing.xxl, gap: spacing.md },
@@ -512,13 +601,13 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: spacing.md,
-    paddingVertical: spacing.xl,
+    gap: spacing.sm,
+    paddingVertical: spacing.lg,
     borderRadius: radii.lg,
     borderWidth: 1.5,
-    borderColor: colors.primarySoftStrong,
+    borderColor: colors.primaryBorder,
     borderStyle: 'dashed',
-    backgroundColor: colors.surface,
+    backgroundColor: colors.primarySoft,
   },
 
   ctaBar: {
@@ -526,6 +615,9 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.lg,
     paddingHorizontal: spacing.xxl,
     paddingTop: spacing.lg,
     paddingBottom: spacing.xxl,
@@ -533,6 +625,16 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: colors.line,
   },
+  ctaInfo: { gap: 2 },
+  ctaInfoLabel: { letterSpacing: 0.6, fontSize: 9 },
+  ctaInfoValue: {
+    fontSize: 22,
+    lineHeight: 24,
+    letterSpacing: -0.5,
+    color: colors.inkPrimary,
+  },
+  ctaInfoTotal: { fontSize: 16, color: colors.inkMuted },
+  ctaButton: { flex: 1 },
 
   center: {
     flex: 1,

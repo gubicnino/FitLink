@@ -1,15 +1,14 @@
 import React from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
-import { Calendar, Clock, Dumbbell, TrendingUp, Trophy } from 'lucide-react-native';
+import { ChevronRight, Clock, Dumbbell, TrendingUp, Trophy } from 'lucide-react-native';
 import { colors, radii, spacing } from '../../theme';
-import { Dot, Text } from '../../components/ui';
+import { Text } from '../../components/ui';
 import type { WorkoutSession } from '../../types/workout';
 
 interface Props {
   session: WorkoutSession;
   onPress?: () => void;
 }
-
 
 export function SessionHistoryCard({ session, onPress }: Props) {
   const totalSets = session.exercises.reduce((sum, e) => sum + e.sets.length, 0);
@@ -23,74 +22,76 @@ export function SessionHistoryCard({ session, onPress }: Props) {
   }, 0);
 
   const dateLabel = (session.finishedAt ?? session.startedAt) || null;
+  const dayOfWeek = dateLabel ? formatDayOfWeek(dateLabel) : null;
+  const relativeDate = dateLabel ? formatRelativeDate(dateLabel) : null;
 
   return (
     <Pressable
       onPress={onPress}
-      style={({ pressed }) => [styles.card, pressed && { opacity: 0.92 }]}
+      style={({ pressed }) => [styles.card, pressed && styles.cardPressed]}
+      accessibilityRole="button"
+      accessibilityLabel={`Open workout ${session.name}`}
     >
-      <View style={styles.accent} />
+      {dayOfWeek ? (
+        <View style={styles.dateCol}>
+          <Text variant="micro" weight="700" style={styles.dateDow}>
+            {dayOfWeek.dow}
+          </Text>
+          <Text mono tabular weight="800" style={styles.dateDay}>
+            {dayOfWeek.day}
+          </Text>
+        </View>
+      ) : null}
 
       <View style={styles.body}>
         <View style={styles.topRow}>
-          {dateLabel ? (
-            <View style={styles.datePill}>
-              <Calendar size={11} color={colors.primary} strokeWidth={2.25} />
-              <Text variant="micro" weight="700" color="brand">
-                {' '}
-                {formatRelativeDate(dateLabel)}
-              </Text>
-            </View>
-          ) : null}
-          <View style={styles.metaRow}>
-            {session.durationMinutes > 0 ? (
-              <>
-                <View style={styles.metaItem}>
-                  <Clock size={11} color={colors.inkMuted} strokeWidth={2} />
-                  <Text variant="micro" color="muted">
-                    {' '}
-                    {session.durationMinutes} min
-                  </Text>
-                </View>
-                <Dot />
-              </>
-            ) : null}
-            <Text variant="micro" color="muted">
-              {totalSets} sets
-            </Text>
-          </View>
+          <Text variant="h3" weight="700" numberOfLines={1} style={styles.title}>
+            {session.name}
+          </Text>
+          <ChevronRight size={16} color={colors.inkMuted} strokeWidth={2.25} />
         </View>
 
-        <Text variant="h3" weight="700" numberOfLines={1} style={styles.title}>
-          {session.name}
-        </Text>
+        <View style={styles.metaRow}>
+          {relativeDate ? (
+            <Text variant="micro" color="muted">
+              {relativeDate}
+            </Text>
+          ) : null}
+          {session.durationMinutes > 0 ? (
+            <>
+              <View style={styles.metaDot} />
+              <View style={styles.metaInline}>
+                <Clock size={10} color={colors.inkMuted} strokeWidth={2} />
+                <Text variant="micro" color="muted">
+                  {' '}
+                  {session.durationMinutes} min
+                </Text>
+              </View>
+            </>
+          ) : null}
+          <View style={styles.metaDot} />
+          <Text variant="micro" color="muted">
+            {totalSets} sets
+          </Text>
+        </View>
 
         <View style={styles.stats}>
-          <StatTile
-            icon={<Dumbbell size={14} color={colors.primary} strokeWidth={2} />}
+          <Stat
+            icon={<Dumbbell size={12} color={colors.primary} strokeWidth={2.25} />}
             value={String(session.exercises.length)}
-            label={session.exercises.length === 1 ? 'exercise' : 'exercises'}
+            label="exercises"
           />
-          <View style={styles.statDivider} />
-          <StatTile
-            icon={<TrendingUp size={14} color={colors.success} strokeWidth={2} />}
+          <Stat
+            icon={<TrendingUp size={12} color={colors.success} strokeWidth={2.25} />}
             value={totalVolume > 0 ? formatVolume(totalVolume) : '—'}
-            label="volume"
             unit={totalVolume > 0 ? 'kg' : undefined}
+            label="volume"
           />
-          <View style={styles.statDivider} />
-          <StatTile
-            icon={
-              <Trophy
-                size={14}
-                color={colors.accent}
-                fill={colors.accent}
-                strokeWidth={0}
-              />
-            }
+          <Stat
+            icon={<Trophy size={12} color={colors.accent} fill={colors.accent} strokeWidth={0} />}
             value={heaviest > 0 ? formatNumber(heaviest) : '—'}
-            label="heaviest"
             unit={heaviest > 0 ? 'kg' : undefined}
+            label="top set"
             highlight
           />
         </View>
@@ -99,24 +100,29 @@ export function SessionHistoryCard({ session, onPress }: Props) {
   );
 }
 
-interface StatTileProps {
-  icon?: React.ReactNode;
+interface StatProps {
+  icon: React.ReactNode;
   value: string;
-  label: string;
   unit?: string;
+  label: string;
   highlight?: boolean;
 }
 
-function StatTile({ icon, value, label, unit, highlight }: StatTileProps) {
+function Stat({ icon, value, unit, label, highlight }: StatProps) {
   return (
-    <View style={styles.statTile}>
-      {icon ? <View style={styles.statIcon}>{icon}</View> : null}
+    <View style={styles.stat}>
+      <View style={styles.statHeader}>
+        {icon}
+        <Text variant="micro" color="muted" style={styles.statLabel}>
+          {label}
+        </Text>
+      </View>
       <View style={styles.statValueRow}>
         <Text
           mono
           tabular
-          weight="700"
-          style={[styles.statValue, highlight && styles.statValueHighlight]}
+          weight="800"
+          style={[styles.statValue, highlight && { color: colors.accent }]}
         >
           {value}
         </Text>
@@ -126,13 +132,18 @@ function StatTile({ icon, value, label, unit, highlight }: StatTileProps) {
           </Text>
         ) : null}
       </View>
-      <Text variant="micro" color="muted" style={styles.statLabel}>
-        {label}
-      </Text>
     </View>
   );
 }
 
+function formatDayOfWeek(iso: string): { dow: string; day: string } | null {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return null;
+  return {
+    dow: d.toLocaleDateString(undefined, { weekday: 'short' }).toUpperCase().slice(0, 3),
+    day: String(d.getDate()),
+  };
+}
 
 function formatRelativeDate(iso: string): string {
   const then = new Date(iso);
@@ -170,58 +181,55 @@ const styles = StyleSheet.create({
     borderColor: colors.line,
     overflow: 'hidden',
   },
-  accent: {
-    width: 4,
-    backgroundColor: colors.primary,
+  cardPressed: { opacity: 0.92 },
+
+  dateCol: {
+    width: 56,
+    paddingVertical: spacing.lg,
+    backgroundColor: colors.primarySoft,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 2,
+    borderRightWidth: 1,
+    borderRightColor: colors.line,
   },
+  dateDow: {
+    color: colors.primary,
+    letterSpacing: 1,
+    fontSize: 10,
+  },
+  dateDay: { fontSize: 22, lineHeight: 24, color: colors.primary },
+
   body: {
     flex: 1,
     paddingVertical: spacing.lg,
     paddingHorizontal: spacing.xl,
-    gap: spacing.md,
+    gap: spacing.sm,
   },
 
-  topRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: spacing.md,
-  },
-  datePill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 3,
-    borderRadius: radii.xs,
-    backgroundColor: colors.primarySoftStrong,
-  },
-  metaRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
-  metaItem: { flexDirection: 'row', alignItems: 'center' },
+  topRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
+  title: { flex: 1, letterSpacing: -0.2 },
 
-  title: { letterSpacing: -0.2 },
+  metaRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, flexWrap: 'wrap' },
+  metaInline: { flexDirection: 'row', alignItems: 'center' },
+  metaDot: {
+    width: 3,
+    height: 3,
+    borderRadius: 1.5,
+    backgroundColor: colors.inkMuted,
+    opacity: 0.6,
+  },
 
   stats: {
     flexDirection: 'row',
     alignItems: 'stretch',
-    backgroundColor: colors.surfaceElevated,
-    borderRadius: radii.md,
-    paddingVertical: spacing.md,
+    gap: spacing.md,
     marginTop: spacing.xs,
   },
-  statDivider: {
-    width: 1,
-    backgroundColor: colors.line,
-    marginVertical: spacing.xs,
-  },
-  statTile: {
-    flex: 1,
-    alignItems: 'center',
-    gap: 2,
-  },
-  statIcon: { marginBottom: 2 },
+  stat: { flex: 1, gap: 2 },
+  statHeader: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  statLabel: { letterSpacing: 0.3, textTransform: 'uppercase', fontSize: 9 },
   statValueRow: { flexDirection: 'row', alignItems: 'baseline' },
-  statValue: { fontSize: 18, lineHeight: 20 },
-  statValueHighlight: { color: colors.accent },
+  statValue: { fontSize: 17, lineHeight: 20, letterSpacing: -0.3 },
   statUnit: { marginLeft: 3 },
-  statLabel: { fontSize: 10, letterSpacing: 0.4, textTransform: 'uppercase' },
 });

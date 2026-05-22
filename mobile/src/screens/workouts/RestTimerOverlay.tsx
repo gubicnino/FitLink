@@ -25,10 +25,14 @@ export function RestTimerOverlay({
 }: Props) {
   const [now, setNow] = useState(() => Date.now());
   const vibratedRef = useRef(false);
+  const autoClosedRef = useRef(false);
 
-  // Reset vibracija lock vsakeč ko se overlay reodpre
+  // Reset vibracija + auto-close lock vsakeč ko se overlay reodpre
   useEffect(() => {
-    if (visible) vibratedRef.current = false;
+    if (visible) {
+      vibratedRef.current = false;
+      autoClosedRef.current = false;
+    }
   }, [visible, startedAt]);
 
   useEffect(() => {
@@ -37,17 +41,33 @@ export function RestTimerOverlay({
     return () => clearInterval(id);
   }, [visible, startedAt]);
 
-  if (!visible || !startedAt) return null;
-
-  const startMs = new Date(startedAt).getTime();
+  // Izracun remaining time-a pred return-om, ker useEffect spodaj ga rabi
+  const startMs = startedAt ? new Date(startedAt).getTime() : 0;
   const elapsed = Math.max(0, (now - startMs) / 1000);
   const remaining = Math.max(0, Math.ceil(durationSeconds - elapsed));
   const progress = durationSeconds > 0 ? Math.min(1, elapsed / durationSeconds) : 1;
 
-  // Vibracija ko timer resta pride na 0
+  // Auto-close 1.5s po tem ko timer pride na 0 (Strong/Hevy UX pattern)
+  useEffect(() => {
+    if (!visible || !startedAt || remaining !== 0 || autoClosedRef.current) return undefined;
+    autoClosedRef.current = true;
+    const id = setTimeout(() => {
+      onSkip();
+    }, 1500);
+    return () => clearTimeout(id);
+  }, [visible, startedAt, remaining, onSkip]);
+
+  if (!visible || !startedAt) return null;
+
+  // Ko timer pride na 0: vibracija. Wrapped v try/catch, ker brez VIBRATE permission
+  // Android vrne SecurityException ki bi sicer crashal celoten live workout flow
   if (remaining === 0 && !vibratedRef.current) {
     vibratedRef.current = true;
-    Vibration.vibrate([0, 200, 100, 200]);
+    try {
+      Vibration.vibrate([0, 200, 100, 200]);
+    } catch (err) {
+      console.warn('[RestTimerOverlay] vibrate failed', err);
+    }
   }
 
   return (
