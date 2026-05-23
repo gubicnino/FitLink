@@ -28,6 +28,7 @@ public class User {
     private UserProfile profile;
     private TrainerInfo trainer;
     private String fcmToken;
+    private String avatarUrl;
 
     private Instant createdAt;
     private Instant updatedAt;

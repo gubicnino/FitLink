@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Image, Linking, Pressable, StyleSheet, View } from 'react-native';
+import { Alert, Image, Linking, Pressable, StyleSheet, View } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import YoutubePlayer from 'react-native-youtube-iframe';
 import {
@@ -10,6 +10,7 @@ import {
   Pencil,
   Share2,
   Star,
+  Trash2,
 } from 'lucide-react-native';
 import { colors, radii, spacing } from '../../theme';
 import {
@@ -64,6 +65,7 @@ export function CourseDetailScreen({ navigation, route }: Props) {
   const [course, setCourse] = useState<CourseDto | null>(null);
   const [user, setUser] = useState<User | null>(null);
   const [playing, setPlaying] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     const load = async () => {
@@ -97,6 +99,36 @@ export function CourseDetailScreen({ navigation, route }: Props) {
     await Linking.openURL(sourceUrl);
   };
 
+  const handleDeleteCourse = () => {
+    if (!course || !canEdit || deleting) return;
+
+    Alert.alert(
+      'Delete course',
+      'Are you sure you want to delete this course?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              setDeleting(true);
+              await courseService.remove(course.id);
+              navigation.goBack();
+            } catch (error: any) {
+              Alert.alert(
+                'Delete failed',
+                error?.response?.data?.message || error?.message || 'Could not delete course.',
+              );
+            } finally {
+              setDeleting(false);
+            }
+          },
+        },
+      ],
+    );
+  };
+
   return (
     <Screen background="surface" scroll edges={['top']}>
       <View style={styles.gutter}>
@@ -127,9 +159,14 @@ export function CourseDetailScreen({ navigation, route }: Props) {
             </IconButton>
             <View style={styles.controlsRight}>
               {canEdit ? (
-                <IconButton variant="overlay" onPress={() => navigation.navigate('AddCourses', { courseId: course.id })}>
-                  <Pencil size={16} color={colors.white} strokeWidth={2} />
-                </IconButton>
+                <>
+                  <IconButton variant="overlay" onPress={() => navigation.navigate('AddCourses', { courseId: course.id })}>
+                    <Pencil size={16} color={colors.white} strokeWidth={2} />
+                  </IconButton>
+                  <IconButton variant="overlay" onPress={handleDeleteCourse} disabled={deleting}>
+                    <Trash2 size={16} color={colors.white} strokeWidth={2} />
+                  </IconButton>
+                </>
               ) : null}
               <IconButton variant="overlay">
                 <Bookmark size={16} color={colors.white} strokeWidth={2} />

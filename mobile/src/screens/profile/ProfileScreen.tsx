@@ -1,7 +1,8 @@
 import { CommonActions, NavigationProp, useFocusEffect, useNavigation } from '@react-navigation/native';
 import React, { useCallback, useEffect, useState } from 'react';
-import { Alert, StyleSheet, View } from 'react-native';
-import apiClient from '../../api/apiClient';
+import { Alert, PermissionsAndroid, Platform, Pressable, StyleSheet, View } from 'react-native';
+import { launchImageLibrary } from 'react-native-image-picker';
+import apiClient, { API_ORIGIN } from '../../api/apiClient';
 import { ScreenHeader } from '../../components/layout';
 import { Avatar, Button, Card, Input, Screen, Text } from '../../components/ui';
 import { RootStackParamList } from '../../navigation';
@@ -11,7 +12,6 @@ import { User } from '../../types/types';
 const ME_IMG =
   'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=160&q=80&auto=format';
 
-
 export function ProfileScreen() {
   const navigation = useNavigation<NavigationProp<RootStackParamList>>();
   const [user, setUser] = useState<User | null>(null);
@@ -20,6 +20,8 @@ export function ProfileScreen() {
   const [heightCm, setHeightCm] = useState<string>('');
   const [currentWeightKg, setCurrentWeightKg] = useState<string>('');
   const [isLoading, setIsLoading] = useState(false);
+  const [isAvatarUploading, setIsAvatarUploading] = useState(false);
+  const [avatarVersion, setAvatarVersion] = useState(Date.now());
   const [error, setError] = useState<string | null>(null);
 
   const loadUser = useCallback(async () => {
@@ -43,6 +45,87 @@ export function ProfileScreen() {
 
   const handleAddCourse = () => {
     navigation.navigate('AddCourses');
+  };
+
+  const getAvatarSource = () => {
+    return user?.avatarUrl ? `${API_ORIGIN}${user.avatarUrl}?v=${avatarVersion}` : ME_IMG;
+  };
+
+  const requestPhotoPermission = async () => {
+    if (Platform.OS !== 'android') return true;
+
+    const permission =
+      Platform.Version >= 33
+        ? PermissionsAndroid.PERMISSIONS.READ_MEDIA_IMAGES
+        : PermissionsAndroid.PERMISSIONS.READ_EXTERNAL_STORAGE;
+
+    const result = await PermissionsAndroid.request(permission);
+    return result === PermissionsAndroid.RESULTS.GRANTED;
+  };
+
+  const handleAvatarUpload = async () => {
+    try {
+      setError(null);
+
+      const hasPermission = await requestPhotoPermission();
+      if (!hasPermission) {
+        setError('Photo permission is required to change avatar.');
+        return;
+      }
+
+      const result = await launchImageLibrary({
+        mediaType: 'photo',
+        selectionLimit: 1,
+        includeBase64: false,
+        quality: 0.8,
+      });
+
+      if (result.didCancel) return;
+      if (result.errorCode) {
+        setError(result.errorMessage ?? 'Could not open photo library.');
+        return;
+      }
+
+      const asset = result.assets?.[0];
+      if (!asset?.uri) {
+        setError('No image was selected.');
+        return;
+      }
+
+      setIsAvatarUploading(true);
+
+      const formData = new FormData();
+      formData.append('file', {
+        uri: asset.uri,
+        name: asset.fileName ?? `avatar.${asset.type?.split('/')[1] ?? 'jpg'}`,
+        type: asset.type ?? 'image/jpeg',
+      } as any);
+
+      const token = await authService.getToken();
+      const response = await fetch(`${API_ORIGIN}/api/profile/avatar`, {
+        method: 'POST',
+        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const message = await response.text();
+        throw new Error(message || `Avatar upload failed with status ${response.status}`);
+      }
+
+      setAvatarVersion(Date.now());
+      await loadUser();
+    } catch (err: any) {
+      const errorMsg =
+        err?.response?.data?.message ||
+        err?.response?.data?.error ||
+        err?.message ||
+        'Failed to upload profile photo.';
+      setError(errorMsg);
+      console.error('Avatar upload error:', err);
+    } finally {
+      setIsAvatarUploading(false);
+    }
   };
 
   const handleLogout = async () => {
@@ -131,11 +214,16 @@ export function ProfileScreen() {
       <View style={styles.gutter}>
         <Card padding="lg">
           <View style={styles.row}>
-            <Avatar source={ME_IMG} size="xxl" />
+            <Pressable onPress={handleAvatarUpload} disabled={isAvatarUploading}>
+              <Avatar source={getAvatarSource()} size="xxl" />
+            </Pressable>
             <View style={styles.info}>
               <Text variant="h3">{user?.displayName}</Text>
               <Text variant="bodySmall" color="secondary">
                 {user?.email}
+              </Text>
+              <Text variant="caption" color="secondary" onPress={handleAvatarUpload}>
+                {isAvatarUploading ? 'Uploading photo...' : 'Change photo'}
               </Text>
               {user?.trainer?.verificationStatus ? (
                 <Text variant="caption" color="secondary" style={styles.status}>

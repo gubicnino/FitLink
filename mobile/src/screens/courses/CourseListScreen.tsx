@@ -2,11 +2,12 @@ import React, { useCallback, useState } from 'react';
 import { Image, ScrollView, StyleSheet, View } from 'react-native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
-import { Plus, Search, Star } from 'lucide-react-native';
+import { BookOpen, Plus, Search, Star } from 'lucide-react-native';
 import { colors, shadows, spacing } from '../../theme';
 import {
   Avatar,
   BadgeCheck,
+  Button,
   Card,
   Chip,
   Dot,
@@ -70,6 +71,7 @@ export function CourseListScreen() {
   const visibleCourses = courses.filter(course => category === 'All' || course.category === category);
   const cards = visibleCourses.map(toCourseCard);
   const featured = visibleCourses[0];
+  const isEmpty = !isLoading && visibleCourses.length === 0;
 
   const pairs: Course[][] = [];
   for (let i = 0; i < cards.length; i += 2) {
@@ -104,11 +106,47 @@ export function CourseListScreen() {
         ))}
       </ScrollView>
 
-      <View style={[styles.gutter, styles.section]}>
-        <Text variant="caption" color="muted" style={styles.label}>
-          Featured
-        </Text>
-        {featured ? (
+      {isLoading ? (
+        <View style={[styles.gutter, styles.section]}>
+          <Card padding="md">
+            <Text variant="bodySmall" color="secondary">
+              Loading courses...
+            </Text>
+          </Card>
+        </View>
+      ) : null}
+
+      {isEmpty ? (
+        <View style={[styles.gutter, styles.section]}>
+          <View style={styles.empty}>
+            <View style={styles.emptyIcon}>
+              <BookOpen size={24} color={colors.inkSecondary} strokeWidth={1.8} />
+            </View>
+            <Text variant="bodyLarge" weight="700" align="center">
+              {category === 'All' ? 'No courses yet' : `No ${category.toLowerCase()} courses yet`}
+            </Text>
+            <Text variant="bodySmall" color="secondary" align="center" style={styles.emptyHint}>
+              {category === 'All'
+                ? 'Courses from trainers will appear here once they are published.'
+                : 'Try another category or check back when more courses are added.'}
+            </Text>
+            {user?.role === 'TRAINER' ? (
+              <Button
+                label="Add course"
+                variant="primary"
+                onPress={() => navigation.navigate('AddCourses')}
+                style={styles.emptyCta}
+              />
+            ) : null}
+          </View>
+        </View>
+      ) : null}
+
+      {!isLoading && !isEmpty ? (
+        <View style={[styles.gutter, styles.section]}>
+          <Text variant="caption" color="muted" style={styles.label}>
+            Featured
+          </Text>
           <Card padding="none" onPress={() => navigation.navigate('CourseDetail', { courseId: featured.id })}>
             <View style={styles.featuredImageWrap}>
               <Image source={{ uri: getImageUrl(featured) }} style={styles.featuredImage} />
@@ -147,34 +185,30 @@ export function CourseListScreen() {
               </View>
             </View>
           </Card>
-        ) : (
-          <Card padding="md">
-            <Text variant="bodySmall" color="secondary">
-              {isLoading ? 'Loading courses...' : 'No courses yet.'}
-            </Text>
-          </Card>
-        )}
-      </View>
-
-      <View style={[styles.gutter, styles.section]}>
-        <Text variant="caption" color="muted" style={styles.label}>
-          Latest
-        </Text>
-        <View style={styles.grid}>
-          {pairs.map((pair, rowIdx) => (
-            <View key={rowIdx} style={styles.gridRow}>
-              {pair.map(course => (
-                <CourseCard
-                  key={course.id}
-                  course={course}
-                  onPress={() => navigation.navigate('CourseDetail', { courseId: course.id })}
-                />
-              ))}
-              {pair.length === 1 ? <View style={styles.gridFiller} /> : null}
-            </View>
-          ))}
         </View>
-      </View>
+      ) : null}
+
+      {!isLoading && !isEmpty ? (
+        <View style={[styles.gutter, styles.section]}>
+          <Text variant="caption" color="muted" style={styles.label}>
+            Latest
+          </Text>
+          <View style={styles.grid}>
+            {pairs.map((pair, rowIdx) => (
+              <View key={rowIdx} style={styles.gridRow}>
+                {pair.map(course => (
+                  <CourseCard
+                    key={course.id}
+                    course={course}
+                    onPress={() => navigation.navigate('CourseDetail', { courseId: course.id })}
+                  />
+                ))}
+                {pair.length === 1 ? <View style={styles.gridFiller} /> : null}
+              </View>
+            ))}
+          </View>
+        </View>
+      ) : null}
 
       <View style={styles.bottomSpacer} />
     </Screen>
@@ -210,6 +244,28 @@ const styles = StyleSheet.create({
 
   bottomSpacer: { height: spacing.huge },
   headerActions: { flexDirection: 'row', gap: spacing.md },
+  empty: {
+    alignItems: 'center',
+    paddingVertical: spacing.huge,
+    paddingHorizontal: spacing.xl,
+  },
+  emptyIcon: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.surfaceElevated,
+    borderWidth: 1,
+    borderColor: colors.line,
+    marginBottom: spacing.lg,
+  },
+  emptyHint: {
+    marginTop: spacing.sm,
+    maxWidth: 280,
+    lineHeight: 20,
+  },
+  emptyCta: { marginTop: spacing.xl },
 });
 
 function toCourseCard(course: CourseDto): Course {
