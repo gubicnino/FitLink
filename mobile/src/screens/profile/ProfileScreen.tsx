@@ -1,16 +1,41 @@
+import DateTimePicker, { DateTimePickerAndroid } from '@react-native-community/datetimepicker';
 import { CommonActions, NavigationProp, useFocusEffect, useNavigation } from '@react-navigation/native';
-import { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, PermissionsAndroid, Platform, Pressable, StyleSheet, View } from 'react-native';
+import { Check } from 'lucide-react-native';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { ActivityIndicator, Alert, PermissionsAndroid, Platform, Pressable, StyleSheet, TextInput, View } from 'react-native';
 import { launchImageLibrary } from 'react-native-image-picker';
 import apiClient, { API_ORIGIN } from '../../api/apiClient';
 import { ScreenHeader } from '../../components/layout';
 import { Avatar, Button, Card, Input, Screen, Text } from '../../components/ui';
 import { RootStackParamList } from '../../navigation';
 import { authService } from '../../services/authService';
-import { spacing } from '../../theme';
+import { colors, spacing } from '../../theme';
 import { User } from '../../types/types';
 const ME_IMG =
   'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=160&q=80&auto=format';
+
+const formatBirthDate = (value: string) => {
+  if (!value) return '';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  const year = date.getFullYear();
+  const month = `${date.getMonth() + 1}`.padStart(2, '0');
+  const day = `${date.getDate()}`.padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
+const formatSelectedDate = (date: Date) => {
+  const year = date.getFullYear();
+  const month = `${date.getMonth() + 1}`.padStart(2, '0');
+  const day = `${date.getDate()}`.padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
+const parseBirthDate = (value: string) => {
+  const [year, month, day] = value.split('-').map(Number);
+  if (!year || !month || !day) return new Date();
+  return new Date(year, month - 1, day);
+};
 
 export function ProfileScreen() {
   const navigation = useNavigation<NavigationProp<RootStackParamList>>();
@@ -24,6 +49,11 @@ export function ProfileScreen() {
   const [loading, setLoading] = useState(true);
   const [avatarVersion, setAvatarVersion] = useState(Date.now());
   const [error, setError] = useState<string | null>(null);
+  const [isEditingDisplayName, setIsEditingDisplayName] = useState(false);
+  const [displayName, setDisplayName] = useState('');
+  const [isSavingDisplayName, setIsSavingDisplayName] = useState(false);
+  const [showBirthDatePicker, setShowBirthDatePicker] = useState(false);
+  const displayNameInputRef = useRef<TextInput>(null);
 
   const loadUser = useCallback(async () => {
     setLoading(true);
@@ -33,6 +63,7 @@ export function ProfileScreen() {
       setGender(currentUser?.profile?.gender ?? '');
       setHeightCm(currentUser?.profile?.heightCm ? currentUser.profile.heightCm.toString() : '');
       setCurrentWeightKg(currentUser?.profile?.currentWeightKg ? currentUser.profile.currentWeightKg.toString() : '');
+      setDisplayName(currentUser?.displayName ?? '');
       setUser(currentUser);
     } catch (err) {
       console.error('Failed to load user in ProfileScreen:', err);
@@ -55,6 +86,60 @@ export function ProfileScreen() {
   const handleAddCourse = () => {
     navigation.navigate('AddCourses');
   };
+
+  const handleBirthDatePress = () => {
+    const currentDate = birthDate ? parseBirthDate(birthDate) : new Date();
+
+    if (Platform.OS === 'android') {
+      DateTimePickerAndroid.open({
+        value: currentDate,
+        mode: 'date',
+        is24Hour: true,
+        onChange: (_event, selectedDate) => {
+          if (!selectedDate) return;
+          setBirthDate(formatSelectedDate(selectedDate));
+          setError(null);
+        },
+      });
+      return;
+    }
+
+    setShowBirthDatePicker(true);
+    setError(null);
+  };
+
+  const saveDisplayName = useCallback(async () => {
+    const nextDisplayName = displayName.trim();
+    const currentDisplayName = user?.displayName?.trim() ?? '';
+
+    setIsEditingDisplayName(false);
+
+    if (!nextDisplayName || nextDisplayName === currentDisplayName) {
+      setDisplayName(currentDisplayName);
+      return;
+    }
+
+    try {
+      setIsSavingDisplayName(true);
+      setError(null);
+
+      await apiClient.post('/profile/update', {
+        displayName: nextDisplayName,
+      });
+
+      setUser((currentUser) =>
+        currentUser ? { ...currentUser, displayName: nextDisplayName } : currentUser,
+      );
+      setDisplayName(nextDisplayName);
+    } catch (err: any) {
+      const errorMsg = err?.response?.data?.message || err?.message || 'Failed to update display name.';
+      setError(errorMsg);
+      setDisplayName(currentDisplayName);
+      console.error('Display name update error:', err);
+    } finally {
+      setIsSavingDisplayName(false);
+    }
+  }, [displayName, user?.displayName]);
 
   const getAvatarSource = () => {
     return user?.avatarUrl ? `${API_ORIGIN}${user.avatarUrl}?v=${avatarVersion}` : ME_IMG;
@@ -232,7 +317,47 @@ export function ProfileScreen() {
               <Avatar source={getAvatarSource()} size="xxl" />
             </Pressable>
             <View style={styles.info}>
-              <Text variant="h3">{user?.displayName}</Text>
+              {isEditingDisplayName ? (
+                <View style={styles.displayNameEditorRow}>
+                  <TextInput
+                    ref={displayNameInputRef}
+                    value={displayName}
+                    onChangeText={setDisplayName}
+                    onBlur={saveDisplayName}
+                    onSubmitEditing={saveDisplayName}
+                    autoFocus
+                    style={styles.displayNameInput}
+                    placeholder="Enter display name"
+                    placeholderTextColor="#9CA3AF"
+                    editable={!isSavingDisplayName}
+                    returnKeyType="done"
+                  />
+                  <Pressable
+                    onPress={saveDisplayName}
+                    disabled={isSavingDisplayName}
+                    style={styles.displayNameSaveButton}
+                    accessibilityRole="button"
+                    accessibilityLabel="Save display name"
+                  >
+                    <Check size={18} color="#FFFFFF" strokeWidth={3} />
+                  </Pressable>
+                </View>
+              ) : (
+                <Pressable
+                  onPress={() => {
+                    setDisplayName(user?.displayName ?? '');
+                    setIsEditingDisplayName(true);
+                    requestAnimationFrame(() => displayNameInputRef.current?.focus());
+                  }}
+                >
+                  <Text variant="h3">{user?.displayName || 'Tap to edit name'}</Text>
+                </Pressable>
+              )}
+              {isSavingDisplayName ? (
+                <Text variant="caption" color="secondary" style={styles.status}>
+                  Saving name...
+                </Text>
+              ) : null}
               <Text variant="bodySmall" color="secondary">
                 {user?.email}
               </Text>
@@ -275,15 +400,38 @@ export function ProfileScreen() {
         <Text variant="h3" style={{ marginBottom: spacing.md }}>Profile Details</Text>
         
         
-        <Input
-          label="Birth date (YYYY-MM-DD)"
-          value={birthDate}
-          onChangeText={(val) => {
-            setBirthDate(val);
-            setError(null);
-          }}
-          placeholder="1990-01-31"
-        />
+        <View>
+          <Text variant="caption" color="muted" style={styles.birthDateLabel}>
+            Birth date
+          </Text>
+          <Pressable onPress={handleBirthDatePress} style={styles.birthDatePickerField}>
+            <Text variant="bodySmall" color={birthDate ? 'secondary' : 'muted'}>
+              {birthDate ? formatBirthDate(birthDate) : 'Select birth date'}
+            </Text>
+          </Pressable>
+          {Platform.OS === 'ios' && showBirthDatePicker ? (
+            <View style={styles.iosPickerContainer}>
+              <DateTimePicker
+                value={birthDate ? parseBirthDate(birthDate) : new Date()}
+                mode="date"
+                display="spinner"
+                onChange={(_event, selectedDate) => {
+                  if (!selectedDate) return;
+                  setBirthDate(formatSelectedDate(selectedDate));
+                  setError(null);
+                }}
+              />
+              <Pressable
+                onPress={() => setShowBirthDatePicker(false)}
+                style={styles.birthDateDoneButton}
+              >
+                <Text variant="bodySmall" weight="600" color="secondary">
+                  Done
+                </Text>
+              </Pressable>
+            </View>
+          ) : null}
+        </View>
         <Input 
           label="Gender" 
           value={gender} 
@@ -349,6 +497,55 @@ const styles = StyleSheet.create({
   gutter: { paddingHorizontal: spacing.xxl, gap: spacing.xl },
   row: { flexDirection: 'row', alignItems: 'center', gap: spacing.lg },
   info: { flex: 1 },
+  displayNameEditorRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  displayNameInput: {
+    flex: 1,
+    borderWidth: 1,
+    borderColor: '#D1D5DB',
+    borderRadius: 8,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#111827',
+  },
+  displayNameSaveButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.primary,
+  },
+  birthDateLabel: {
+    marginBottom: spacing.md,
+  },
+  birthDatePickerField: {
+    borderWidth: 1,
+    borderColor: colors.line,
+    backgroundColor: colors.surface,
+    borderRadius: 12,
+    paddingHorizontal: spacing.xl,
+    paddingVertical: spacing.lg,
+  },
+  iosPickerContainer: {
+    marginTop: spacing.md,
+    borderWidth: 1,
+    borderColor: colors.line,
+    borderRadius: 12,
+    backgroundColor: colors.surface,
+    overflow: 'hidden',
+  },
+  birthDateDoneButton: {
+    paddingVertical: spacing.md,
+    alignItems: 'center',
+    borderTopWidth: 1,
+    borderTopColor: colors.line,
+  },
   placeholder: { marginTop: spacing.xxl },
   status: { marginTop: spacing.sm },
   formSection: { 

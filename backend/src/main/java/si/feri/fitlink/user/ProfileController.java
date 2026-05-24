@@ -41,15 +41,31 @@ public class ProfileController {
                 .orElseThrow(() -> new RuntimeException("User not found"));
         
         if (dto != null) {
-            User.UserProfile profile = new User.UserProfile();
-            profile.setBirthDate(dto.getBirthDate());
-            profile.setGender(dto.getGender());
-            profile.setHeightCm(dto.getHeightCm());
-            profile.setCurrentWeightKg(dto.getCurrentWeightKg());
-            
+            if (dto.getDisplayName() != null && !dto.getDisplayName().trim().isEmpty()) {
+                user.setDisplayName(dto.getDisplayName().trim());
+            }
+
+            User.UserProfile profile = user.getProfile();
+            if (profile == null) {
+                profile = new User.UserProfile();
+            }
+
+            if (dto.getBirthDate() != null) {
+                profile.setBirthDate(dto.getBirthDate());
+            }
+            if (dto.getGender() != null) {
+                profile.setGender(dto.getGender());
+            }
+            if (dto.getHeightCm() != null) {
+                profile.setHeightCm(dto.getHeightCm());
+            }
+            if (dto.getCurrentWeightKg() != null) {
+                profile.setCurrentWeightKg(dto.getCurrentWeightKg());
+            }
+
             user.setProfile(profile);
             userRepository.save(user);
-            
+
             return ResponseEntity.ok(profile);
         }
         return ResponseEntity.ok(null);
