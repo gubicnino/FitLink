@@ -3,6 +3,7 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { ChevronRight, Flame, Play } from 'lucide-react-native';
 import React, { useEffect, useState } from 'react';
 import { Image, Pressable, StyleSheet, View } from 'react-native';
+import { API_ORIGIN } from '../../api/apiClient';
 import { coachingApi } from '../../api/coachingApi';
 import { NotificationBell, ScreenHeader } from '../../components/layout';
 import {
@@ -17,21 +18,32 @@ import {
 } from '../../components/ui';
 import CoachingCard from '../../components/ui/CoachingCard';
 import type { RootStackParamList } from '../../navigation/types';
+import { authService } from '../../services/authService';
 import { colors, radii, spacing } from '../../theme';
 import { Coaching } from '../../types/coaching';
+import { User } from '../../types/types';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 
 const HERO_IMG =
   'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=800&q=80&auto=format';
 
-const ME_IMG =
-  'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=160&q=80&auto=format';
+ const getUserAvatarSource = (user: User | null) => {
+    if (!user?.avatarUrl) {
+      return "";
+    }
 
+    const avatarUrl = user.avatarUrl.startsWith('http')
+      ? user.avatarUrl
+      : `${API_ORIGIN}${user.avatarUrl}`;
+
+    return { uri: avatarUrl };
+  };
 export function TraineeDashboardScreen() {
   const navigation = useNavigation<Nav>();
   const [coachings, setCoachings] = useState<Coaching[] | []>([]);
   const [activeCoaching, setActiveCoaching] = useState<Coaching | null>(null);
+  const [user, setUser] = useState<User | null>(null);
   useEffect(() => {
     const fetchCoachings = async () => {
       try {
@@ -48,16 +60,22 @@ export function TraineeDashboardScreen() {
       }
     };
     fetchCoachings();
+    const fetchUser = async () => {
+      const user = await authService.getUser();
+      setUser(user);
+    }
+
+    fetchUser();
   }, []);
   return (
     <Screen scroll edges={['top']}>
       <ScreenHeader
         eyebrow="Thursday, May 14"
-        title="Good morning, Janez"
+        title={`Welcome back, ${user?.displayName || 'Trainee'}!`}
         right={
           <View style={styles.headerRight}>
             <NotificationBell hasUnread />
-            <Avatar source={ME_IMG} size="lg" />
+            <Avatar source={getUserAvatarSource(user)} size="lg" />
           </View>
         }
       />

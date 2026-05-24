@@ -1,7 +1,9 @@
 import { Check, ChevronRight, X } from 'lucide-react-native';
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Modal, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { API_ORIGIN } from '../../api/apiClient';
 import { coachingApi } from '../../api/coachingApi';
+import { userApi } from '../../api/userApi';
 import { NotificationBell, ScreenHeader } from '../../components/layout';
 import {
     Avatar,
@@ -32,8 +34,10 @@ interface ActiveClient {
   avatar: string;
 }
 
-const ME_IMG =
-  'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=160&q=80&auto=format';
+interface CoachingRequestWithTrainee extends Coaching {
+  trainee: User | null;
+}
+
 
 const PENDING: PendingClient[] = [
   { id: '1', name: 'Janez Novak', when: '2h ago', avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=120&q=80&auto=format' },
@@ -49,26 +53,50 @@ const CLIENTS: ActiveClient[] = [
 ];
 
 export function TrainerDashboardScreen() {
-  const [pendingRequests, setPendingRequests] = useState<Coaching[]>([]);
-  const [selectedRequest, setSelectedRequest] = useState<Coaching | null>(null);
-  const [trainee, setTrainee] = useState<User | null>(null);
+  const [pendingRequests, setPendingRequests] = useState<CoachingRequestWithTrainee[]>([]);
+  const [selectedRequest, setSelectedRequest] = useState<CoachingRequestWithTrainee | null>(null);
+  const [user, setUser] = useState<User | null>(null);
+  const getUserAvatarSource = (user: User | null) => {
+    if (!user?.avatarUrl) {
+      return "";
+    }
+
+    const avatarUrl = user.avatarUrl.startsWith('http')
+      ? user.avatarUrl
+      : `${API_ORIGIN}${user.avatarUrl}`;
+
+    return { uri: avatarUrl };
+  };
   useEffect(() => {
     const fetchPendingRequests = async () => {
       const requests = await coachingApi.getCoachingRequestsForTrainer();
-      setPendingRequests(requests);
+      const requestsWithTrainees = await Promise.all(
+        requests.map(async (request) => {
+          try {
+            const trainee = await userApi.getUserByFirebaseUid(request.traineeId);
+            return { ...request, trainee };
+          } catch (error) {
+            console.error(`Failed to load trainee ${request.traineeId}:`, error);
+            return { ...request, trainee: null };
+          }
+        }),
+      );
+
+      setPendingRequests(requestsWithTrainees);
     };
+    const fetchUser = async () => {
+      const user = await authService.getUser();
+      setUser(user);
+    }
+
     fetchPendingRequests();
-    const fetchTrainee = async () => {
-            const fetchedTrainee = await authService.getUser();
-            setTrainee(fetchedTrainee!);
-        };
-        fetchTrainee();
+    fetchUser();
   }, []);
   const truncate = (text?: string | null, max = 200) => {
     if (!text) return 'No message provided.';
     return text.length > max ? text.slice(0, max) + '...' : text;
   };
-  const openRequestModal = (request: Coaching) => {
+  const openRequestModal = (request: CoachingRequestWithTrainee) => {
     setSelectedRequest(request);
   };
   const closeRequestModal = () => {
@@ -89,11 +117,11 @@ export function TrainerDashboardScreen() {
     <Screen scroll edges={['top']}>
       <ScreenHeader
         eyebrow="Thursday"
-        title="Welcome back, Coach"
+        title= {`Welcome back, ${user?.displayName || 'Coach'}`} 
         right={
           <View style={styles.headerRight}>
             <NotificationBell hasUnread />
-            <Avatar source={ME_IMG} size="lg" />
+            <Avatar source={getUserAvatarSource(user)} size="lg" />
           </View>
         }
       />
@@ -128,10 +156,10 @@ export function TrainerDashboardScreen() {
                 New client request
               </Text>
               <View style={styles.requestRow}>
-                <Avatar source={{ uri: 'https://images.unsplash.com/photo-1463453091185-61582044d556?w=120&q=80&auto=format' }} size="xl" />
+                <Avatar source={getUserAvatarSource(request.trainee)} size="xl" />
                 <View style={styles.requestInfo}>
                   <Text variant="body" weight="600">
-                    {trainee?.displayName || 'Pending request'}
+                    {request.trainee?.displayName || 'Pending request'}
                   </Text>
                   
                   <Text variant="micro" color="secondary" style={styles.requestSub}>
@@ -173,13 +201,13 @@ export function TrainerDashboardScreen() {
               <Card padding="md" style={styles.requestCard} bordered>
                 <ScrollView contentContainerStyle={styles.modalScrollContent} showsVerticalScrollIndicator={false}>
                   <View style={styles.modalHeaderRow}>
-                    <Avatar source={{ uri: 'https://images.unsplash.com/photo-1463453091185-61582044d556?w=120&q=80&auto=format' }} size="xl" />
+                    <Avatar source={getUserAvatarSource(selectedRequest?.trainee)} size="xl" />
                     <View style={styles.modalHeaderText}>
                       <Text variant="body" weight="600" numberOfLines={1}>
-                        {trainee?.displayName || 'Pending request'}
+                        {selectedRequest?.trainee?.displayName || 'Pending request'}
                       </Text>
                       <Text variant="bodySmall" color="secondary" numberOfLines={1}>
-                        {trainee?.email || 'No email provided'}
+                        {selectedRequest?.trainee?.email || 'No email provided'}
                       </Text>
                     </View>
                   </View>

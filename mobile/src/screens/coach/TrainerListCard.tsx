@@ -1,6 +1,7 @@
 import { Star } from 'lucide-react-native';
 import React, { useState } from 'react';
 import { Alert, Modal, Pressable, StyleSheet, View } from 'react-native';
+import { API_ORIGIN } from '../../api/apiClient';
 import { coachingApi } from '../../api/coachingApi';
 import { Avatar, BadgeCheck, Button, Card, Dot, Text, Textarea } from '../../components/ui';
 import { colors, spacing } from '../../theme';
@@ -21,7 +22,17 @@ interface TrainerListCardProps {
   onPress?: () => void;
   requestDisabled?: boolean;
 }
+const getUserAvatarSource = (user: Trainer | null) => {
+    if (!user?.avatar) {
+      return "";
+    }
 
+    const avatarUrl = user.avatar.startsWith('http')
+      ? user.avatar
+      : `${API_ORIGIN}${user.avatar}`;
+
+    return { uri: avatarUrl };
+  };
 export function TrainerListCard({ trainer, onPress, requestDisabled = false }: TrainerListCardProps) {
   const [requestModalVisible, setRequestModalVisible] = useState(false);
   const [requestMessage, setRequestMessage] = useState('');
@@ -61,7 +72,7 @@ export function TrainerListCard({ trainer, onPress, requestDisabled = false }: T
     <Card padding="md" radius="xl">
       <View style={styles.row}>
         {trainer.avatar ? (
-          <Avatar source={{ uri: trainer.avatar }} size="lg" />
+          <Avatar source={getUserAvatarSource(trainer)} size="lg" />
         ) : (
           <></>
         )}

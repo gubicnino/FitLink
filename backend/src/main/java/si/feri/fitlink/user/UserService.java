@@ -1,11 +1,12 @@
 package si.feri.fitlink.user;
 
-import lombok.RequiredArgsConstructor;
-import org.springframework.stereotype.Service;
-import si.feri.fitlink.common.exception.ResourceNotFoundException;
-
 import java.time.Instant;
 import java.util.List;
+
+import org.springframework.stereotype.Service;
+
+import lombok.RequiredArgsConstructor;
+import si.feri.fitlink.common.exception.ResourceNotFoundException;
 
 @Service
 @RequiredArgsConstructor
@@ -29,6 +30,11 @@ public class UserService {
 
     public User getById(String id) {
         return userRepo.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+    }
+
+    public User getByFirebaseUid(String firebaseUid) {
+        return userRepo.findByFirebaseUid(firebaseUid)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
     }
 

@@ -1,6 +1,6 @@
 import { CommonActions, NavigationProp, useFocusEffect, useNavigation } from '@react-navigation/native';
-import React, { useCallback, useEffect, useState } from 'react';
-import { Alert, PermissionsAndroid, Platform, Pressable, StyleSheet, View } from 'react-native';
+import { useCallback, useEffect, useState } from 'react';
+import { ActivityIndicator, Alert, PermissionsAndroid, Platform, Pressable, StyleSheet, View } from 'react-native';
 import { launchImageLibrary } from 'react-native-image-picker';
 import apiClient, { API_ORIGIN } from '../../api/apiClient';
 import { ScreenHeader } from '../../components/layout';
@@ -21,16 +21,25 @@ export function ProfileScreen() {
   const [currentWeightKg, setCurrentWeightKg] = useState<string>('');
   const [isLoading, setIsLoading] = useState(false);
   const [isAvatarUploading, setIsAvatarUploading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [avatarVersion, setAvatarVersion] = useState(Date.now());
   const [error, setError] = useState<string | null>(null);
 
   const loadUser = useCallback(async () => {
-    const currentUser = await authService.getUser();
-    setBirthDate(currentUser?.profile?.birthDate ?? '');
-    setGender(currentUser?.profile?.gender ?? '');
-    setHeightCm(currentUser?.profile?.heightCm ? currentUser.profile.heightCm.toString() : '');
-    setCurrentWeightKg(currentUser?.profile?.currentWeightKg ? currentUser.profile.currentWeightKg.toString() : '');
-    setUser(currentUser);
+    setLoading(true);
+    try {
+      const currentUser = await authService.getUser();
+      setBirthDate(currentUser?.profile?.birthDate ?? '');
+      setGender(currentUser?.profile?.gender ?? '');
+      setHeightCm(currentUser?.profile?.heightCm ? currentUser.profile.heightCm.toString() : '');
+      setCurrentWeightKg(currentUser?.profile?.currentWeightKg ? currentUser.profile.currentWeightKg.toString() : '');
+      setUser(currentUser);
+    } catch (err) {
+      console.error('Failed to load user in ProfileScreen:', err);
+      setError('Failed to load profile.');
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
   useEffect(() => {
@@ -210,7 +219,12 @@ export function ProfileScreen() {
 
   return (
     <Screen scroll edges={['top']}>
-      <ScreenHeader title="Profile" />
+      {loading ? (
+        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+          <ActivityIndicator size="large" />
+        </View>
+      ) : <>
+        <ScreenHeader title="Profile" />
       <View style={styles.gutter}>
         <Card padding="lg">
           <View style={styles.row}>
@@ -325,6 +339,8 @@ export function ProfileScreen() {
       <Text variant="button" align="center" onPress={handleLogout}>
             Logout
           </Text>
+      </>}
+      
     </Screen>
   );
 }
