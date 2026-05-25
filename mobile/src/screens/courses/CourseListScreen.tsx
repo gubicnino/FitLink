@@ -1,15 +1,22 @@
-import React, { useCallback, useState } from 'react';
-import { Image, ScrollView, StyleSheet, View } from 'react-native';
+import React, { useCallback, useMemo, useState } from 'react';
+import { Image, Pressable, StyleSheet, View } from 'react-native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
-import { BookOpen, Plus, Search, Star } from 'lucide-react-native';
-import { colors, shadows, spacing } from '../../theme';
+import {
+  BookOpen,
+  ChevronDown,
+  Plus,
+  Search,
+  SlidersHorizontal,
+  Star,
+  X,
+} from 'lucide-react-native';
+import { colors, radii, spacing } from '../../theme';
 import {
   Avatar,
   BadgeCheck,
   Button,
   Card,
-  Chip,
   Dot,
   IconButton,
   Screen,
@@ -22,11 +29,12 @@ import type { RootStackParamList } from '../../navigation/types';
 import { CourseDto, courseService } from '../../services/courseService';
 import { authService } from '../../services/authService';
 import type { User } from '../../types/types';
+import { ALL_VALUE, FilterPickerSheet } from '../../components/filters/FilterPickerSheet';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 
-const CATEGORIES = ['All', 'Strength', 'Hypertrophy', 'Mobility', 'Cardio', 'Nutrition'] as const;
-type Category = (typeof CATEGORIES)[number];
+const CATEGORIES = ['Strength', 'Hypertrophy', 'Mobility', 'Cardio', 'Nutrition'] as const;
+type Category = (typeof CATEGORIES)[number] | typeof ALL_VALUE;
 
 const COACH_IMG =
   'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=80&q=80&auto=format';
@@ -36,10 +44,11 @@ const FALLBACK_IMG =
 
 export function CourseListScreen() {
   const navigation = useNavigation<Nav>();
-  const [category, setCategory] = useState<Category>('All');
+  const [category, setCategory] = useState<Category>(ALL_VALUE);
   const [courses, setCourses] = useState<CourseDto[]>([]);
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [pickerOpen, setPickerOpen] = useState(false);
 
   useFocusEffect(
     useCallback(() => {
@@ -68,7 +77,21 @@ export function CourseListScreen() {
     }, []),
   );
 
-  const visibleCourses = courses.filter(course => category === 'All' || course.category === category);
+  const visibleCourses = courses.filter(
+    course => category === ALL_VALUE || course.category === category,
+  );
+
+  const categoryOptions = useMemo(
+    () => [
+      { value: ALL_VALUE, label: 'All categories' },
+      ...CATEGORIES.map(c => ({ value: c, label: c })),
+    ],
+    [],
+  );
+  const categoryLabel =
+    category === ALL_VALUE
+      ? 'Category'
+      : (categoryOptions.find(o => o.value === category)?.label ?? 'Category');
   const cards = visibleCourses.map(toCourseCard);
   const featured = visibleCourses[0];
   const isEmpty = !isLoading && visibleCourses.length === 0;
@@ -96,15 +119,63 @@ export function CourseListScreen() {
         }
       />
 
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.chipsRow}
-      >
-        {CATEGORIES.map(c => (
-          <Chip key={c} label={c} selected={c === category} onPress={() => setCategory(c)} />
-        ))}
-      </ScrollView>
+      <View style={styles.filterBar}>
+        <View style={styles.filterPillsRow}>
+          <Pressable
+            onPress={() => setPickerOpen(true)}
+            hitSlop={4}
+            accessibilityRole="button"
+            style={({ pressed }) => [
+              styles.pill,
+              category !== ALL_VALUE && styles.pillActive,
+              pressed && { opacity: 0.7 },
+            ]}
+          >
+            <SlidersHorizontal size={14} color={colors.inkSecondary} strokeWidth={2.25} />
+            <Text
+              variant="bodySmall"
+              weight="600"
+              numberOfLines={1}
+              style={[styles.pillLabel, category !== ALL_VALUE && { color: colors.primary }]}
+            >
+              {categoryLabel}
+            </Text>
+            <ChevronDown
+              size={14}
+              color={category !== ALL_VALUE ? colors.primary : colors.inkMuted}
+              strokeWidth={2.25}
+            />
+          </Pressable>
+          {category !== ALL_VALUE ? (
+            <Pressable
+              onPress={() => setCategory(ALL_VALUE)}
+              hitSlop={6}
+              style={({ pressed }) => [styles.clearAllBtn, pressed && { opacity: 0.5 }]}
+              accessibilityLabel="Clear filter"
+            >
+              <Text variant="micro" weight="700" color="secondary">
+                Clear
+              </Text>
+            </Pressable>
+          ) : null}
+        </View>
+
+        {category !== ALL_VALUE ? (
+          <View style={styles.activeChipsRow}>
+            <Pressable
+              onPress={() => setCategory(ALL_VALUE)}
+              hitSlop={4}
+              accessibilityLabel={`Remove ${categoryLabel} filter`}
+              style={({ pressed }) => [styles.activeChip, pressed && { opacity: 0.7 }]}
+            >
+              <Text variant="micro" weight="700" style={{ color: colors.primary }}>
+                {categoryLabel}
+              </Text>
+              <X size={12} color={colors.primary} strokeWidth={2.5} />
+            </Pressable>
+          </View>
+        ) : null}
+      </View>
 
       {isLoading ? (
         <View style={[styles.gutter, styles.section]}>
@@ -117,28 +188,28 @@ export function CourseListScreen() {
       ) : null}
 
       {isEmpty ? (
-        <View style={[styles.gutter, styles.section]}>
-          <View style={styles.empty}>
-            <View style={styles.emptyIcon}>
-              <BookOpen size={24} color={colors.inkSecondary} strokeWidth={1.8} />
-            </View>
-            <Text variant="bodyLarge" weight="700" align="center">
-              {category === 'All' ? 'No courses yet' : `No ${category.toLowerCase()} courses yet`}
-            </Text>
-            <Text variant="bodySmall" color="secondary" align="center" style={styles.emptyHint}>
-              {category === 'All'
-                ? 'Courses from trainers will appear here once they are published.'
-                : 'Try another category or check back when more courses are added.'}
-            </Text>
-            {user?.role === 'TRAINER' ? (
-              <Button
-                label="Add course"
-                variant="primary"
-                onPress={() => navigation.navigate('AddCourses')}
-                style={styles.emptyCta}
-              />
-            ) : null}
+        <View style={styles.empty}>
+          <View style={styles.emptyIcon}>
+            <BookOpen size={28} color={colors.primary} strokeWidth={2} />
           </View>
+          <Text variant="h3" weight="700" align="center">
+            {category === ALL_VALUE ? 'No courses yet' : `No ${category.toLowerCase()} courses yet`}
+          </Text>
+          <Text variant="bodySmall" color="secondary" align="center" style={styles.emptyHint}>
+            {category === ALL_VALUE
+              ? 'Courses from trainers will appear here once they are published.'
+              : 'Try another category or check back when more courses are added.'}
+          </Text>
+          {user?.role === 'TRAINER' ? (
+            <Button
+              label="Add course"
+              variant="primary"
+              size="md"
+              leftIcon={<Plus size={15} color={colors.white} strokeWidth={2.5} />}
+              onPress={() => navigation.navigate('AddCourses')}
+              style={styles.emptyCta}
+            />
+          ) : null}
         </View>
       ) : null}
 
@@ -211,15 +282,71 @@ export function CourseListScreen() {
       ) : null}
 
       <View style={styles.bottomSpacer} />
+
+      <FilterPickerSheet
+        visible={pickerOpen}
+        title="Category"
+        subtitle="Filter courses by topic"
+        options={categoryOptions}
+        value={category}
+        onSelect={next => {
+          setCategory(next as Category);
+          setPickerOpen(false);
+        }}
+        onCancel={() => setPickerOpen(false)}
+      />
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  chipsRow: {
+  filterBar: {
     paddingHorizontal: spacing.xxl,
     paddingBottom: spacing.lg,
     gap: spacing.md,
+  },
+  filterPillsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  pill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: 8,
+    borderRadius: radii.pill,
+    borderWidth: 1,
+    borderColor: colors.line,
+    backgroundColor: colors.surface,
+    maxWidth: 220,
+  },
+  pillActive: {
+    borderColor: colors.primaryBorder,
+    backgroundColor: colors.primarySoft,
+  },
+  pillLabel: { flexShrink: 1 },
+  clearAllBtn: {
+    marginLeft: 'auto',
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 6,
+  },
+  activeChipsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: spacing.sm,
+  },
+  activeChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingLeft: spacing.md,
+    paddingRight: spacing.sm,
+    paddingVertical: 4,
+    borderRadius: radii.pill,
+    backgroundColor: colors.primarySoftStrong,
   },
   gutter: { paddingHorizontal: spacing.xxl },
   section: { marginTop: spacing.xl },
@@ -245,27 +372,27 @@ const styles = StyleSheet.create({
   bottomSpacer: { height: spacing.huge },
   headerActions: { flexDirection: 'row', gap: spacing.md },
   empty: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    justifyContent: 'center',
     alignItems: 'center',
-    paddingVertical: spacing.huge,
     paddingHorizontal: spacing.xl,
+    gap: spacing.md,
   },
   emptyIcon: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: colors.primarySoft,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.surfaceElevated,
-    borderWidth: 1,
-    borderColor: colors.line,
-    marginBottom: spacing.lg,
+    marginBottom: spacing.sm,
   },
-  emptyHint: {
-    marginTop: spacing.sm,
-    maxWidth: 280,
-    lineHeight: 20,
-  },
-  emptyCta: { marginTop: spacing.xl },
+  emptyHint: { paddingHorizontal: spacing.xl, maxWidth: 320 },
+  emptyCta: { marginTop: spacing.lg },
 });
 
 function toCourseCard(course: CourseDto): Course {

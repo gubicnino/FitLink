@@ -1,6 +1,7 @@
 // src/services/authService.ts
 import { createUserWithEmailAndPassword, getAuth, signInWithEmailAndPassword, signOut } from '@react-native-firebase/auth';
 import apiClient from '../api/apiClient';
+import { liveSessionStorage } from '../utils/liveSessionStorage';
 import { User } from '../types/types';
 
 export const authService = {
@@ -18,6 +19,14 @@ export const authService = {
 
   logout: async () => {
     const auth = getAuth();
+    const uid = auth.currentUser?.uid;
+    // Clear current user's live workout BEFORE signOut so we still know who it
+    // belonged to. Also wipe ALL user-scoped live sessions so a
+    // shared device cannot leak previous accounts workouts na drugi racun (ce se loggamo in v drug account)
+    if (uid) {
+      await liveSessionStorage.clear(uid).catch(() => {});
+    }
+    await liveSessionStorage.clearAllUsers().catch(() => {});
     await signOut(auth);
   },
 
