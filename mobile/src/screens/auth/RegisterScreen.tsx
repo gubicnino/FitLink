@@ -28,6 +28,7 @@ export function RegisterScreen({ navigation }: Props) {
 
   const handleRegister = async () => {
     setIsLoading(true);
+    authService.beginRegistration();
     try {
       if (password !== confirmPassword) {
         console.error('Passwords do not match');
@@ -53,6 +54,8 @@ export function RegisterScreen({ navigation }: Props) {
       await authService.logout().catch(() => {});
       setIsLoading(false);
       console.error(error);
+    } finally {
+      authService.endRegistration();
     }
   };
 

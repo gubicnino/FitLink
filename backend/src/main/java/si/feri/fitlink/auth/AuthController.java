@@ -17,6 +17,7 @@ import com.google.firebase.auth.FirebaseToken;
 
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import si.feri.fitlink.common.exception.ResourceNotFoundException;
 import si.feri.fitlink.user.User;
 import si.feri.fitlink.user.UserRepository;
 import si.feri.fitlink.user.dto.RegisterDTO;
@@ -54,11 +55,13 @@ public class AuthController {
 
     @PostMapping("/login")
     public ResponseEntity<User> login(@AuthenticationPrincipal AuthPrincipal principal) {
-        return ResponseEntity.ok(userRepository.findByFirebaseUid(principal.uid()).orElseThrow());
+        return ResponseEntity.ok(userRepository.findByFirebaseUid(principal.uid())
+                .orElseThrow(() -> new ResourceNotFoundException("User not found")));
     }
 
     @GetMapping("/me")
     public ResponseEntity<User> getMe(@AuthenticationPrincipal AuthPrincipal principal) {
-        return ResponseEntity.ok(userRepository.findByFirebaseUid(principal.uid()).orElseThrow());
+        return ResponseEntity.ok(userRepository.findByFirebaseUid(principal.uid())
+                .orElseThrow(() -> new ResourceNotFoundException("User not found")));
     }
 }

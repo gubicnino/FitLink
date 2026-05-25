@@ -16,17 +16,32 @@ export function useAuth() {
     loading: true,
   });
 
+  const waitForRegistrationToFinish = async () => {
+    const timeoutMs = 8000;
+    const stepMs = 250;
+    const startedAt = Date.now();
+
+    while (authService.isRegistrationInProgress() && Date.now() - startedAt < timeoutMs) {
+      await new Promise<void>((resolve) => {
+        setTimeout(() => resolve(), stepMs);
+      });
+    }
+  };
+
   useEffect(() => {
-    
     const unsubscribe = auth().onAuthStateChanged(async (firebaseUser) => {
-      
       if (!firebaseUser) {
         setState({ firebaseUser: null, user: null, loading: false });
         return;
       }
 
+      if (authService.isRegistrationInProgress()) {
+        setState((current) => ({ ...current, firebaseUser, loading: true }));
+        await waitForRegistrationToFinish();
+      }
+
       const user = await authService.getUser();
-      
+
       setState({ firebaseUser, user, loading: false });
     });
 

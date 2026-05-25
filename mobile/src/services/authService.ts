@@ -4,7 +4,17 @@ import apiClient from '../api/apiClient';
 import { liveSessionStorage } from '../utils/liveSessionStorage';
 import { User } from '../types/types';
 
+let registrationInProgress = false;
+
+const setRegistrationInProgress = (value: boolean) => {
+  registrationInProgress = value;
+};
+
 export const authService = {
+  beginRegistration: () => setRegistrationInProgress(true),
+  endRegistration: () => setRegistrationInProgress(false),
+  isRegistrationInProgress: () => registrationInProgress,
+
   register: async (email: string, password: string) => {
     const auth = getAuth();
     const userCredential = await createUserWithEmailAndPassword(auth, email, password);
