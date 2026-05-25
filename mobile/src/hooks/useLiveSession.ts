@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import auth from '@react-native-firebase/auth';
 import { liveSessionStorage } from '../utils/liveSessionStorage';
 import type {
   LiveExercise,
@@ -44,42 +45,61 @@ export function buildSessionFromTemplate(
 }
 
 
-// hook za upravljanje live workout session statea, ki se persistira v AsyncStorage 
-// (ce user zapre app in ima active workout session, se ob naslednjem zagonu obnovi) - VERY POMEMBNO
+
 export function useLiveSession() {
   const [session, setSession] = useState<LiveSessionState | null>(null);
   const [hydrated, setHydrated] = useState(false);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(
+    () => auth().currentUser?.uid ?? null,
+  );
 
-  // Obnovimo persisted session na mountu
+  // Rehidraci0ja vedno ko se spremeni Firebase auth user (login/logout/switch).
+  // Za neavtenticirano stanje samo pobrisemo session iz memmory
   useEffect(() => {
     let cancelled = false;
-    liveSessionStorage.load().then(loaded => {
-      if (cancelled) return;
-      if (loaded) setSession(loaded);
-      setHydrated(true);
+    const unsubscribe = auth().onAuthStateChanged(firebaseUser => {
+      const nextUid = firebaseUser?.uid ?? null;
+      setCurrentUserId(prev => (prev === nextUid ? prev : nextUid));
+
+      if (!nextUid) {
+        if (!cancelled) {
+          setSession(null);
+          setHydrated(true);
+        }
+        return;
+      }
+
+      setHydrated(false);
+      liveSessionStorage.load(nextUid).then(loaded => {
+        if (cancelled) return;
+        setSession(loaded ?? null);
+        setHydrated(true);
+      });
     });
     return () => {
       cancelled = true;
+      unsubscribe();
     };
   }, []);
 
 
-  // vsaki state change persista, sepravi skippamo prvi render (prlej kak se hydrira) da ne overwriteamo ze nalozenee session z nullom
+  // Persist on every state change. Skip first render so we don't immediately
+  // overwrite sveze hidrirane session z initial "null"
   const firstRun = useRef(true);
   useEffect(() => {
     if (firstRun.current) {
       firstRun.current = false;
       return;
     }
-    if (!hydrated) return;
+    if (!hydrated || !currentUserId) return;
     if (session) {
-      liveSessionStorage.save(session).catch(err =>
+      liveSessionStorage.save(currentUserId, session).catch(err =>
         console.warn('[useLiveSession] persist failed', err),
       );
     } else {
-      liveSessionStorage.clear().catch(() => {});
+      liveSessionStorage.clear(currentUserId).catch(() => {});
     }
-  }, [session, hydrated]);
+  }, [session, hydrated, currentUserId]);
 
 
   const start = useCallback((next: LiveSessionState) => {
@@ -88,11 +108,13 @@ export function useLiveSession() {
 
 
   const discard = useCallback(async (): Promise<void> => {
-    await liveSessionStorage.clear().catch(err =>
-      console.warn('[useLiveSession] discard clear failed', err),
-    );
+    if (currentUserId) {
+      await liveSessionStorage.clear(currentUserId).catch(err =>
+        console.warn('[useLiveSession] discard clear failed', err),
+      );
+    }
     setSession(null);
-  }, []);
+  }, [currentUserId]);
 
   const updateSet = useCallback(
     (exerciseId: string, setId: string, patch: Partial<LiveSet>) => {
