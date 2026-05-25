@@ -1,4 +1,5 @@
 import type { NavigatorScreenParams } from '@react-navigation/native';
+import type { CheckIn } from '../types/checkin';
 
 export type AuthStackParamList = {
   Login: undefined;
@@ -40,7 +41,7 @@ export type RootStackParamList = {
     | { templateId: string; pendingExerciseIds?: string[] }
     | undefined;
   CourseDetail: { courseId?: string } | undefined;
-  WeeklyCheckIn: undefined;
+  WeeklyCheckIn: { checkIn?: CheckIn | null } | undefined;
   FindTrainer: undefined;
   ExercisePicker:
     | {

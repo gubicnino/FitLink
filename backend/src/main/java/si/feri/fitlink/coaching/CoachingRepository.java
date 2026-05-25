@@ -10,6 +10,7 @@ import org.springframework.stereotype.Repository;
 @Repository
 public interface CoachingRepository extends MongoRepository<Coaching, String> {
     List<Coaching> findByTraineeId(String traineeId);
+    List<Coaching> findByTraineeIdOrderByStartedAtDesc(String traineeId);
     List<Coaching> findByTrainerId(String trainerId);
     Optional<Coaching> findByTraineeIdAndStatus(String traineeId, CoachingStatus status);
     List<Coaching> findByTrainerIdAndStatus(String trainerId, CoachingStatus status);

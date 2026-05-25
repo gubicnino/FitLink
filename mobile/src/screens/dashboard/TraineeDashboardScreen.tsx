@@ -1,8 +1,8 @@
-import { useNavigation } from '@react-navigation/native';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { ChevronRight, Flame, Play } from 'lucide-react-native';
-import React, { useEffect, useState } from 'react';
-import { Image, Pressable, StyleSheet, View } from 'react-native';
+import { Flame, Play } from 'lucide-react-native';
+import React, { useCallback, useEffect, useState } from 'react';
+import { Image, StyleSheet, View } from 'react-native';
 import { API_ORIGIN } from '../../api/apiClient';
 import { coachingApi } from '../../api/coachingApi';
 import { NotificationBell, ScreenHeader } from '../../components/layout';
@@ -10,6 +10,7 @@ import {
     Avatar,
     Button,
     Card,
+    CheckInList,
     Screen,
     Sparkline,
     StatCard,
@@ -44,29 +45,34 @@ export function TraineeDashboardScreen() {
   const [coachings, setCoachings] = useState<Coaching[] | []>([]);
   const [activeCoaching, setActiveCoaching] = useState<Coaching | null>(null);
   const [user, setUser] = useState<User | null>(null);
+  const fetchCoachings = useCallback(async () => {
+    try {
+      const coachings = await coachingApi.getMyCoachings();
+      setCoachings(coachings);
+      const currentActiveCoaching = coachings.find((coaching) => coaching.status === 'ACTIVE') ?? null;
+      setActiveCoaching(currentActiveCoaching);
+    } catch (error) {
+      console.error('Error fetching coachings:', error);
+      setActiveCoaching(null);
+    }
+  }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      fetchCoachings();
+    }, [fetchCoachings]),
+  );
+
   useEffect(() => {
-    const fetchCoachings = async () => {
-      try {
-        const coachings = await coachingApi.getMyCoachings();
-        setCoachings(coachings);
-        for (const coaching of coachings) {
-          if (coaching.status === 'ACTIVE') {
-            setActiveCoaching(coaching);
-            break;
-          }
-        }
-      } catch (error) {
-        console.error('Error fetching coachings:', error);
-      }
-    };
     fetchCoachings();
+
     const fetchUser = async () => {
       const user = await authService.getUser();
       setUser(user);
     }
 
     fetchUser();
-  }, []);
+  }, [fetchCoachings]);
   return (
     <Screen scroll edges={['top']}>
       <ScreenHeader
@@ -162,44 +168,13 @@ export function TraineeDashboardScreen() {
     }
       
       
-
-      <View style={[styles.gutter, styles.section]}>
-        <Text variant="caption" color="muted" style={styles.sectionLabel}>
-          Check-ins
-        </Text>
-        <Card padding="none">
-          <Pressable
-            style={({ pressed }) => [styles.listRow, pressed && { opacity: 0.85 }]}
-            onPress={() => navigation.navigate('WeeklyCheckIn')}
-          >
-            <View style={styles.flex}>
-              <Text variant="body" weight="600">
-                Weekly check-in
-              </Text>
-              <Text variant="bodySmall" color="secondary">
-                Due in 2 days
-              </Text>
-            </View>
-            <Tag label="Pending" tone="warning" />
-          </Pressable>
-          <View style={styles.separator} />
-          <Pressable
-            style={({ pressed }) => [styles.listRow, pressed && { opacity: 0.85 }]}
-            onPress={() => navigation.navigate('WeeklyCheckIn')}
-          >
-            <View style={styles.flex}>
-              <Text variant="body" weight="600">
-                Last week&apos;s progress
-              </Text>
-              <Text variant="bodySmall" color="secondary">
-                May 6 — May 12
-              </Text>
-            </View>
-            <ChevronRight size={18} color={colors.inkMuted} strokeWidth={2} />
-          </Pressable>
-        </Card>
-      </View>
-
+      {activeCoaching ? (<CheckInList checkIns={activeCoaching?.checkIns} />) : (
+        <View style={[styles.gutter, styles.section]}>
+          <Text variant="caption" color="muted" style={styles.sectionLabel}>
+            No active coaching find a coach to start your fitness journey!
+          </Text>
+        </View>
+      )}
       <View style={styles.bottomSpacer} />
     </Screen>
   );
@@ -237,17 +212,6 @@ const styles = StyleSheet.create({
     backgroundColor: colors.accent,
   },
   coachAction: { flexDirection: 'row', alignItems: 'center', gap: 2 },
-
-  listRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: spacing.lg,
-    paddingHorizontal: spacing.xl,
-    gap: spacing.lg,
-  },
-  separator: { height: StyleSheet.hairlineWidth, backgroundColor: colors.line },
-  flex: { flex: 1 },
 
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   _r: { borderRadius: radii.lg },

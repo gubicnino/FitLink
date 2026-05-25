@@ -14,7 +14,7 @@ const sizeMap: Record<AvatarSize, number> = {
 };
 
 interface AvatarProps {
-  source: ImageSourcePropType | string;
+  source: ImageSourcePropType | string | React.ReactElement;
   size?: AvatarSize;
   rounded?: 'pill' | 'lg';
   style?: StyleProp<ViewStyle>;
@@ -24,8 +24,11 @@ interface AvatarProps {
 export function Avatar({ source, size = 'lg', rounded = 'pill', style, testID }: AvatarProps) {
   const dim = sizeMap[size];
   const borderRadius = rounded === 'pill' ? dim / 2 : radii.xl;
-  const imgSource: ImageSourcePropType =
-    typeof source === 'string' ? { uri: source } : source;
+  let imgSource: ImageSourcePropType | undefined = undefined;
+  const isElement = React.isValidElement(source);
+  if (!isElement) {
+    imgSource = typeof source === 'string' ? { uri: source } : (source as ImageSourcePropType);
+  }
   return (
     <View
       style={[
@@ -35,7 +38,11 @@ export function Avatar({ source, size = 'lg', rounded = 'pill', style, testID }:
       ]}
       testID={testID}
     >
-      <Image source={imgSource} style={{ width: dim, height: dim, borderRadius }} />
+      {isElement ? (
+        React.cloneElement(source as React.ReactElement, { size: dim })
+      ) : (
+        <Image source={imgSource} style={{ width: dim, height: dim, borderRadius }} />
+      )}
     </View>
   );
 }

@@ -57,7 +57,9 @@ export function RootNavigator({ user }: RootNavigatorProps) {
         <Stack.Screen name="AddCourses" component={AddCourses} />
         <Stack.Screen
           name="WeeklyCheckIn"
-          component={WeeklyCheckInScreen}
+          component={(props: any) => (
+            <WeeklyCheckInScreen checkIn={props.route.params?.checkIn ?? null} />
+          )}
           options={{ presentation: 'modal', animation: 'slide_from_bottom' }}
         />
         <Stack.Screen name="FindTrainer" component={FindTrainerScreen} />

@@ -1,6 +1,7 @@
 import DateTimePicker, { DateTimePickerAndroid } from '@react-native-community/datetimepicker';
 import { CommonActions, NavigationProp, useFocusEffect, useNavigation } from '@react-navigation/native';
-import { Check } from 'lucide-react-native';
+import { Check, CircleUserRound } from 'lucide-react-native';
+
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, PermissionsAndroid, Platform, Pressable, StyleSheet, TextInput, View } from 'react-native';
 import { launchImageLibrary } from 'react-native-image-picker';
@@ -11,8 +12,7 @@ import { RootStackParamList } from '../../navigation';
 import { authService } from '../../services/authService';
 import { colors, spacing } from '../../theme';
 import { User } from '../../types/types';
-const ME_IMG =
-  'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=160&q=80&auto=format';
+const DEFAULT_AVATAR = <CircleUserRound color={colors.primary} strokeWidth={1} />;
 
 const formatBirthDate = (value: string) => {
   if (!value) return '';
@@ -142,7 +142,7 @@ export function ProfileScreen() {
   }, [displayName, user?.displayName]);
 
   const getAvatarSource = () => {
-    return user?.avatarUrl ? `${API_ORIGIN}${user.avatarUrl}?v=${avatarVersion}` : ME_IMG;
+    return user?.avatarUrl ? `${API_ORIGIN}${user.avatarUrl}?v=${avatarVersion}` : DEFAULT_AVATAR;
   };
 
   const requestPhotoPermission = async () => {

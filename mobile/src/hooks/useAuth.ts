@@ -17,20 +17,15 @@ export function useAuth() {
   });
 
   useEffect(() => {
-    console.log('useAuth: mounting, setting up listener');
     
     const unsubscribe = auth().onAuthStateChanged(async (firebaseUser) => {
-      console.log('onAuthStateChanged fired:', firebaseUser?.uid ?? 'null');
       
       if (!firebaseUser) {
-        console.log('No firebase user, setting unauthenticated state');
         setState({ firebaseUser: null, user: null, loading: false });
         return;
       }
 
-      console.log('Firebase user found, fetching user from API...');
       const user = await authService.getUser();
-      console.log('API user result:', JSON.stringify(user));
       
       setState({ firebaseUser, user, loading: false });
     });

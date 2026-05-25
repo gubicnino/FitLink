@@ -1,3 +1,5 @@
+import { CheckIn } from "./checkin";
+
 export interface CoachingRequest {
   trainerId: string;
   requestMessage: string;
@@ -12,4 +14,5 @@ export interface Coaching {
   startedAt: string | null;
   endedAt: string | null;
   endedBy: string | null;
+  checkIns: CheckIn[];
 }

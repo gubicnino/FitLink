@@ -3,6 +3,8 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { ChevronRight } from 'lucide-react-native';
 import React, { useEffect, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
+import { API_ORIGIN } from '../../api/apiClient';
+import { userApi } from '../../api/userApi';
 import {
     Avatar,
     BadgeCheck,
@@ -10,7 +12,6 @@ import {
     Text
 } from '../../components/ui';
 import type { RootStackParamList } from '../../navigation/types';
-import { authService } from '../../services/authService';
 import { colors, spacing } from '../../theme';
 import { Coaching } from '../../types/coaching';
 import { User } from '../../types/types';
@@ -18,7 +19,17 @@ import { User } from '../../types/types';
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 const COACH_IMG =
   'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=160&q=80&auto=format';
+const getUserAvatarSource = (user: User | null) => {
+    if (!user?.avatarUrl) {
+      return "";
+    }
 
+    const avatarUrl = user.avatarUrl.startsWith('http')
+      ? user.avatarUrl
+      : `${API_ORIGIN}${user.avatarUrl}`;
+
+    return { uri: avatarUrl };
+  };
 
 interface CoachingCardProps {
     coaching: Coaching;
@@ -27,17 +38,22 @@ const CoachingCard = ({ coaching }: CoachingCardProps) => {
     const navigation = useNavigation<Nav>();
     const [trainer, setTrainer] = useState<User | null>(null);
     useEffect(() => {
-        const fetchTrainer = async () => {
-            const fetchedTrainer = await authService.getUser();
-            setTrainer(fetchedTrainer!);
-        };
-        fetchTrainer();
+        const fetchTrainer = async (trainerId: string) => {
+            try {
+                const trainer = await userApi.getUserById(trainerId);
+                setTrainer(trainer);
+            } catch (error) {
+                console.error('Error fetching trainer:', error);
+                setTrainer(null);
+            }
+        }
+        fetchTrainer(coaching.trainerId);
     }, [coaching]);
     return (
         <>
             <Card padding="md" onPress={() => navigation.navigate('FindTrainer')}>
             <View style={styles.coachRow}>
-                <Avatar source={COACH_IMG} size="xl" />
+                <Avatar source={getUserAvatarSource(trainer)} size="xl" />
                 <View style={styles.coachInfo}>
                 <View style={styles.coachNameRow}>
                     <Text variant="body" weight="600" numberOfLines={1}>
