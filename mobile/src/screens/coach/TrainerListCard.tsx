@@ -8,6 +8,7 @@ import { colors, spacing } from '../../theme';
 
 export interface Trainer {
   id: string;
+  firebaseUid: string;
   name: string;
   specialty: string;
   rating: number;
@@ -20,6 +21,7 @@ export interface Trainer {
 interface TrainerListCardProps {
   trainer: Trainer;
   onPress?: () => void;
+  onRequestSent?: () => void;
   requestDisabled?: boolean;
 }
 const getUserAvatarSource = (user: Trainer | null) => {
@@ -33,7 +35,7 @@ const getUserAvatarSource = (user: Trainer | null) => {
 
     return { uri: avatarUrl };
   };
-export function TrainerListCard({ trainer, onPress, requestDisabled = false }: TrainerListCardProps) {
+export function TrainerListCard({ trainer, onPress, onRequestSent, requestDisabled = false }: TrainerListCardProps) {
   const [requestModalVisible, setRequestModalVisible] = useState(false);
   const [requestMessage, setRequestMessage] = useState('');
   const [isSending, setIsSending] = useState(false);
@@ -54,10 +56,11 @@ export function TrainerListCard({ trainer, onPress, requestDisabled = false }: T
     setIsSending(true);
     try {
       await coachingApi.requestCoaching({
-        trainerId: trainer.id,
+        trainerId: trainer.firebaseUid,
         requestMessage: trimmedMessage,
       });
 
+      await onRequestSent?.();
       setRequestModalVisible(false);
       setRequestMessage('');
       Alert.alert('Request sent', `Your request to ${trainer.name} was sent successfully.`);

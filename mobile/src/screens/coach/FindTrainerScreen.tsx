@@ -15,31 +15,34 @@ const FILTERS = ['Specialty', 'Price', 'Language'];
 
 export function FindTrainerScreen() {
   const [trainers, setTrainers] = useState<Trainer[]>([]);
-  const [requestedTrainerIds, setRequestedTrainerIds] = useState<string[]>([]);
-  useEffect(() => {
-    const fetchTrainers = async () => {
-      try {
-        const [trainersRes, coachingsRes] = await Promise.all([
-          apiClient.get<User[]>('/user/trainers'),
-          coachingApi.getMyCoachings(),
-        ]);
+  const [requestedTrainerIdentifiers, setRequestedTrainerIdentifiers] = useState<string[]>([]);
 
-        setTrainers(trainersRes.data.map(mapUserToTrainer));
-        setRequestedTrainerIds(
-          coachingsRes
-            .filter(coaching => coaching.status === 'PENDING' || coaching.status === 'ACTIVE')
-            .map(coaching => coaching.trainerId),
-        );
-      } catch (error) {
-        console.error('Error fetching trainers:', error);
-      }
-    };
+  const fetchTrainers = async () => {
+    try {
+      const [trainersRes, coachingsRes] = await Promise.all([
+        apiClient.get<User[]>('/user/trainers'),
+        coachingApi.getMyCoachings(),
+      ]);
+
+      setTrainers(trainersRes.data.map(mapUserToTrainer));
+      setRequestedTrainerIdentifiers(
+        coachingsRes
+          .filter(coaching => coaching.status === 'PENDING' || coaching.status === 'ACTIVE')
+          .map(coaching => coaching.trainerId),
+      );
+    } catch (error) {
+      console.error('Error fetching trainers:', error);
+    }
+  };
+
+  useEffect(() => {
     fetchTrainers();
   }, []);
 
   const mapUserToTrainer = (user: User): Trainer => ({
     id: user.id,
     name: user.displayName,
+    firebaseUid: user.firebaseUid,
     specialty: user.trainer?.specializations?.toString() ?? 'General Fitness',
     rating: 0,
     reviews: 0,
@@ -94,7 +97,11 @@ export function FindTrainerScreen() {
             <TrainerListCard
               key={t.id}
               trainer={t}
-              requestDisabled={requestedTrainerIds.includes(t.id)}
+              onRequestSent={fetchTrainers}
+              requestDisabled={
+                requestedTrainerIdentifiers.includes(t.firebaseUid) ||
+                requestedTrainerIdentifiers.includes(t.id)
+              }
             />
           ))}
         </View>

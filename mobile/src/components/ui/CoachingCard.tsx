@@ -40,7 +40,7 @@ const CoachingCard = ({ coaching }: CoachingCardProps) => {
     useEffect(() => {
         const fetchTrainer = async (trainerId: string) => {
             try {
-                const trainer = await userApi.getUserById(trainerId);
+                const trainer = await userApi.getUserByFirebaseUid(trainerId);
                 setTrainer(trainer);
             } catch (error) {
                 console.error('Error fetching trainer:', error);

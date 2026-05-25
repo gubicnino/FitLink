@@ -3,7 +3,6 @@ package si.feri.fitlink.coaching;
 import java.time.Instant;
 import java.util.Arrays;
 import java.util.List;
-import java.util.Optional;
 
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
@@ -12,8 +11,6 @@ import lombok.RequiredArgsConstructor;
 import si.feri.fitlink.coaching.dto.CoachingRequestDTO;
 import si.feri.fitlink.common.NotificationService;
 import si.feri.fitlink.common.exception.ResourceNotFoundException;
-import si.feri.fitlink.user.User;
-import si.feri.fitlink.user.UserRepository;
 
 @Service
 @RequiredArgsConstructor
@@ -21,7 +18,6 @@ public class CoachingService {
 
     private final CoachingRepository coachingRepo;
     private final NotificationService notificationService;
-    private final UserRepository userRepo;
 
     public Coaching requestCoaching(String traineeId, CoachingRequestDTO dto) {
         boolean alreadyRequested = !coachingRepo.findByTraineeIdAndTrainerIdAndStatusIn(
@@ -46,13 +42,9 @@ public class CoachingService {
         return saved;
     }
 
-    public Coaching acceptCoaching(String coachingId, String firebaseTrainerId) {
+    public Coaching acceptCoaching(String coachingId, String trainerId) {
         Coaching coaching = coachingRepo.findById(coachingId)
                 .orElseThrow(() -> new ResourceNotFoundException("Coaching not found"));
-        String trainerId = userRepo.findByFirebaseUid(firebaseTrainerId)
-            .map(User::getId)
-            .orElseThrow(() -> new ResourceNotFoundException("Trainer not found"));
-
         if (!coaching.getTrainerId().equals(trainerId))
             throw new AccessDeniedException("Not your request");
 
@@ -63,12 +55,9 @@ public class CoachingService {
         return saved;
     }
 
-    public Coaching rejectCoaching(String coachingId, String firebaseTrainerId) {
+    public Coaching rejectCoaching(String coachingId, String trainerId) {
         Coaching coaching = coachingRepo.findById(coachingId)
                 .orElseThrow(() -> new ResourceNotFoundException("Coaching not found"));
-        String trainerId = userRepo.findByFirebaseUid(firebaseTrainerId)
-            .map(User::getId)
-            .orElseThrow(() -> new ResourceNotFoundException("Trainer not found"));
 
         if (!coaching.getTrainerId().equals(trainerId))
             throw new AccessDeniedException("Not your request");
@@ -77,12 +66,9 @@ public class CoachingService {
         return coachingRepo.save(coaching);
     }
 
-    public Coaching endCoaching(String coachingId, String firebaseRequestId) {
+    public Coaching endCoaching(String coachingId, String requesterId) {
         Coaching coaching = coachingRepo.findById(coachingId)
                 .orElseThrow(() -> new ResourceNotFoundException("Coaching not found"));
-        String requesterId = userRepo.findByFirebaseUid(firebaseRequestId)
-            .map(User::getId)
-            .orElseThrow(() -> new ResourceNotFoundException("Requester not found"));
         if (!coaching.getTrainerId().equals(requesterId) && !coaching.getTraineeId().equals(requesterId))
             throw new AccessDeniedException("Not your coaching");
         coaching.setStatus(CoachingStatus.ENDED);
@@ -103,9 +89,7 @@ public class CoachingService {
         return coachingRepo.findByTrainerId(trainerId);
     }
 
-    public List<Coaching> getPendingForTrainer(String trainerIdentifier) {
-        Optional<User> trainerUser = userRepo.findByFirebaseUid(trainerIdentifier);
-        String trainerId = trainerUser.map(User::getId).orElse(trainerIdentifier);
+    public List<Coaching> getPendingForTrainer(String trainerId) {
         return coachingRepo.findByTrainerIdAndStatus(trainerId, CoachingStatus.PENDING);
     }
 }
