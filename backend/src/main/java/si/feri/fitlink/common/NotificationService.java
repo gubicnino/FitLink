@@ -1,7 +1,8 @@
 package si.feri.fitlink.common;
 
-import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+
+import lombok.RequiredArgsConstructor;
 import si.feri.fitlink.coaching.Coaching;
 import si.feri.fitlink.workout.WorkoutTemplate;
 
@@ -20,5 +21,13 @@ public class NotificationService {
 
     public void notifyWorkoutUpdated(WorkoutTemplate template) {
         // TODO: send FCM push to template owner
+    }
+
+    /**
+     * Push za incoming chat message. Only invoked by the chat layer
+     * when the recipient is NOT currently STOMP-connected (sepravi ka smo presence-aware).
+     */
+    public void notifyChatMessage(String recipientUserId, String senderDisplayName, String preview) {
+        // TODO: send FCM push to {recipientUserId} with title=senderDisplayName, body=preview
     }
 }

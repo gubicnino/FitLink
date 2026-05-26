@@ -10,6 +10,7 @@ export type TraineeTabParamList = {
   Home: undefined;
   Workouts: undefined;
   Courses: undefined;
+  Chat: undefined;
   Profile: undefined;
 };
 
@@ -18,6 +19,7 @@ export type TrainerTabParamList = {
   Clients: undefined;
   Courses: undefined;
   Library: undefined;
+  Chat: undefined;
   Profile: undefined;
 };
 export type AdminTabParamList = {
@@ -56,4 +58,5 @@ export type RootStackParamList = {
   TemplateForm:
     | { mode: 'create'; exerciseIds: string[]; pendingExerciseIds?: string[] }
     | { mode: 'edit'; templateId: string; pendingExerciseIds?: string[] };
+  ChatThread: { conversationId: string };
 };

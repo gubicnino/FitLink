@@ -37,6 +37,10 @@ public class SecurityConfig {
                                     "/swagger-resources/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/health").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/auth/**", "/api/auth/login", "/api/auth/register").permitAll()
+                        // WebSocket handshake endpoints. STOMP CONNECT frame carries the
+                        // Firebase token and is authenticated by ChatStompAuthInterceptor.
+                        .requestMatchers("/ws/**", "/ws-sockjs/**").permitAll()
+                        .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/chat/attachments/**").permitAll()
                         .anyRequest().authenticated()
                 )
                 .httpBasic(b -> b.disable())

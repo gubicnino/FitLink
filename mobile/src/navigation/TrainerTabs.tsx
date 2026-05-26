@@ -1,6 +1,6 @@
 import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { GraduationCap, Home, Library, User, Users } from 'lucide-react-native';
+import { GraduationCap, Home, Library, MessageSquare, User, Users } from 'lucide-react-native';
 import type { TrainerTabParamList } from './types';
 import { BottomTabBar } from '../components/layout';
 import { TrainerDashboardScreen } from '../screens/coach/TrainerDashboardScreen';
@@ -8,10 +8,13 @@ import { ClientsScreen } from '../screens/coach/ClientsScreen';
 import { LibraryScreen } from '../screens/coach/LibraryScreen';
 import { ProfileScreen } from '../screens/profile/ProfileScreen';
 import { CourseListScreen } from '../screens/courses/CourseListScreen';
+import { ChatListScreen } from '../screens/chat/ChatListScreen';
+import { useUnreadChats } from '../hooks/useUnreadChats';
 
 const Tab = createBottomTabNavigator<TrainerTabParamList>();
 
 export function TrainerTabs() {
+  const unread = useUnreadChats();
   return (
     <Tab.Navigator
       tabBar={props => <BottomTabBar {...props} />}
@@ -50,6 +53,17 @@ export function TrainerTabs() {
           title: 'Courses',
           tabBarIcon: ({ color, size }) => (
             <GraduationCap size={size} color={color} strokeWidth={1.75} />
+          ),
+        }}
+      />
+      <Tab.Screen
+        name="Chat"
+        component={ChatListScreen}
+        options={{
+          title: 'Chat',
+          tabBarBadge: unread > 0 ? unread : undefined,
+          tabBarIcon: ({ color, size }) => (
+            <MessageSquare size={size} color={color} strokeWidth={1.75} />
           ),
         }}
       />

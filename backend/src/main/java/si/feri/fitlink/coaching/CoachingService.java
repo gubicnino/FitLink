@@ -8,6 +8,7 @@ import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 
 import lombok.RequiredArgsConstructor;
+import si.feri.fitlink.chat.service.ConversationLifecycleService;
 import si.feri.fitlink.coaching.dto.CoachingRequestDTO;
 import si.feri.fitlink.common.NotificationService;
 import si.feri.fitlink.common.exception.ResourceNotFoundException;
@@ -18,6 +19,7 @@ public class CoachingService {
 
     private final CoachingRepository coachingRepo;
     private final NotificationService notificationService;
+    private final ConversationLifecycleService conversationLifecycle;
 
     public Coaching requestCoaching(String traineeId, CoachingRequestDTO dto) {
         boolean alreadyRequested = !coachingRepo.findByTraineeIdAndTrainerIdAndStatusIn(
@@ -52,6 +54,13 @@ public class CoachingService {
         coaching.setStartedAt(Instant.now());
         Coaching saved = coachingRepo.save(coaching);
         notificationService.notifyCoachingAccepted(saved);
+        // Auto-create chat conversation. Idempotent. Wrapped so a chat-side
+        // failure cannot block coaching acceptance.
+        try {
+            conversationLifecycle.onCoachingActivated(saved);
+        } catch (Exception ex) {
+            // logged by ConversationLifecycleService; zanalasc ignorerane tu
+        }
         return saved;
     }
 

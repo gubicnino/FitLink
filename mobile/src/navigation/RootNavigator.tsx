@@ -4,6 +4,7 @@ import React from 'react';
 import { ProtectedAdminApplicationsScreen } from '../screens/admin/ProtectedAdminApplicationsScreen';
 import { WeeklyCheckInScreen } from '../screens/checkin/WeeklyCheckInScreen';
 import { FindTrainerScreen } from '../screens/coach/FindTrainerScreen';
+import { ConversationScreen } from '../screens/chat/ConversationScreen';
 import { AddCourses } from '../screens/courses/AddCourses';
 import { CourseDetailScreen } from '../screens/courses/CourseDetailScreen';
 import { ExerciseDetailScreen } from '../screens/exercises/ExerciseDetailScreen';
@@ -72,6 +73,7 @@ export function RootNavigator({ user }: RootNavigatorProps) {
         <Stack.Screen name="TemplateDetail" component={TemplateDetailScreen} />
         <Stack.Screen name="TemplateForm" component={TemplateFormScreen} />
         <Stack.Screen name="SessionDetail" component={SessionDetailScreen} />
+        <Stack.Screen name="ChatThread" component={ConversationScreen} />
       </Stack.Navigator>
     </NavigationContainer>
   );

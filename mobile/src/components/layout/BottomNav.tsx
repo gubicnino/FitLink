@@ -8,6 +8,7 @@ interface TabBarItem {
   key: string;
   label: string;
   icon: (props: { size: number; color: string }) => React.ReactNode;
+  badge?: number | string | null;
 }
 
 interface BottomNavProps {
@@ -30,6 +31,7 @@ export function BottomNav({ items, activeKey, onSelect, dark = false }: BottomNa
       {items.map(item => {
         const active = item.key === activeKey;
         const color = active ? palette.active : palette.idle;
+        const badge = formatBadge(item.badge);
         return (
           <Pressable
             key={item.key}
@@ -38,7 +40,16 @@ export function BottomNav({ items, activeKey, onSelect, dark = false }: BottomNa
             accessibilityRole="tab"
             accessibilityState={{ selected: active }}
           >
-            {item.icon({ size: 22, color })}
+            <View style={styles.iconWrap}>
+              {item.icon({ size: 22, color })}
+              {badge != null ? (
+                <View style={[styles.badge, { borderColor: palette.bg }]}>
+                  <Text variant="micro" style={styles.badgeText}>
+                    {badge}
+                  </Text>
+                </View>
+              ) : null}
+            </View>
             <Text
               variant="micro"
               style={[styles.label, { color, fontWeight: active ? '600' : '500' }]}
@@ -62,6 +73,7 @@ export function BottomTabBar({ state, descriptors, navigation }: BottomTabBarPro
     (descriptors[focusedRouteKey].options as { dark?: boolean })?.dark ?? false;
   const items: TabBarItem[] = state.routes.map(route => {
     const { options } = descriptors[route.key];
+    const opts = options as typeof options & { tabBarBadge?: number | string | null };
     return {
       key: route.key,
       label: typeof options.title === 'string' ? options.title : route.name,
@@ -69,6 +81,7 @@ export function BottomTabBar({ state, descriptors, navigation }: BottomTabBarPro
         options.tabBarIcon
           ? options.tabBarIcon({ focused: route.key === focusedRouteKey, color, size })
           : null,
+      badge: opts.tabBarBadge,
     };
   });
   return (
@@ -90,6 +103,16 @@ export function BottomTabBar({ state, descriptors, navigation }: BottomTabBarPro
       dark={dark}
     />
   );
+}
+
+function formatBadge(badge: number | string | null | undefined): string | null {
+  if (badge == null) return null;
+  if (typeof badge === 'number') {
+    if (badge <= 0) return null;
+    return badge > 99 ? '99+' : String(badge);
+  }
+  const trimmed = badge.trim();
+  return trimmed.length > 0 ? trimmed : null;
 }
 
 function getPalette(dark: boolean) {
@@ -125,6 +148,31 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg,
     paddingVertical: 4,
     gap: 4,
+  },
+  iconWrap: {
+    position: 'relative',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  badge: {
+    position: 'absolute',
+    top: -4,
+    right: -10,
+    minWidth: 16,
+    height: 16,
+    borderRadius: 8,
+    paddingHorizontal: 4,
+    backgroundColor: colors.danger,
+    borderWidth: 1.5,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  badgeText: {
+    color: colors.white,
+    fontSize: 10,
+    fontWeight: '700',
+    lineHeight: 12,
+    letterSpacing: 0,
   },
   label: { letterSpacing: 0.3 },
 });
