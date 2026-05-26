@@ -2,13 +2,23 @@ package si.feri.fitlink.course;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.web.multipart.MultipartFile;
 import si.feri.fitlink.auth.AuthPrincipal;
 import si.feri.fitlink.common.exception.ResourceNotFoundException;
 import si.feri.fitlink.user.User;
 import si.feri.fitlink.user.UserRepository;
 
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.nio.file.StandardCopyOption;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
@@ -27,6 +37,7 @@ public class CourseService {
         stats.setRatingsCount(0);
         stats.setCompletionsCount(0);
         course.setStats(stats);
+        course.setReviews(new ArrayList<>());
         return courseRepo.save(course);
     }
 
@@ -68,6 +79,66 @@ public class CourseService {
         Course existing = getById(id);
         ensureOwner(existing, principal);
         courseRepo.deleteById(id);
+    }
+
+    public Map<String, String> uploadThumbnail(AuthPrincipal principal, MultipartFile file) throws IOException {
+        if (file == null || file.isEmpty()) {
+            throw new IllegalArgumentException("Thumbnail image is required");
+        }
+
+        String contentType = file.getContentType();
+        if (contentType == null || !contentType.toLowerCase(Locale.ROOT).startsWith("image/")) {
+            throw new IllegalArgumentException("Thumbnail must be an image");
+        }
+
+        Path uploadDir = Paths.get("uploads", "course-thumbnails").toAbsolutePath().normalize();
+        Files.createDirectories(uploadDir);
+
+        String extension = extensionFor(contentType, file.getOriginalFilename());
+        String fileName = principal.uid() + "-" + System.currentTimeMillis() + extension;
+        Path target = uploadDir.resolve(fileName).normalize();
+
+        if (!target.getParent().equals(uploadDir)) {
+            throw new IllegalArgumentException("Invalid file name");
+        }
+
+        Files.copy(file.getInputStream(), target, StandardCopyOption.REPLACE_EXISTING);
+        return Map.of("thumbnailUrl", "/uploads/course-thumbnails/" + fileName);
+    }
+
+    public CourseResponse addReview(String id, CourseReviewRequest request, AuthPrincipal principal) {
+        Course course = getById(id);
+        if (principal.uid().equals(course.getAuthorId())) {
+            throw new IllegalArgumentException("You cannot review your own course");
+        }
+
+        User user = userRepository.findByFirebaseUid(principal.uid())
+                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+
+        List<Course.CourseReview> reviews = course.getReviews() != null
+                ? new ArrayList<>(course.getReviews())
+                : new ArrayList<>();
+
+        Course.CourseReview review = reviews.stream()
+                .filter(existing -> principal.uid().equals(existing.getUserId()))
+                .findFirst()
+                .orElseGet(() -> {
+                    Course.CourseReview nextReview = new Course.CourseReview();
+                    nextReview.setId(UUID.randomUUID().toString());
+                    nextReview.setUserId(principal.uid());
+                    reviews.add(nextReview);
+                    return nextReview;
+                });
+
+        review.setUserDisplayName(user.getDisplayName());
+        review.setUserAvatarUrl(user.getAvatarUrl());
+        review.setRating(request.getRating());
+        review.setComment(request.getComment().trim());
+        review.setCreatedAt(Instant.now());
+
+        course.setReviews(reviews);
+        updateReviewStats(course);
+        return toResponse(courseRepo.save(course));
     }
 
     public List<Course> getAll() {
@@ -138,6 +209,33 @@ public class CourseService {
         }
     }
 
+    private void updateReviewStats(Course course) {
+        List<Course.CourseReview> reviews = course.getReviews() != null ? course.getReviews() : List.of();
+        Course.CourseStats stats = course.getStats() != null ? course.getStats() : new Course.CourseStats();
+        stats.setRatingsCount(reviews.size());
+        stats.setAvgRating(reviews.stream()
+                .mapToInt(Course.CourseReview::getRating)
+                .average()
+                .orElse(0));
+        course.setStats(stats);
+    }
+
+    private String extensionFor(String contentType, String originalName) {
+        if ("image/png".equalsIgnoreCase(contentType)) {
+            return ".png";
+        }
+        if ("image/webp".equalsIgnoreCase(contentType)) {
+            return ".webp";
+        }
+        if (originalName != null && originalName.contains(".")) {
+            String extension = originalName.substring(originalName.lastIndexOf(".")).toLowerCase(Locale.ROOT);
+            if (extension.matches("\\.(jpg|jpeg|png|webp)")) {
+                return extension;
+            }
+        }
+        return ".jpg";
+    }
+
     private CourseResponse toResponse(Course course) {
         User author = userRepository.findByFirebaseUid(course.getAuthorId()).orElse(null);
         User.TrainerInfo trainer = author != null ? author.getTrainer() : null;
@@ -146,6 +244,7 @@ public class CourseService {
                 .id(course.getId())
                 .authorId(course.getAuthorId())
                 .authorDisplayName(author != null ? author.getDisplayName() : "Coach")
+                .authorAvatarUrl(author != null ? author.getAvatarUrl() : null)
                 .authorBio(trainer != null ? trainer.getBio() : null)
                 .authorSpecializations(trainer != null ? trainer.getSpecializations() : List.of())
                 .authorVerificationStatus(trainer != null ? trainer.getVerificationStatus() : null)
@@ -160,6 +259,7 @@ public class CourseService {
                 .thumbnailUrl(course.getThumbnailUrl())
                 .publishedAt(course.getPublishedAt())
                 .stats(course.getStats())
+                .reviews(course.getReviews() != null ? course.getReviews() : List.of())
                 .build();
     }
 

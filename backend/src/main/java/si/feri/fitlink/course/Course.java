@@ -7,6 +7,8 @@ import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.mapping.Document;
 
 import java.time.Instant;
+import java.util.List;
+
 @Document(collection = "courses")
 @Data @Builder @NoArgsConstructor @AllArgsConstructor
 public class Course {
@@ -23,11 +25,26 @@ public class Course {
     private String thumbnailUrl;
     private Instant publishedAt;
     private CourseStats stats;
+    private List<CourseReview> reviews;
 
     @Data
     public static class CourseStats {
         private double avgRating;
         private int ratingsCount;
         private int completionsCount;
+    }
+
+    @Data
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class CourseReview {
+        private String id;
+        private String userId;
+        private String userDisplayName;
+        private String userAvatarUrl;
+        private int rating;
+        private String comment;
+        private Instant createdAt;
     }
 }

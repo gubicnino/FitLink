@@ -30,14 +30,13 @@ import { CourseDto, courseService } from '../../services/courseService';
 import { authService } from '../../services/authService';
 import type { User } from '../../types/types';
 import { ALL_VALUE, FilterPickerSheet } from '../../components/filters/FilterPickerSheet';
+import { API_ORIGIN } from '../../api/apiClient';
+import { getAvatarUrl } from '../../utils/avatar';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 
 const CATEGORIES = ['Strength', 'Hypertrophy', 'Mobility', 'Cardio', 'Nutrition'] as const;
 type Category = (typeof CATEGORIES)[number] | typeof ALL_VALUE;
-
-const COACH_IMG =
-  'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=80&q=80&auto=format';
 
 const FALLBACK_IMG =
   'https://images.unsplash.com/photo-1581009146145-b5ef050c2e1e?w=500&q=80&auto=format';
@@ -231,7 +230,7 @@ export function CourseListScreen() {
                 {featured.title}
               </Text>
               <View style={styles.authorRow}>
-                <Avatar source={COACH_IMG} size="xs" />
+                <Avatar source={getAvatarUrl(featured.authorAvatarUrl)} size="xs" />
                 <Text variant="micro" weight="500">
                   Coach
                 </Text>
@@ -409,7 +408,12 @@ function toCourseCard(course: CourseDto): Course {
 }
 
 function getImageUrl(course: CourseDto) {
-  return course.thumbnailUrl || (course.youtubeVideoId ? `https://img.youtube.com/vi/${course.youtubeVideoId}/hqdefault.jpg` : FALLBACK_IMG);
+  if (course.thumbnailUrl) {
+    return course.thumbnailUrl.startsWith('/uploads/')
+      ? `${API_ORIGIN}${course.thumbnailUrl}`
+      : course.thumbnailUrl;
+  }
+  return course.youtubeVideoId ? `https://img.youtube.com/vi/${course.youtubeVideoId}/hqdefault.jpg` : FALLBACK_IMG;
 }
 
 function getCourseTypeLabel(contentType?: string | null) {

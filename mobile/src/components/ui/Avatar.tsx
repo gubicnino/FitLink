@@ -1,5 +1,6 @@
 import React from 'react';
 import { Image, ImageSourcePropType, StyleProp, StyleSheet, View, ViewStyle } from 'react-native';
+import { UserRound } from 'lucide-react-native';
 import { colors, radii } from '../../theme';
 
 type AvatarSize = 'xs' | 'sm' | 'md' | 'lg' | 'xl' | 'xxl';
@@ -26,6 +27,7 @@ export function Avatar({ source, size = 'lg', rounded = 'pill', style, testID }:
   const borderRadius = rounded === 'pill' ? dim / 2 : radii.xl;
   let imgSource: ImageSourcePropType | undefined = undefined;
   const isElement = React.isValidElement(source);
+  const isSvgDataUri = typeof source === 'string' && source.startsWith('data:image/svg+xml');
   if (!isElement) {
     imgSource = typeof source === 'string' ? { uri: source } : (source as ImageSourcePropType);
   }
@@ -39,7 +41,11 @@ export function Avatar({ source, size = 'lg', rounded = 'pill', style, testID }:
       testID={testID}
     >
       {isElement ? (
-        React.cloneElement(source as React.ReactElement, { size: dim })
+        React.cloneElement(source as React.ReactElement<{ size?: number }>, { size: dim })
+      ) : isSvgDataUri ? (
+        <View style={[styles.fallback, { width: dim, height: dim, borderRadius }]}>
+          <UserRound size={Math.round(dim * 0.58)} color={colors.primary} strokeWidth={2} />
+        </View>
       ) : (
         <Image source={imgSource} style={{ width: dim, height: dim, borderRadius }} />
       )}
@@ -49,4 +55,9 @@ export function Avatar({ source, size = 'lg', rounded = 'pill', style, testID }:
 
 const styles = StyleSheet.create({
   container: { overflow: 'hidden' },
+  fallback: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.primarySoft,
+  },
 });

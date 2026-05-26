@@ -1,6 +1,6 @@
 import DateTimePicker, { DateTimePickerAndroid } from '@react-native-community/datetimepicker';
 import { CommonActions, NavigationProp, useFocusEffect, useNavigation } from '@react-navigation/native';
-import { Check, CircleUserRound } from 'lucide-react-native';
+import { Check } from 'lucide-react-native';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, PermissionsAndroid, Platform, Pressable, StyleSheet, TextInput, View } from 'react-native';
@@ -12,7 +12,7 @@ import { RootStackParamList } from '../../navigation';
 import { authService } from '../../services/authService';
 import { colors, spacing } from '../../theme';
 import { User } from '../../types/types';
-const DEFAULT_AVATAR = <CircleUserRound color={colors.primary} strokeWidth={1} />;
+import { DEFAULT_AVATAR, getAvatarUrl } from '../../utils/avatar';
 
 const formatBirthDate = (value: string) => {
   if (!value) return '';
@@ -142,7 +142,10 @@ export function ProfileScreen() {
   }, [displayName, user?.displayName]);
 
   const getAvatarSource = () => {
-    return user?.avatarUrl ? `${API_ORIGIN}${user.avatarUrl}?v=${avatarVersion}` : DEFAULT_AVATAR;
+    if (!user?.avatarUrl) return DEFAULT_AVATAR;
+
+    const avatarUrl = getAvatarUrl(user.avatarUrl);
+    return avatarUrl.startsWith('data:') ? avatarUrl : `${avatarUrl}?v=${avatarVersion}`;
   };
 
   const requestPhotoPermission = async () => {
@@ -158,6 +161,8 @@ export function ProfileScreen() {
   };
 
   const handleAvatarUpload = async () => {
+    if (isAvatarUploading) return;
+
     try {
       setError(null);
 
@@ -171,7 +176,9 @@ export function ProfileScreen() {
         mediaType: 'photo',
         selectionLimit: 1,
         includeBase64: false,
-        quality: 0.8,
+        maxWidth: 1024,
+        maxHeight: 1024,
+        quality: 0.7,
       });
 
       if (result.didCancel) return;
@@ -220,6 +227,33 @@ export function ProfileScreen() {
     } finally {
       setIsAvatarUploading(false);
     }
+  };
+
+  const handleAvatarDelete = () => {
+    if (!user?.avatarUrl || isAvatarUploading) return;
+
+    Alert.alert('Remove profile photo', 'Use the default avatar instead?', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Remove',
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            setIsAvatarUploading(true);
+            setError(null);
+            await apiClient.delete('/profile/avatar');
+            setUser(currentUser => currentUser ? { ...currentUser, avatarUrl: null } : currentUser);
+            setAvatarVersion(Date.now());
+          } catch (err: any) {
+            const errorMsg = err?.response?.data?.message || err?.message || 'Failed to remove profile photo.';
+            setError(errorMsg);
+            console.error('Avatar delete error:', err);
+          } finally {
+            setIsAvatarUploading(false);
+          }
+        },
+      },
+    ]);
   };
 
   const handleLogout = async () => {
@@ -364,6 +398,11 @@ export function ProfileScreen() {
               <Text variant="caption" color="secondary" onPress={handleAvatarUpload}>
                 {isAvatarUploading ? 'Uploading photo...' : 'Change photo'}
               </Text>
+              {user?.avatarUrl ? (
+                <Text variant="caption" color="secondary" onPress={handleAvatarDelete} style={styles.removePhotoText}>
+                  Remove photo
+                </Text>
+              ) : null}
               {user?.trainer?.verificationStatus ? (
                 <Text variant="caption" color="secondary" style={styles.status}>
                   Trainer status: {user.trainer.verificationStatus}
@@ -548,6 +587,7 @@ const styles = StyleSheet.create({
   },
   placeholder: { marginTop: spacing.xxl },
   status: { marginTop: spacing.sm },
+  removePhotoText: { marginTop: spacing.xs },
   formSection: { 
     paddingHorizontal: spacing.xxl, 
     paddingVertical: spacing.lg,
