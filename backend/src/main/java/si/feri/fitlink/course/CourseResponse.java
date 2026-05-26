@@ -12,6 +12,7 @@ public class CourseResponse {
     private String id;
     private String authorId;
     private String authorDisplayName;
+    private String authorAvatarUrl;
     private String authorBio;
     private List<String> authorSpecializations;
     private String authorVerificationStatus;
@@ -26,4 +27,5 @@ public class CourseResponse {
     private String thumbnailUrl;
     private Instant publishedAt;
     private Course.CourseStats stats;
+    private List<Course.CourseReview> reviews;
 }

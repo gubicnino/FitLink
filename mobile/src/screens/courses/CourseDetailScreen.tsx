@@ -19,42 +19,20 @@ import {
   Button,
   IconButton,
   Screen,
+  StarRating,
   Text,
+  Textarea,
 } from '../../components/ui';
-import { ReviewCard, Review } from './ReviewCard';
+import { ReviewCard } from './ReviewCard';
 import type { RootStackParamList } from '../../navigation/types';
-import { CourseDto, courseService } from '../../services/courseService';
+import { CourseDto, CourseReviewDto, courseService } from '../../services/courseService';
 import { authService } from '../../services/authService';
 import type { User } from '../../types/types';
+import { API_ORIGIN } from '../../api/apiClient';
+import { getAvatarUrl } from '../../utils/avatar';
 
-const COACH_IMG =
-  'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=120&q=80&auto=format';
 const FALLBACK_IMG =
   'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=800&q=80&auto=format';
-
-const REVIEWS: Review[] = [
-  {
-    id: '1',
-    name: 'Janez Novak',
-    stars: 5,
-    comment: 'Clear, no fluff. The set/rep breakdown finally made PPL click for me.',
-    avatarUrl: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=80&q=80&auto=format',
-  },
-  {
-    id: '2',
-    name: 'Ana Vidmar',
-    stars: 5,
-    comment: 'Maja explains progression really well. Following the program for 6 weeks now.',
-    avatarUrl: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=80&q=80&auto=format',
-  },
-  {
-    id: '3',
-    name: 'Tomaž Horvat',
-    stars: 4,
-    comment: 'Solid fundamentals. Wish there was more on deload weeks.',
-    avatarUrl: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=80&q=80&auto=format',
-  },
-];
 
 const TABS = ['Overview', 'Reviews'] as const;
 type DetailTab = (typeof TABS)[number];
@@ -66,6 +44,9 @@ export function CourseDetailScreen({ navigation, route }: Props) {
   const [user, setUser] = useState<User | null>(null);
   const [playing, setPlaying] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [reviewRating, setReviewRating] = useState(5);
+  const [reviewComment, setReviewComment] = useState('');
+  const [reviewSubmitting, setReviewSubmitting] = useState(false);
 
   useEffect(() => {
     const load = async () => {
@@ -92,6 +73,9 @@ export function CourseDetailScreen({ navigation, route }: Props) {
   const contentType = normalizeContentType(course?.contentType);
   const isVideo = contentType === 'VIDEO';
   const isPdf = contentType === 'PDF';
+  const hasMediaHeader = Boolean((isVideo && course?.youtubeVideoId) || course?.thumbnailUrl);
+  const reviews = course?.reviews ?? [];
+  const canReview = Boolean(user && course && user.firebaseUid !== course.authorId);
 
   const handleOpenSource = async () => {
     const sourceUrl = isPdf ? course?.pdfUrl : course?.articleUrl;
@@ -129,8 +113,31 @@ export function CourseDetailScreen({ navigation, route }: Props) {
     );
   };
 
+  const handleSubmitReview = async () => {
+    if (!course || !reviewComment.trim()) return;
+
+    try {
+      setReviewSubmitting(true);
+      const nextCourse = await courseService.addReview(course.id, {
+        rating: reviewRating,
+        comment: reviewComment.trim(),
+      });
+      setCourse(nextCourse);
+      setReviewComment('');
+      setTab('Reviews');
+    } catch (error: any) {
+      Alert.alert(
+        'Review failed',
+        error?.response?.data?.message || error?.message || 'Could not save review.',
+      );
+    } finally {
+      setReviewSubmitting(false);
+    }
+  };
+
   return (
     <Screen background="surface" scroll edges={['top']}>
+      {hasMediaHeader ? (
       <View style={styles.gutter}>
         <View style={styles.videoWrap}>
           {course?.youtubeVideoId && isVideo ? (
@@ -142,7 +149,7 @@ export function CourseDetailScreen({ navigation, route }: Props) {
             />
           ) : (
             <>
-              <Image source={{ uri: course?.thumbnailUrl ?? FALLBACK_IMG }} style={styles.videoImage} />
+              <Image source={{ uri: getMediaUrl(course?.thumbnailUrl) ?? FALLBACK_IMG }} style={styles.videoImage} />
               <View style={styles.videoOverlay} />
               {!isVideo ? (
                 <View style={styles.articlePill}>
@@ -178,6 +185,23 @@ export function CourseDetailScreen({ navigation, route }: Props) {
           </View>
         </View>
       </View>
+      ) : (
+        <View style={[styles.gutter, styles.simpleHeaderControls]}>
+          <IconButton variant="surface" withBorder onPress={() => navigation.goBack()}>
+            <ChevronLeft size={18} color={colors.inkPrimary} strokeWidth={2.25} />
+          </IconButton>
+          {canEdit ? (
+            <View style={styles.controlsRight}>
+              <IconButton variant="surface" withBorder onPress={() => navigation.navigate('AddCourses', { courseId: course.id })}>
+                <Pencil size={16} color={colors.inkPrimary} strokeWidth={2} />
+              </IconButton>
+              <IconButton variant="surface" withBorder onPress={handleDeleteCourse} disabled={deleting}>
+                <Trash2 size={16} color={colors.inkPrimary} strokeWidth={2} />
+              </IconButton>
+            </View>
+          ) : null}
+        </View>
+      )}
 
       <View style={[styles.gutter, styles.section]}>
         <Text variant="h3" style={styles.title}>
@@ -185,7 +209,7 @@ export function CourseDetailScreen({ navigation, route }: Props) {
         </Text>
 
         <View style={styles.authorRow}>
-          <Avatar source={COACH_IMG} size="lg" />
+          <Avatar source={getAvatarUrl(course?.authorAvatarUrl)} size="lg" />
           <View style={styles.authorInfo}>
             <View style={styles.authorName}>
               <Text variant="bodySmall" weight="600">
@@ -255,26 +279,28 @@ export function CourseDetailScreen({ navigation, route }: Props) {
               />
             )}
 
-            <View style={styles.reviewsHeader}>
-              <Text variant="caption" color="muted">
-                Reviews
-              </Text>
-              <Text variant="bodySmall" color="brand" weight="600">
-                See all
-              </Text>
-            </View>
-            <View style={styles.reviews}>
-              {REVIEWS.map(r => (
-                <ReviewCard key={r.id} review={r} />
-              ))}
-            </View>
+            <ReviewsSection
+              reviews={reviews}
+              canReview={canReview}
+              rating={reviewRating}
+              comment={reviewComment}
+              submitting={reviewSubmitting}
+              onRatingChange={setReviewRating}
+              onCommentChange={setReviewComment}
+              onSubmit={handleSubmitReview}
+            />
           </>
         ) : (
-          <View style={styles.reviews}>
-            {REVIEWS.map(r => (
-              <ReviewCard key={r.id} review={r} />
-            ))}
-          </View>
+          <ReviewsSection
+            reviews={reviews}
+            canReview={canReview}
+            rating={reviewRating}
+            comment={reviewComment}
+            submitting={reviewSubmitting}
+            onRatingChange={setReviewRating}
+            onCommentChange={setReviewComment}
+            onSubmit={handleSubmitReview}
+          />
         )}
       </View>
 
@@ -314,6 +340,85 @@ function StatItem({
   );
 }
 
+function ReviewsSection({
+  reviews,
+  canReview,
+  rating,
+  comment,
+  submitting,
+  onRatingChange,
+  onCommentChange,
+  onSubmit,
+}: {
+  reviews: CourseReviewDto[];
+  canReview: boolean;
+  rating: number;
+  comment: string;
+  submitting: boolean;
+  onRatingChange: (value: number) => void;
+  onCommentChange: (value: string) => void;
+  onSubmit: () => void;
+}) {
+  return (
+    <>
+      {canReview ? (
+        <View style={styles.reviewForm}>
+          <Text variant="caption" color="muted">
+            Leave a review
+          </Text>
+          <View style={styles.ratingPicker}>
+            {[1, 2, 3, 4, 5].map(value => (
+              <Pressable key={value} onPress={() => onRatingChange(value)} hitSlop={8}>
+                <StarRating value={value <= rating ? 1 : 0} size={22} outOf={1} />
+              </Pressable>
+            ))}
+          </View>
+          <Textarea
+            value={comment}
+            onChangeText={onCommentChange}
+            placeholder="Share what helped or what could be better"
+            rows={3}
+          />
+          <Button
+            label="Submit review"
+            variant="outline"
+            fullWidth
+            loading={submitting}
+            disabled={!comment.trim() || submitting}
+            onPress={onSubmit}
+          />
+        </View>
+      ) : null}
+
+      <View style={styles.reviewsHeader}>
+        <Text variant="caption" color="muted">
+          Reviews
+        </Text>
+      </View>
+      <View style={styles.reviews}>
+        {reviews.length > 0 ? (
+          reviews.map(review => (
+            <ReviewCard
+              key={review.id}
+              review={{
+                id: review.id,
+                name: review.userDisplayName ?? 'Member',
+                stars: review.rating,
+                comment: review.comment,
+                avatarUrl: getAvatarUrl(review.userAvatarUrl),
+              }}
+            />
+          ))
+        ) : (
+          <Text variant="bodySmall" color="secondary">
+            No reviews yet.
+          </Text>
+        )}
+      </View>
+    </>
+  );
+}
+
 const styles = StyleSheet.create({
   gutter: { paddingHorizontal: spacing.xxl },
   section: { marginTop: spacing.lg },
@@ -345,6 +450,11 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   controlsRight: { flexDirection: 'row', gap: spacing.md },
+  simpleHeaderControls: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
 
   title: { fontSize: 20, lineHeight: 24, marginBottom: spacing.lg },
 
@@ -393,6 +503,14 @@ const styles = StyleSheet.create({
     marginBottom: spacing.md,
   },
   reviews: { gap: spacing.md },
+  reviewForm: {
+    gap: spacing.md,
+    paddingBottom: spacing.xxl,
+    marginBottom: spacing.xxl,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.line,
+  },
+  ratingPicker: { flexDirection: 'row', gap: spacing.sm },
 
   bottomSpacer: { height: spacing.huge },
 });
@@ -401,4 +519,9 @@ function normalizeContentType(value?: string | null) {
   if (value === 'PDF') return 'PDF';
   if (value === 'ARTICLE' || value === 'ARTICLE_LINK') return 'ARTICLE';
   return 'VIDEO';
+}
+
+function getMediaUrl(value?: string | null) {
+  if (!value) return null;
+  return value.startsWith('/uploads/') ? `${API_ORIGIN}${value}` : value;
 }

@@ -1,7 +1,9 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { Save, Trash2 } from 'lucide-react-native';
+import { ImagePlus, Save, Trash2 } from 'lucide-react-native';
 import React, { useEffect, useState } from 'react';
-import { Alert, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { Alert, Image, PermissionsAndroid, Platform, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { launchImageLibrary } from 'react-native-image-picker';
+import { API_ORIGIN } from '../../api/apiClient';
 import { ScreenHeader } from '../../components/layout';
 import { Button, Card, Chip, Input, Screen, Text } from '../../components/ui';
 import type { RootStackParamList } from '../../navigation/types';
@@ -35,6 +37,7 @@ export function AddCourses({ navigation, route }: Props) {
   const isEditing = Boolean(courseId);
   const [form, setForm] = useState<CoursePayload>(emptyForm);
   const [loading, setLoading] = useState(false);
+  const [thumbnailUploading, setThumbnailUploading] = useState(false);
   const [initialLoading, setInitialLoading] = useState(Boolean(courseId));
   const [error, setError] = useState<string | null>(null);
 
@@ -69,6 +72,62 @@ export function AddCourses({ navigation, route }: Props) {
   const updateField = (field: keyof CoursePayload, value: string) => {
     setForm(prev => ({ ...prev, [field]: value }));
     setError(null);
+  };
+
+  const requestPhotoPermission = async () => {
+    if (Platform.OS !== 'android') return true;
+
+    const permission =
+      Platform.Version >= 33
+        ? PermissionsAndroid.PERMISSIONS.READ_MEDIA_IMAGES
+        : PermissionsAndroid.PERMISSIONS.READ_EXTERNAL_STORAGE;
+
+    const result = await PermissionsAndroid.request(permission);
+    return result === PermissionsAndroid.RESULTS.GRANTED;
+  };
+
+  const handlePickThumbnail = async () => {
+    try {
+      setError(null);
+
+      const hasPermission = await requestPhotoPermission();
+      if (!hasPermission) {
+        setError('Photo permission is required to upload a thumbnail.');
+        return;
+      }
+
+      const result = await launchImageLibrary({
+        mediaType: 'photo',
+        selectionLimit: 1,
+        includeBase64: false,
+        quality: 0.8,
+      });
+
+      if (result.didCancel) return;
+      if (result.errorCode) {
+        setError(result.errorMessage ?? 'Could not open photo library.');
+        return;
+      }
+
+      const asset = result.assets?.[0];
+      if (!asset?.uri) {
+        setError('No image was selected.');
+        return;
+      }
+
+      setThumbnailUploading(true);
+      const response = await courseService.uploadThumbnail({
+        uri: asset.uri,
+        fileName: asset.fileName,
+        type: asset.type,
+      });
+      updateField('thumbnailUrl', response.thumbnailUrl);
+    } catch (err: any) {
+      console.error('Thumbnail upload failed:', err);
+      setError(err?.message || 'Could not upload thumbnail.');
+    } finally {
+      setThumbnailUploading(false);
+    }
   };
 
   const getPayload = (): CoursePayload | null => {
@@ -244,7 +303,18 @@ export function AddCourses({ navigation, route }: Props) {
                 value={form.thumbnailUrl ?? ''}
                 onChangeText={value => updateField('thumbnailUrl', value)}
                 autoCapitalize="none"
-                placeholder="Optional image URL"
+                placeholder="Paste image URL or choose from gallery"
+              />
+              {form.thumbnailUrl ? (
+                <Image source={{ uri: getMediaUrl(form.thumbnailUrl) }} style={styles.thumbnailPreview} />
+              ) : null}
+              <Button
+                label={thumbnailUploading ? 'Uploading thumbnail...' : 'Choose thumbnail'}
+                variant="outline"
+                fullWidth
+                loading={thumbnailUploading}
+                onPress={handlePickThumbnail}
+                leftIcon={<ImagePlus size={16} color={colors.primary} strokeWidth={2.25} />}
               />
             </View>
 
@@ -292,6 +362,10 @@ function normalizeContentType(value?: string | null) {
   return value === 'ARTICLE_LINK' ? 'ARTICLE' : value ?? 'VIDEO';
 }
 
+function getMediaUrl(value: string) {
+  return value.startsWith('/uploads/') ? `${API_ORIGIN}${value}` : value;
+}
+
 const styles = StyleSheet.create({
   content: {
     paddingHorizontal: spacing.xxl,
@@ -300,6 +374,12 @@ const styles = StyleSheet.create({
   },
   form: { gap: spacing.lg },
   textArea: { height: 112, paddingTop: spacing.lg },
+  thumbnailPreview: {
+    width: '100%',
+    aspectRatio: 16 / 9,
+    borderRadius: 12,
+    backgroundColor: colors.surfaceElevated,
+  },
   groupLabel: { marginBottom: spacing.md },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.md },
   errorCard: { borderColor: colors.danger },

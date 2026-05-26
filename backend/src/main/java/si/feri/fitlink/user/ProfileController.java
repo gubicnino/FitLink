@@ -11,6 +11,7 @@ import java.util.Map;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
@@ -106,6 +107,17 @@ public class ProfileController {
         userRepository.save(user);
 
         return ResponseEntity.ok(Map.of("avatarUrl", avatarUrl));
+    }
+
+    @DeleteMapping("/avatar")
+    public ResponseEntity<Void> deleteAvatar(@AuthenticationPrincipal AuthPrincipal principal) {
+        User user = userRepository.findByFirebaseUid(principal.uid())
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        user.setAvatarUrl(null);
+        userRepository.save(user);
+
+        return ResponseEntity.noContent().build();
     }
 
     private String extensionFor(String contentType, String originalName) {
