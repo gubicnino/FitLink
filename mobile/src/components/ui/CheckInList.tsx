@@ -138,7 +138,7 @@ const styles = StyleSheet.create({
   gutter: { paddingHorizontal: spacing.xxl },
   section: { marginTop: spacing.xl },
   sectionLabel: { marginBottom: spacing.md },
-  nextCheckInLabel: { marginBottom: spacing.md },
+  nextCheckInLabel: { marginBottom: spacing.md, marginTop: spacing.md },
   loadingRow: {
     paddingVertical: spacing.lg,
     paddingHorizontal: spacing.xl,

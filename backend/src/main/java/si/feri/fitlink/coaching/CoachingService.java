@@ -97,7 +97,9 @@ public class CoachingService {
     public List<Coaching> getAllForTrainer(String trainerId) {
         return coachingRepo.findByTrainerId(trainerId);
     }
-
+    public List<Coaching> getActiveForTrainer(String trainerId) {
+        return coachingRepo.findByTrainerIdAndStatus(trainerId, CoachingStatus.ACTIVE);
+    }
     public List<Coaching> getPendingForTrainer(String trainerId) {
         return coachingRepo.findByTrainerIdAndStatus(trainerId, CoachingStatus.PENDING);
     }

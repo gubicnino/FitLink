@@ -19,5 +19,9 @@ export const coachingApi = {
   },
   rejectCoachingRequest: async (coachingId: string): Promise<void> => {
     await apiClient.post('/coaching/reject', { coachingId });
+  },
+  getActiveCoachingsForTrainer: async (): Promise<Coaching[]> => {
+    const res = await apiClient.get<Coaching[]>('/coaching/active');
+    return res.data;
   }
 };

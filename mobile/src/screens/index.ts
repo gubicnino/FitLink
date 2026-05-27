@@ -3,6 +3,7 @@ export { ProtectedAdminApplicationsScreen } from './admin/ProtectedAdminApplicat
 export { LoginScreen } from './auth/LoginScreen';
 export { SignUpScreen } from './auth/SignUpScreen';
 export { WeeklyCheckInScreen } from './checkin/WeeklyCheckInScreen';
+export { ClientDetailScreen } from './coach/ClientDetailScreen';
 export { ClientsScreen } from './coach/ClientsScreen';
 export { FindTrainerScreen } from './coach/FindTrainerScreen';
 export { LibraryScreen } from './coach/LibraryScreen';

@@ -2,9 +2,10 @@ import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import React from 'react';
 import { ProtectedAdminApplicationsScreen } from '../screens/admin/ProtectedAdminApplicationsScreen';
-import { WeeklyCheckInScreen } from '../screens/checkin/WeeklyCheckInScreen';
-import { FindTrainerScreen } from '../screens/coach/FindTrainerScreen';
 import { ConversationScreen } from '../screens/chat/ConversationScreen';
+import { WeeklyCheckInScreen } from '../screens/checkin/WeeklyCheckInScreen';
+import { ClientDetailScreen } from '../screens/coach/ClientDetailScreen';
+import { FindTrainerScreen } from '../screens/coach/FindTrainerScreen';
 import { AddCourses } from '../screens/courses/AddCourses';
 import { CourseDetailScreen } from '../screens/courses/CourseDetailScreen';
 import { ExerciseDetailScreen } from '../screens/exercises/ExerciseDetailScreen';
@@ -58,11 +59,12 @@ export function RootNavigator({ user }: RootNavigatorProps) {
         <Stack.Screen name="AddCourses" component={AddCourses} />
         <Stack.Screen
           name="WeeklyCheckIn"
-          component={(props: any) => (
-            <WeeklyCheckInScreen checkIn={props.route.params?.checkIn ?? null} />
+          children={({ route }) => (
+            <WeeklyCheckInScreen checkIn={route.params?.checkIn ?? null} />
           )}
           options={{ presentation: 'modal', animation: 'slide_from_bottom' }}
         />
+        <Stack.Screen name="ClientDetail" component={ClientDetailScreen} />
         <Stack.Screen name="FindTrainer" component={FindTrainerScreen} />
         <Stack.Screen
           name="ExercisePicker"

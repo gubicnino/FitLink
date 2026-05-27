@@ -39,6 +39,10 @@ public class CoachingController {
     public ResponseEntity<List<Coaching>> getCoachingRequestsForTrainer(@AuthenticationPrincipal AuthPrincipal principal) {
         return ResponseEntity.ok(coachingService.getPendingForTrainer(principal.uid()));
     }
+    @GetMapping("/active")
+    public ResponseEntity<List<Coaching>> getActiveCoachingsForTrainer(@AuthenticationPrincipal AuthPrincipal principal) {
+        return ResponseEntity.ok(coachingService.getActiveForTrainer(principal.uid()));
+    }
     @PostMapping("/accept")
     public ResponseEntity<Coaching> acceptCoaching(
             @AuthenticationPrincipal AuthPrincipal principal,

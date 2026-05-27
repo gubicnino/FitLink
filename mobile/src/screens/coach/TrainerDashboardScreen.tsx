@@ -1,5 +1,5 @@
 import { Check, ChevronRight, X } from 'lucide-react-native';
-import { useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Modal, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { API_ORIGIN } from '../../api/apiClient';
 import { coachingApi } from '../../api/coachingApi';
@@ -9,15 +9,15 @@ import {
     Avatar,
     Button,
     Card,
-    ProgressBar,
     Screen,
     StatCard,
-    Text,
+    Text
 } from '../../components/ui';
 import { authService } from '../../services/authService';
 import { colors, spacing } from '../../theme';
 import { Coaching } from '../../types/coaching';
 import { User } from '../../types/types';
+import ActiveClients from './ActiveClients';
 
 interface PendingClient {
   id: string;
@@ -26,13 +26,6 @@ interface PendingClient {
   avatar: string;
 }
 
-interface ActiveClient {
-  id: string;
-  name: string;
-  lastCheckIn: string;
-  progress: number;
-  avatar: string;
-}
 
 interface CoachingRequestWithTrainee extends Coaching {
   trainee: User | null;
@@ -45,12 +38,6 @@ const PENDING: PendingClient[] = [
   { id: '3', name: 'Luka Krajnc', when: '8h ago', avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=120&q=80&auto=format' },
 ];
 
-const CLIENTS: ActiveClient[] = [
-  { id: '1', name: 'Matej Hribar', lastCheckIn: '3 days ago', progress: 78, avatar: 'https://images.unsplash.com/photo-1463453091185-61582044d556?w=120&q=80&auto=format' },
-  { id: '2', name: 'Eva Petrič', lastCheckIn: '1 day ago', progress: 92, avatar: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=120&q=80&auto=format' },
-  { id: '3', name: 'Tomaž Horvat', lastCheckIn: '5 days ago', progress: 45, avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=120&q=80&auto=format' },
-  { id: '4', name: 'Nina Zupančič', lastCheckIn: '2 days ago', progress: 64, avatar: 'https://images.unsplash.com/photo-1487412720507-e7ab37603c6f?w=120&q=80&auto=format' },
-];
 
 export function TrainerDashboardScreen() {
   const [pendingRequests, setPendingRequests] = useState<CoachingRequestWithTrainee[]>([]);
@@ -243,6 +230,7 @@ export function TrainerDashboardScreen() {
           </View>
         </Pressable>
       </Modal>
+      <ActiveClients />
 
       <View style={[styles.gutter, styles.section]}>
         <View style={styles.sectionHeader}>
@@ -279,40 +267,7 @@ export function TrainerDashboardScreen() {
         </Card>
       </View>
 
-      <View style={[styles.gutter, styles.section]}>
-        <View style={styles.sectionHeader}>
-          <Text variant="caption" color="muted">
-            Active clients
-          </Text>
-          <Text variant="caption" color="brand">
-            See all
-          </Text>
-        </View>
-        <Card padding="none">
-          {CLIENTS.map((c, i) => (
-            <View key={c.id}>
-              <View style={styles.clientRow}>
-                <Avatar source={c.avatar} size="md" />
-                <View style={styles.flex}>
-                  <Text variant="bodySmall" weight="600" style={styles.clientName}>
-                    {c.name}
-                  </Text>
-                  <View style={styles.progressRow}>
-                    <ProgressBar value={c.progress / 100} style={styles.flex} height={4} />
-                    <Text mono tabular variant="micro" color="muted" style={styles.progressLabel}>
-                      {c.progress}%
-                    </Text>
-                  </View>
-                  <Text variant="micro" color="secondary" style={styles.lastCheckIn}>
-                    Last check-in {c.lastCheckIn}
-                  </Text>
-                </View>
-              </View>
-              {i < CLIENTS.length - 1 ? <View style={styles.separator} /> : null}
-            </View>
-          ))}
-        </Card>
-      </View>
+      
 
       <View style={styles.bottomSpacer} />
     </Screen>
