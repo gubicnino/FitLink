@@ -6,6 +6,7 @@ import { ConversationScreen } from '../screens/chat/ConversationScreen';
 import { WeeklyCheckInScreen } from '../screens/checkin/WeeklyCheckInScreen';
 import { ClientDetailScreen } from '../screens/coach/ClientDetailScreen';
 import { FindTrainerScreen } from '../screens/coach/FindTrainerScreen';
+import { TrainerProfileScreen } from '../screens/coach/TrainerProfileScreen';
 import { AddCourses } from '../screens/courses/AddCourses';
 import { CourseDetailScreen } from '../screens/courses/CourseDetailScreen';
 import { ExerciseDetailScreen } from '../screens/exercises/ExerciseDetailScreen';
@@ -66,6 +67,7 @@ export function RootNavigator({ user }: RootNavigatorProps) {
         />
         <Stack.Screen name="ClientDetail" component={ClientDetailScreen} />
         <Stack.Screen name="FindTrainer" component={FindTrainerScreen} />
+        <Stack.Screen name="TrainerProfile" component={TrainerProfileScreen} />
         <Stack.Screen
           name="ExercisePicker"
           component={ExercisePickerScreen}

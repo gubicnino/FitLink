@@ -47,6 +47,10 @@ export function CourseDetailScreen({ navigation, route }: Props) {
   const [reviewRating, setReviewRating] = useState(5);
   const [reviewComment, setReviewComment] = useState('');
   const [reviewSubmitting, setReviewSubmitting] = useState(false);
+  const [editingReviewId, setEditingReviewId] = useState<string | null>(null);
+  const [editingReviewRating, setEditingReviewRating] = useState(5);
+  const [editingReviewComment, setEditingReviewComment] = useState('');
+  const [reviewDeletingId, setReviewDeletingId] = useState<string | null>(null);
 
   useEffect(() => {
     const load = async () => {
@@ -75,12 +79,14 @@ export function CourseDetailScreen({ navigation, route }: Props) {
   const isPdf = contentType === 'PDF';
   const hasMediaHeader = Boolean((isVideo && course?.youtubeVideoId) || course?.thumbnailUrl);
   const reviews = course?.reviews ?? [];
-  const canReview = Boolean(user && course && user.firebaseUid !== course.authorId);
+  const reviewsEnabled = course?.reviewsEnabled !== false;
+  const currentUserReview = reviews.find(review => review.userId === user?.firebaseUid);
+  const canReview = Boolean(reviewsEnabled && user && course && user.firebaseUid !== course.authorId && !currentUserReview);
 
   const handleOpenSource = async () => {
     const sourceUrl = isPdf ? course?.pdfUrl : course?.articleUrl;
     if (!sourceUrl) return;
-    await Linking.openURL(sourceUrl);
+    await Linking.openURL(getMediaUrl(sourceUrl) ?? sourceUrl);
   };
 
   const handleDeleteCourse = () => {
@@ -133,6 +139,72 @@ export function CourseDetailScreen({ navigation, route }: Props) {
     } finally {
       setReviewSubmitting(false);
     }
+  };
+
+  const handleStartEditReview = (review: CourseReviewDto) => {
+    setEditingReviewId(review.id);
+    setEditingReviewRating(review.rating);
+    setEditingReviewComment(review.comment);
+  };
+
+  const handleCancelEditReview = () => {
+    setEditingReviewId(null);
+    setEditingReviewRating(5);
+    setEditingReviewComment('');
+  };
+
+  const handleSubmitEditReview = async () => {
+    if (!course || !editingReviewId || !editingReviewComment.trim()) return;
+
+    try {
+      setReviewSubmitting(true);
+      const nextCourse = await courseService.updateReview(course.id, editingReviewId, {
+        rating: editingReviewRating,
+        comment: editingReviewComment.trim(),
+      });
+      setCourse(nextCourse);
+      handleCancelEditReview();
+      setTab('Reviews');
+    } catch (error: any) {
+      Alert.alert(
+        'Review update failed',
+        error?.response?.data?.message || error?.message || 'Could not update review.',
+      );
+    } finally {
+      setReviewSubmitting(false);
+    }
+  };
+
+  const handleDeleteReview = (review: CourseReviewDto) => {
+    if (!course || !user) return;
+
+    const canDeleteReview = review.userId === user.firebaseUid || course.authorId === user.firebaseUid;
+    if (!canDeleteReview) return;
+
+    Alert.alert('Delete review', 'Are you sure you want to delete this review?', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Delete',
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            setReviewDeletingId(review.id);
+            const nextCourse = await courseService.deleteReview(course.id, review.id);
+            setCourse(nextCourse);
+            if (editingReviewId === review.id) {
+              handleCancelEditReview();
+            }
+          } catch (error: any) {
+            Alert.alert(
+              'Review delete failed',
+              error?.response?.data?.message || error?.message || 'Could not delete review.',
+            );
+          } finally {
+            setReviewDeletingId(null);
+          }
+        },
+      },
+    ]);
   };
 
   return (
@@ -209,18 +281,24 @@ export function CourseDetailScreen({ navigation, route }: Props) {
         </Text>
 
         <View style={styles.authorRow}>
-          <Avatar source={getAvatarUrl(course?.authorAvatarUrl)} size="lg" />
-          <View style={styles.authorInfo}>
-            <View style={styles.authorName}>
-              <Text variant="bodySmall" weight="600">
-                {course?.authorDisplayName ?? 'Coach'}
+          <Pressable
+            style={styles.authorPressable}
+            disabled={!course?.authorId}
+            onPress={() => course?.authorId && navigation.navigate('TrainerProfile', { trainerId: course.authorId })}
+          >
+            <Avatar source={getAvatarUrl(course?.authorAvatarUrl)} size="lg" />
+            <View style={styles.authorInfo}>
+              <View style={styles.authorName}>
+                <Text variant="bodySmall" weight="600">
+                  {course?.authorDisplayName ?? 'Coach'}
+                </Text>
+                {course?.authorVerificationStatus === 'APPROVED' ? <BadgeCheck size={14} /> : null}
+              </View>
+              <Text variant="micro" color="secondary">
+                {specializations.length > 0 ? specializations.join(' / ') : `${course?.category ?? 'Training'} / ${course?.level ?? 'Video'}`}
               </Text>
-              {course?.authorVerificationStatus === 'APPROVED' ? <BadgeCheck size={14} /> : null}
             </View>
-            <Text variant="micro" color="secondary">
-              {specializations.length > 0 ? specializations.join(' / ') : `${course?.category ?? 'Training'} / ${course?.level ?? 'Video'}`}
-            </Text>
-          </View>
+          </Pressable>
           <Button label="Follow" variant="outline" size="sm" />
         </View>
 
@@ -281,25 +359,51 @@ export function CourseDetailScreen({ navigation, route }: Props) {
 
             <ReviewsSection
               reviews={reviews}
+              reviewsEnabled={reviewsEnabled}
               canReview={canReview}
+              currentUserId={user?.firebaseUid ?? null}
+              courseAuthorId={course?.authorId ?? null}
               rating={reviewRating}
               comment={reviewComment}
               submitting={reviewSubmitting}
+              editingReviewId={editingReviewId}
+              editingRating={editingReviewRating}
+              editingComment={editingReviewComment}
+              deletingReviewId={reviewDeletingId}
               onRatingChange={setReviewRating}
               onCommentChange={setReviewComment}
               onSubmit={handleSubmitReview}
+              onStartEdit={handleStartEditReview}
+              onCancelEdit={handleCancelEditReview}
+              onEditingRatingChange={setEditingReviewRating}
+              onEditingCommentChange={setEditingReviewComment}
+              onSubmitEdit={handleSubmitEditReview}
+              onDelete={handleDeleteReview}
             />
           </>
         ) : (
           <ReviewsSection
             reviews={reviews}
+            reviewsEnabled={reviewsEnabled}
             canReview={canReview}
+            currentUserId={user?.firebaseUid ?? null}
+            courseAuthorId={course?.authorId ?? null}
             rating={reviewRating}
             comment={reviewComment}
             submitting={reviewSubmitting}
+            editingReviewId={editingReviewId}
+            editingRating={editingReviewRating}
+            editingComment={editingReviewComment}
+            deletingReviewId={reviewDeletingId}
             onRatingChange={setReviewRating}
             onCommentChange={setReviewComment}
             onSubmit={handleSubmitReview}
+            onStartEdit={handleStartEditReview}
+            onCancelEdit={handleCancelEditReview}
+            onEditingRatingChange={setEditingReviewRating}
+            onEditingCommentChange={setEditingReviewComment}
+            onSubmitEdit={handleSubmitEditReview}
+            onDelete={handleDeleteReview}
           />
         )}
       </View>
@@ -342,25 +446,59 @@ function StatItem({
 
 function ReviewsSection({
   reviews,
+  reviewsEnabled,
   canReview,
+  currentUserId,
+  courseAuthorId,
   rating,
   comment,
   submitting,
+  editingReviewId,
+  editingRating,
+  editingComment,
+  deletingReviewId,
   onRatingChange,
   onCommentChange,
   onSubmit,
+  onStartEdit,
+  onCancelEdit,
+  onEditingRatingChange,
+  onEditingCommentChange,
+  onSubmitEdit,
+  onDelete,
 }: {
   reviews: CourseReviewDto[];
+  reviewsEnabled: boolean;
   canReview: boolean;
+  currentUserId: string | null;
+  courseAuthorId: string | null;
   rating: number;
   comment: string;
   submitting: boolean;
+  editingReviewId: string | null;
+  editingRating: number;
+  editingComment: string;
+  deletingReviewId: string | null;
   onRatingChange: (value: number) => void;
   onCommentChange: (value: string) => void;
   onSubmit: () => void;
+  onStartEdit: (review: CourseReviewDto) => void;
+  onCancelEdit: () => void;
+  onEditingRatingChange: (value: number) => void;
+  onEditingCommentChange: (value: string) => void;
+  onSubmitEdit: () => void;
+  onDelete: (review: CourseReviewDto) => void;
 }) {
   return (
     <>
+      {!reviewsEnabled ? (
+        <View style={styles.reviewsDisabled}>
+          <Text variant="bodySmall" color="secondary">
+            Reviews and comments are disabled for this course.
+          </Text>
+        </View>
+      ) : null}
+
       {canReview ? (
         <View style={styles.reviewForm}>
           <Text variant="caption" color="muted">
@@ -397,18 +535,66 @@ function ReviewsSection({
       </View>
       <View style={styles.reviews}>
         {reviews.length > 0 ? (
-          reviews.map(review => (
-            <ReviewCard
-              key={review.id}
-              review={{
-                id: review.id,
-                name: review.userDisplayName ?? 'Member',
-                stars: review.rating,
-                comment: review.comment,
-                avatarUrl: getAvatarUrl(review.userAvatarUrl),
-              }}
-            />
-          ))
+          reviews.map(review => {
+            const canEditReview = review.userId === currentUserId;
+            const canEditEnabledReview = reviewsEnabled && canEditReview;
+            const canDeleteReview = canEditReview || courseAuthorId === currentUserId;
+            const isEditing = editingReviewId === review.id;
+
+            return (
+              <View key={review.id} style={styles.reviewItem}>
+                <ReviewCard
+                  review={{
+                    id: review.id,
+                    name: review.userDisplayName ?? 'Member',
+                    stars: review.rating,
+                    comment: review.comment,
+                    avatarUrl: getAvatarUrl(review.userAvatarUrl),
+                    edited: Boolean(review.editedAt),
+                  }}
+                  canEdit={canEditEnabledReview}
+                  canDelete={canDeleteReview && deletingReviewId !== review.id}
+                  onEdit={() => onStartEdit(review)}
+                  onDelete={() => onDelete(review)}
+                />
+                {isEditing ? (
+                  <View style={styles.reviewEditForm}>
+                    <View style={styles.ratingPicker}>
+                      {[1, 2, 3, 4, 5].map(value => (
+                        <Pressable key={value} onPress={() => onEditingRatingChange(value)} hitSlop={8}>
+                          <StarRating value={value <= editingRating ? 1 : 0} size={22} outOf={1} />
+                        </Pressable>
+                      ))}
+                    </View>
+                    <Textarea
+                      value={editingComment}
+                      onChangeText={onEditingCommentChange}
+                      placeholder="Update your review"
+                      rows={3}
+                    />
+                    <View style={styles.reviewEditActions}>
+                      <Button
+                        label="Cancel"
+                        variant="outline"
+                        size="md"
+                        onPress={onCancelEdit}
+                        style={styles.reviewEditButton}
+                      />
+                      <Button
+                        label="Save"
+                        variant="primary"
+                        size="md"
+                        loading={submitting}
+                        disabled={!editingComment.trim() || submitting || deletingReviewId === review.id}
+                        onPress={onSubmitEdit}
+                        style={styles.reviewEditButton}
+                      />
+                    </View>
+                  </View>
+                ) : null}
+              </View>
+            );
+          })
         ) : (
           <Text variant="bodySmall" color="secondary">
             No reviews yet.
@@ -459,6 +645,7 @@ const styles = StyleSheet.create({
   title: { fontSize: 20, lineHeight: 24, marginBottom: spacing.lg },
 
   authorRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.lg, marginBottom: spacing.xl },
+  authorPressable: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: spacing.lg },
   authorInfo: { flex: 1 },
   authorName: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
 
@@ -511,6 +698,20 @@ const styles = StyleSheet.create({
     borderBottomColor: colors.line,
   },
   ratingPicker: { flexDirection: 'row', gap: spacing.sm },
+  reviewItem: { gap: spacing.md },
+  reviewEditForm: {
+    gap: spacing.md,
+    paddingHorizontal: spacing.md,
+    paddingBottom: spacing.md,
+  },
+  reviewEditActions: { flexDirection: 'row', gap: spacing.md },
+  reviewEditButton: { flex: 1 },
+  reviewsDisabled: {
+    borderRadius: radii.lg,
+    backgroundColor: colors.surfaceElevated,
+    padding: spacing.md,
+    marginBottom: spacing.lg,
+  },
 
   bottomSpacer: { height: spacing.huge },
 });

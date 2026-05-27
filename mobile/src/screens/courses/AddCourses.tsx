@@ -1,5 +1,6 @@
+import { errorCodes, isErrorWithCode, keepLocalCopy, pick, types } from '@react-native-documents/picker';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { ImagePlus, Save, Trash2 } from 'lucide-react-native';
+import { FileText, ImagePlus, Save, Trash2 } from 'lucide-react-native';
 import React, { useEffect, useState } from 'react';
 import { Alert, Image, PermissionsAndroid, Platform, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { launchImageLibrary } from 'react-native-image-picker';
@@ -30,6 +31,7 @@ const emptyForm: CoursePayload = {
   articleUrl: '',
   pdfUrl: '',
   thumbnailUrl: '',
+  reviewsEnabled: true,
 };
 
 export function AddCourses({ navigation, route }: Props) {
@@ -38,6 +40,7 @@ export function AddCourses({ navigation, route }: Props) {
   const [form, setForm] = useState<CoursePayload>(emptyForm);
   const [loading, setLoading] = useState(false);
   const [thumbnailUploading, setThumbnailUploading] = useState(false);
+  const [pdfUploading, setPdfUploading] = useState(false);
   const [initialLoading, setInitialLoading] = useState(Boolean(courseId));
   const [error, setError] = useState<string | null>(null);
 
@@ -57,6 +60,7 @@ export function AddCourses({ navigation, route }: Props) {
           articleUrl: course.articleUrl ?? '',
           pdfUrl: course.pdfUrl ?? '',
           thumbnailUrl: course.thumbnailUrl ?? '',
+          reviewsEnabled: course.reviewsEnabled !== false,
         });
       } catch (err) {
         console.error('Course load failed:', err);
@@ -69,7 +73,7 @@ export function AddCourses({ navigation, route }: Props) {
     loadCourse();
   }, [courseId]);
 
-  const updateField = (field: keyof CoursePayload, value: string) => {
+  const updateField = <K extends keyof CoursePayload>(field: K, value: CoursePayload[K]) => {
     setForm(prev => ({ ...prev, [field]: value }));
     setError(null);
   };
@@ -100,7 +104,9 @@ export function AddCourses({ navigation, route }: Props) {
         mediaType: 'photo',
         selectionLimit: 1,
         includeBase64: false,
-        quality: 0.8,
+        maxWidth: 1600,
+        maxHeight: 900,
+        quality: 0.7,
       });
 
       if (result.didCancel) return;
@@ -124,9 +130,51 @@ export function AddCourses({ navigation, route }: Props) {
       updateField('thumbnailUrl', response.thumbnailUrl);
     } catch (err: any) {
       console.error('Thumbnail upload failed:', err);
-      setError(err?.message || 'Could not upload thumbnail.');
+      setError(getRequestErrorMessage(err, 'Could not upload thumbnail.'));
     } finally {
       setThumbnailUploading(false);
+    }
+  };
+
+  const handlePickPdf = async () => {
+    try {
+      setError(null);
+
+      const [picked] = await pick({
+        type: types.pdf,
+      });
+
+      const [localCopy] = await keepLocalCopy({
+        files: [
+          {
+            uri: picked.uri,
+            fileName: picked.name ?? 'course-document.pdf',
+          },
+        ],
+        destination: 'documentDirectory',
+      });
+
+      if (localCopy.status !== 'success') {
+        throw new Error(localCopy.copyError);
+      }
+
+      setPdfUploading(true);
+      const response = await courseService.uploadPdf({
+        uri: localCopy.localUri,
+        fileName: picked.name ?? 'course-document.pdf',
+        type: picked.type ?? 'application/pdf',
+      });
+
+      updateField('pdfUrl', response.pdfUrl);
+    } catch (err: any) {
+      if (isErrorWithCode(err) && err.code === errorCodes.OPERATION_CANCELED) {
+        return;
+      }
+
+      console.error('PDF upload failed:', err);
+      setError(getRequestErrorMessage(err, 'Could not upload PDF.'));
+    } finally {
+      setPdfUploading(false);
     }
   };
 
@@ -140,6 +188,7 @@ export function AddCourses({ navigation, route }: Props) {
       articleUrl: form.contentType === 'ARTICLE' ? form.articleUrl?.trim() : '',
       pdfUrl: form.contentType === 'PDF' ? form.pdfUrl?.trim() : '',
       thumbnailUrl: form.thumbnailUrl?.trim(),
+      reviewsEnabled: form.reviewsEnabled !== false,
     };
 
     if (!payload.title || !payload.description) {
@@ -155,7 +204,7 @@ export function AddCourses({ navigation, route }: Props) {
       return null;
     }
     if (payload.contentType === 'PDF' && !payload.pdfUrl) {
-      setError('Add a PDF URL.');
+      setError('Choose a PDF file.');
       return null;
     }
 
@@ -163,6 +212,11 @@ export function AddCourses({ navigation, route }: Props) {
   };
 
   const handleSubmit = async () => {
+    if (thumbnailUploading || pdfUploading) {
+      setError('Wait for the file upload to finish before saving the course.');
+      return;
+    }
+
     const payload = getPayload();
     if (!payload) return;
 
@@ -176,9 +230,9 @@ export function AddCourses({ navigation, route }: Props) {
 
       Alert.alert('Saved', isEditing ? 'Course updated.' : 'Course created.');
       navigation.goBack();
-    } catch (err) {
+    } catch (err: any) {
       console.error('Course save failed:', err);
-      setError('Could not save the course. Check that you are logged in as a trainer.');
+      setError(getRequestErrorMessage(err, 'Could not save the course. Check that you are logged in as a trainer.'));
     } finally {
       setLoading(false);
     }
@@ -272,6 +326,23 @@ export function AddCourses({ navigation, route }: Props) {
                 ))}
               </FieldGroup>
 
+              <Pressable
+                style={[styles.reviewToggle, form.reviewsEnabled !== false && styles.reviewToggleActive]}
+                onPress={() => updateField('reviewsEnabled', form.reviewsEnabled === false)}
+              >
+                <View style={styles.reviewToggleText}>
+                  <Text variant="bodySmall" weight="700">
+                    Reviews and comments
+                  </Text>
+                  <Text variant="caption" color="secondary">
+                    {form.reviewsEnabled === false ? 'Disabled for this course' : 'Enabled for this course'}
+                  </Text>
+                </View>
+                <Text variant="bodySmall" color={form.reviewsEnabled === false ? 'muted' : 'brand'} weight="700">
+                  {form.reviewsEnabled === false ? 'Off' : 'On'}
+                </Text>
+              </Pressable>
+
               {form.contentType === 'ARTICLE' ? (
                 <Input
                   label="Article URL"
@@ -281,13 +352,24 @@ export function AddCourses({ navigation, route }: Props) {
                   placeholder="Paste article link"
                 />
               ) : form.contentType === 'PDF' ? (
-                <Input
-                  label="PDF URL"
-                  value={form.pdfUrl ?? ''}
-                  onChangeText={value => updateField('pdfUrl', value)}
-                  autoCapitalize="none"
-                  placeholder="Paste PDF link"
-                />
+                <View style={styles.filePickerBlock}>
+                  {form.pdfUrl ? (
+                    <View style={styles.fileSelectedRow}>
+                      <FileText size={16} color={colors.primary} strokeWidth={2.25} />
+                      <Text variant="bodySmall" color="secondary" numberOfLines={1} style={styles.fileSelectedText}>
+                        PDF selected
+                      </Text>
+                    </View>
+                  ) : null}
+                  <Button
+                    label={pdfUploading ? 'Uploading PDF...' : form.pdfUrl ? 'Change PDF' : 'Choose PDF'}
+                    variant="outline"
+                    fullWidth
+                    loading={pdfUploading}
+                    onPress={handlePickPdf}
+                    leftIcon={<FileText size={16} color={colors.primary} strokeWidth={2.25} />}
+                  />
+                </View>
               ) : (
                 <Input
                   label="YouTube video ID or URL"
@@ -298,18 +380,19 @@ export function AddCourses({ navigation, route }: Props) {
                 />
               )}
 
-              <Input
-                label="Thumbnail URL"
-                value={form.thumbnailUrl ?? ''}
-                onChangeText={value => updateField('thumbnailUrl', value)}
-                autoCapitalize="none"
-                placeholder="Paste image URL or choose from gallery"
-              />
               {form.thumbnailUrl ? (
-                <Image source={{ uri: getMediaUrl(form.thumbnailUrl) }} style={styles.thumbnailPreview} />
+                <View style={styles.thumbnailBlock}>
+                  <Image source={{ uri: getMediaUrl(form.thumbnailUrl) }} style={styles.thumbnailPreview} />
+                  <Pressable style={styles.removeThumbnailButton} onPress={() => updateField('thumbnailUrl', '')}>
+                    <Trash2 size={14} color={colors.danger} strokeWidth={2} />
+                    <Text variant="bodySmall" weight="600" style={styles.removeThumbnailText}>
+                      Remove thumbnail
+                    </Text>
+                  </Pressable>
+                </View>
               ) : null}
               <Button
-                label={thumbnailUploading ? 'Uploading thumbnail...' : 'Choose thumbnail'}
+                label={thumbnailUploading ? 'Uploading thumbnail...' : form.thumbnailUrl ? 'Change thumbnail' : 'Choose thumbnail'}
                 variant="outline"
                 fullWidth
                 loading={thumbnailUploading}
@@ -323,6 +406,7 @@ export function AddCourses({ navigation, route }: Props) {
               variant="primary"
               fullWidth
               loading={loading}
+              disabled={loading || thumbnailUploading || pdfUploading}
               onPress={handleSubmit}
               leftIcon={<Save size={16} color={colors.white} strokeWidth={2.25} />}
             />
@@ -366,6 +450,17 @@ function getMediaUrl(value: string) {
   return value.startsWith('/uploads/') ? `${API_ORIGIN}${value}` : value;
 }
 
+function getRequestErrorMessage(error: any, fallback: string) {
+  if (error?.code === 'ECONNABORTED') {
+    return 'Request timed out. Check that backend is running and try again.';
+  }
+
+  return error?.response?.data?.message ||
+    error?.response?.data?.error ||
+    error?.message ||
+    fallback;
+}
+
 const styles = StyleSheet.create({
   content: {
     paddingHorizontal: spacing.xxl,
@@ -374,12 +469,50 @@ const styles = StyleSheet.create({
   },
   form: { gap: spacing.lg },
   textArea: { height: 112, paddingTop: spacing.lg },
+  thumbnailBlock: { gap: spacing.sm },
   thumbnailPreview: {
     width: '100%',
     aspectRatio: 16 / 9,
     borderRadius: 12,
     backgroundColor: colors.surfaceElevated,
   },
+  removeThumbnailButton: {
+    minHeight: 36,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.sm,
+  },
+  removeThumbnailText: { color: colors.danger },
+  filePickerBlock: { gap: spacing.md },
+  fileSelectedRow: {
+    minHeight: 42,
+    borderRadius: 12,
+    backgroundColor: colors.surfaceElevated,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    paddingHorizontal: spacing.md,
+  },
+  fileSelectedText: { flex: 1 },
+  reviewToggle: {
+    minHeight: 58,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: colors.line,
+    backgroundColor: colors.surface,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: spacing.md,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
+  },
+  reviewToggleActive: {
+    borderColor: colors.primaryBorder,
+    backgroundColor: colors.primarySoft,
+  },
+  reviewToggleText: { flex: 1, gap: 2 },
   groupLabel: { marginBottom: spacing.md },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.md },
   errorCard: { borderColor: colors.danger },

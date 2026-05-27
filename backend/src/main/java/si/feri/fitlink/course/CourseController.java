@@ -59,11 +59,33 @@ public class CourseController {
         return courseService.uploadThumbnail(principal, file);
     }
 
+    @PostMapping(value = "/pdf", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @PreAuthorize("hasRole('TRAINER')")
+    public Map<String, String> uploadPdf(@AuthenticationPrincipal AuthPrincipal principal,
+                                         @RequestParam("file") MultipartFile file) throws Exception {
+        return courseService.uploadPdf(principal, file);
+    }
+
     @PostMapping("/{id}/reviews")
     public CourseResponse addReview(@PathVariable String id,
                                     @Valid @RequestBody CourseReviewRequest request,
                                     @AuthenticationPrincipal AuthPrincipal principal) {
         return courseService.addReview(id, request, principal);
+    }
+
+    @PutMapping("/{id}/reviews/{reviewId}")
+    public CourseResponse updateReview(@PathVariable String id,
+                                       @PathVariable String reviewId,
+                                       @Valid @RequestBody CourseReviewRequest request,
+                                       @AuthenticationPrincipal AuthPrincipal principal) {
+        return courseService.updateReview(id, reviewId, request, principal);
+    }
+
+    @DeleteMapping("/{id}/reviews/{reviewId}")
+    public CourseResponse deleteReview(@PathVariable String id,
+                                       @PathVariable String reviewId,
+                                       @AuthenticationPrincipal AuthPrincipal principal) {
+        return courseService.deleteReview(id, reviewId, principal);
     }
 
     @GetMapping

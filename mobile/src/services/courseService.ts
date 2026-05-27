@@ -1,5 +1,4 @@
-import apiClient, { API_ORIGIN } from '../api/apiClient';
-import { authService } from './authService';
+import apiClient from '../api/apiClient';
 
 export interface CourseStats {
   avgRating: number;
@@ -24,6 +23,7 @@ export interface CourseDto {
   articleUrl?: string | null;
   pdfUrl?: string | null;
   thumbnailUrl?: string | null;
+  reviewsEnabled?: boolean | null;
   publishedAt?: string;
   stats?: CourseStats | null;
   reviews?: CourseReviewDto[] | null;
@@ -37,11 +37,12 @@ export interface CourseReviewDto {
   rating: number;
   comment: string;
   createdAt?: string;
+  editedAt?: string | null;
 }
 
 export type CoursePayload = Pick<
   CourseDto,
-  'title' | 'description' | 'category' | 'level' | 'contentType' | 'youtubeVideoId' | 'articleUrl' | 'pdfUrl' | 'thumbnailUrl'
+  'title' | 'description' | 'category' | 'level' | 'contentType' | 'youtubeVideoId' | 'articleUrl' | 'pdfUrl' | 'thumbnailUrl' | 'reviewsEnabled'
 >;
 
 export const courseService = {
@@ -77,23 +78,46 @@ export const courseService = {
       type: asset.type ?? 'image/jpeg',
     } as any);
 
-    const token = await authService.getToken();
-    const response = await fetch(`${API_ORIGIN}/api/courses/thumbnail`, {
-      method: 'POST',
-      headers: token ? { Authorization: `Bearer ${token}` } : undefined,
-      body: formData,
+    const response = await apiClient.post('/courses/thumbnail', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+      timeout: 120000,
     });
 
-    if (!response.ok) {
-      const message = await response.text();
-      throw new Error(message || `Thumbnail upload failed with status ${response.status}`);
-    }
+    return response.data as { thumbnailUrl: string };
+  },
 
-    return (await response.json()) as { thumbnailUrl: string };
+  uploadPdf: async (asset: { uri: string; fileName?: string | null; type?: string | null }) => {
+    const formData = new FormData();
+    formData.append('file', {
+      uri: asset.uri,
+      name: asset.fileName ?? 'course-document.pdf',
+      type: asset.type ?? 'application/pdf',
+    } as any);
+
+    const response = await apiClient.post('/courses/pdf', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+      timeout: 120000,
+    });
+
+    return response.data as { pdfUrl: string };
   },
 
   addReview: async (id: string, payload: { rating: number; comment: string }) => {
     const response = await apiClient.post<CourseDto>(`/courses/${id}/reviews`, payload);
+    return response.data;
+  },
+
+  updateReview: async (id: string, reviewId: string, payload: { rating: number; comment: string }) => {
+    const response = await apiClient.put<CourseDto>(`/courses/${id}/reviews/${reviewId}`, payload);
+    return response.data;
+  },
+
+  deleteReview: async (id: string, reviewId: string) => {
+    const response = await apiClient.delete<CourseDto>(`/courses/${id}/reviews/${reviewId}`);
     return response.data;
   },
 };

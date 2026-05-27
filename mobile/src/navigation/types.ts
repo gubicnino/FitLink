@@ -48,6 +48,7 @@ export type RootStackParamList = {
   WeeklyCheckIn: { checkIn?: CheckIn | null } | undefined;
   ClientDetail: { coaching: Coaching; client: User };
   FindTrainer: undefined;
+  TrainerProfile: { trainerId: string };
   ExercisePicker:
     | {
         mode?: 'browse' | 'select';

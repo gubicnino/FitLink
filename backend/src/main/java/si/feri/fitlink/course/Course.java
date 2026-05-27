@@ -23,6 +23,7 @@ public class Course {
     private String articleUrl;
     private String pdfUrl;
     private String thumbnailUrl;
+    private Boolean reviewsEnabled;
     private Instant publishedAt;
     private CourseStats stats;
     private List<CourseReview> reviews;
@@ -46,5 +47,6 @@ public class Course {
         private int rating;
         private String comment;
         private Instant createdAt;
+        private Instant editedAt;
     }
 }

@@ -26,4 +26,6 @@ public class CourseRequest {
     private String pdfUrl;
 
     private String thumbnailUrl;
+
+    private Boolean reviewsEnabled;
 }

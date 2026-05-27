@@ -25,6 +25,7 @@ public class CourseResponse {
     private String articleUrl;
     private String pdfUrl;
     private String thumbnailUrl;
+    private Boolean reviewsEnabled;
     private Instant publishedAt;
     private Course.CourseStats stats;
     private List<Course.CourseReview> reviews;

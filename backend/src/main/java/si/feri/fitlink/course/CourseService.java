@@ -1,6 +1,7 @@
 package si.feri.fitlink.course;
 
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 import si.feri.fitlink.auth.AuthPrincipal;
@@ -106,8 +107,38 @@ public class CourseService {
         return Map.of("thumbnailUrl", "/uploads/course-thumbnails/" + fileName);
     }
 
+    public Map<String, String> uploadPdf(AuthPrincipal principal, MultipartFile file) throws IOException {
+        if (file == null || file.isEmpty()) {
+            throw new IllegalArgumentException("PDF file is required");
+        }
+
+        String contentType = file.getContentType();
+        String originalName = file.getOriginalFilename();
+        boolean isPdfContentType = "application/pdf".equalsIgnoreCase(contentType);
+        boolean isPdfFileName = originalName != null && originalName.toLowerCase(Locale.ROOT).endsWith(".pdf");
+        if (!isPdfContentType && !isPdfFileName) {
+            throw new IllegalArgumentException("Course document must be a PDF");
+        }
+
+        Path uploadDir = Paths.get("uploads", "course-pdfs").toAbsolutePath().normalize();
+        Files.createDirectories(uploadDir);
+
+        String fileName = principal.uid() + "-" + System.currentTimeMillis() + ".pdf";
+        Path target = uploadDir.resolve(fileName).normalize();
+
+        if (!target.getParent().equals(uploadDir)) {
+            throw new IllegalArgumentException("Invalid file name");
+        }
+
+        Files.copy(file.getInputStream(), target, StandardCopyOption.REPLACE_EXISTING);
+        return Map.of("pdfUrl", "/uploads/course-pdfs/" + fileName);
+    }
+
     public CourseResponse addReview(String id, CourseReviewRequest request, AuthPrincipal principal) {
         Course course = getById(id);
+        if (Boolean.FALSE.equals(course.getReviewsEnabled())) {
+            throw new IllegalArgumentException("Reviews are disabled for this course");
+        }
         if (principal.uid().equals(course.getAuthorId())) {
             throw new IllegalArgumentException("You cannot review your own course");
         }
@@ -119,6 +150,7 @@ public class CourseService {
                 ? new ArrayList<>(course.getReviews())
                 : new ArrayList<>();
 
+        boolean[] createdReview = {false};
         Course.CourseReview review = reviews.stream()
                 .filter(existing -> principal.uid().equals(existing.getUserId()))
                 .findFirst()
@@ -126,6 +158,8 @@ public class CourseService {
                     Course.CourseReview nextReview = new Course.CourseReview();
                     nextReview.setId(UUID.randomUUID().toString());
                     nextReview.setUserId(principal.uid());
+                    nextReview.setCreatedAt(Instant.now());
+                    createdReview[0] = true;
                     reviews.add(nextReview);
                     return nextReview;
                 });
@@ -134,9 +168,50 @@ public class CourseService {
         review.setUserAvatarUrl(user.getAvatarUrl());
         review.setRating(request.getRating());
         review.setComment(request.getComment().trim());
-        review.setCreatedAt(Instant.now());
+        if (!createdReview[0]) {
+            review.setEditedAt(Instant.now());
+        }
 
         course.setReviews(reviews);
+        updateReviewStats(course);
+        return toResponse(courseRepo.save(course));
+    }
+
+    public CourseResponse updateReview(String id, String reviewId, CourseReviewRequest request, AuthPrincipal principal) {
+        Course course = getById(id);
+        if (Boolean.FALSE.equals(course.getReviewsEnabled())) {
+            throw new IllegalArgumentException("Reviews are disabled for this course");
+        }
+        Course.CourseReview review = findReview(course, reviewId);
+
+        if (!principal.uid().equals(review.getUserId())) {
+            throw new AccessDeniedException("You can only edit your own review");
+        }
+
+        review.setRating(request.getRating());
+        review.setComment(request.getComment().trim());
+        review.setEditedAt(Instant.now());
+
+        updateReviewStats(course);
+        return toResponse(courseRepo.save(course));
+    }
+
+    public CourseResponse deleteReview(String id, String reviewId, AuthPrincipal principal) {
+        Course course = getById(id);
+        Course.CourseReview review = findReview(course, reviewId);
+
+        boolean isReviewOwner = principal.uid().equals(review.getUserId());
+        boolean isCourseOwner = principal.uid().equals(course.getAuthorId());
+        if (!isReviewOwner && !isCourseOwner) {
+            throw new AccessDeniedException("You can only delete your own review");
+        }
+
+        List<Course.CourseReview> reviews = course.getReviews() != null
+                ? new ArrayList<>(course.getReviews())
+                : new ArrayList<>();
+        reviews.removeIf(existing -> reviewId.equals(existing.getId()));
+        course.setReviews(reviews);
+
         updateReviewStats(course);
         return toResponse(courseRepo.save(course));
     }
@@ -183,7 +258,11 @@ public class CourseService {
         course.setYoutubeVideoId(contentType.equals("VIDEO") ? youtubeVideoId : null);
         course.setArticleUrl(contentType.equals("ARTICLE") ? articleUrl : null);
         course.setPdfUrl(contentType.equals("PDF") ? pdfUrl : null);
-        course.setThumbnailUrl(request.getThumbnailUrl());
+        String thumbnailUrl = request.getThumbnailUrl() != null
+                ? request.getThumbnailUrl().trim()
+                : "";
+        course.setThumbnailUrl(thumbnailUrl.isBlank() ? null : thumbnailUrl);
+        course.setReviewsEnabled(request.getReviewsEnabled() == null || request.getReviewsEnabled());
     }
 
     private String normalizeContentType(String requestedType, boolean hasVideo, boolean hasArticle) {
@@ -218,6 +297,17 @@ public class CourseService {
                 .average()
                 .orElse(0));
         course.setStats(stats);
+    }
+
+    private Course.CourseReview findReview(Course course, String reviewId) {
+        if (course.getReviews() == null) {
+            throw new ResourceNotFoundException("Review not found");
+        }
+
+        return course.getReviews().stream()
+                .filter(review -> reviewId.equals(review.getId()))
+                .findFirst()
+                .orElseThrow(() -> new ResourceNotFoundException("Review not found"));
     }
 
     private String extensionFor(String contentType, String originalName) {
@@ -257,6 +347,7 @@ public class CourseService {
                 .articleUrl(course.getArticleUrl())
                 .pdfUrl(course.getPdfUrl())
                 .thumbnailUrl(course.getThumbnailUrl())
+                .reviewsEnabled(course.getReviewsEnabled() == null || course.getReviewsEnabled())
                 .publishedAt(course.getPublishedAt())
                 .stats(course.getStats())
                 .reviews(course.getReviews() != null ? course.getReviews() : List.of())
