@@ -48,4 +48,18 @@ public class UserService {
     public List<User> getTrainers() {
         return userRepo.findByRole(Role.TRAINER.name());
     }
+
+    public void setFcmToken(String firebaseUid, String token) {
+        User user = getByFirebaseUid(firebaseUid);
+        user.setFcmToken(token);
+        user.setUpdatedAt(Instant.now());
+        userRepo.save(user);
+    }
+
+    public void clearFcmToken(String firebaseUid) {
+        User user = getByFirebaseUid(firebaseUid);
+        user.setFcmToken(null);
+        user.setUpdatedAt(Instant.now());
+        userRepo.save(user);
+    }
 }

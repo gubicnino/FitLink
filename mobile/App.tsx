@@ -3,6 +3,7 @@ import { StatusBar, StyleSheet, View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { useAuth } from './src/hooks/useAuth';
+import { useFcmRegistration } from './src/hooks/useFcmRegistration';
 import { RootNavigator } from './src/navigation';
 import { colors } from './src/theme';
 import { SplashScreen } from './src/components/brand';
@@ -12,6 +13,7 @@ const MIN_SPLASH_MS = 1600;
 function App() {
   const { user, loading } = useAuth();
   const [splashGone, setSplashGone] = useState(false);
+  useFcmRegistration();
 
   return (
     <GestureHandlerRootView style={styles.flex}>

@@ -37,6 +37,15 @@ export const authService = {
       await liveSessionStorage.clear(uid).catch(() => {});
     }
     await liveSessionStorage.clearAllUsers().catch(() => {});
+    // Drop the FCM token on the backend so we stop pushing to a device
+    // that may be picked up by the next account that logs in here.
+
+    try {
+      const apiClient = (await import('../api/apiClient')).default;
+      await apiClient.delete('/user/me/fcm-token');
+    } catch (err) {
+      console.warn('[authService] FCM token clear failed', err);
+    }
     await signOut(auth);
   },
 

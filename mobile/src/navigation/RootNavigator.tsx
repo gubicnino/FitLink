@@ -1,4 +1,4 @@
-import { NavigationContainer } from '@react-navigation/native';
+import { NavigationContainer, createNavigationContainerRef } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import React from 'react';
 import { ProtectedAdminApplicationsScreen } from '../screens/admin/ProtectedAdminApplicationsScreen';
@@ -19,6 +19,7 @@ import { SessionDetailScreen } from '../screens/workouts/SessionDetailScreen';
 import { TemplateDetailScreen } from '../screens/workouts/TemplateDetailScreen';
 import { TemplateFormScreen } from '../screens/workouts/TemplateFormScreen';
 import { User } from '../types/types';
+import { useFcmHandlers } from '../hooks/useFcmHandlers';
 import { AdminTabs } from './AdminTabs';
 import { AuthStack } from './AuthStack';
 import { TraineeTabs } from './TraineeTabs';
@@ -26,6 +27,8 @@ import { TrainerTabs } from './TrainerTabs';
 import type { RootStackParamList } from './types';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
+
+export const navigationRef = createNavigationContainerRef<RootStackParamList>();
 
 interface RootNavigatorProps {
   user: User | null;
@@ -40,7 +43,8 @@ export function RootNavigator({ user }: RootNavigatorProps) {
   };
 
   return (
-    <NavigationContainer>
+    <NavigationContainer ref={navigationRef}>
+      <FcmHandlersBridge />
       <Stack.Navigator
         initialRouteName={getInitialRoute()}
         screenOptions={{ headerShown: false, animation: 'slide_from_right' }}
@@ -83,4 +87,9 @@ export function RootNavigator({ user }: RootNavigatorProps) {
       </Stack.Navigator>
     </NavigationContainer>
   );
+}
+
+function FcmHandlersBridge() {
+  useFcmHandlers();
+  return null;
 }
