@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Splash stays brand-blue in dark mode for brand consistency,
+         matching the RN SplashScreen which never switches palettes. -->
+    <color name="splash_background">#2E5B9F</color>
+    <color name="splash_status_bar">#1E4275</color>
+</resources>

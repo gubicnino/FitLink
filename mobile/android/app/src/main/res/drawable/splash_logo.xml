@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Vector drawable matching the FitLinkMark SVG (96x96 viewBox).
+  Dumbbell with two pill plates on each side and an orange accent node.
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="96dp"
+    android:height="96dp"
+    android:viewportWidth="96"
+    android:viewportHeight="96">
+
+    <!-- Grip / bar — drawn first so plate outlines overlap on top -->
+    <path
+        android:fillColor="@color/brand_white"
+        android:pathData="M31.5,45 L64.5,45 A1.5,1.5 0 0 1 66,46.5 L66,49.5 A1.5,1.5 0 0 1 64.5,51 L31.5,51 A1.5,1.5 0 0 1 30,49.5 L30,46.5 A1.5,1.5 0 0 1 31.5,45 Z" />
+
+    <!-- Left outer plate (thin pill) -->
+    <path
+        android:strokeColor="@color/brand_white"
+        android:strokeWidth="2.5"
+        android:fillColor="@android:color/transparent"
+        android:pathData="M14,34 L14,34 A3,3 0 0 1 17,37 L17,59 A3,3 0 0 1 14,62 L14,62 A3,3 0 0 1 11,59 L11,37 A3,3 0 0 1 14,34 Z" />
+
+    <!-- Left inner plate (thick pill) -->
+    <path
+        android:strokeColor="@color/brand_white"
+        android:strokeWidth="2.5"
+        android:fillColor="@android:color/transparent"
+        android:pathData="M25,30 L25,30 A5,5 0 0 1 30,35 L30,61 A5,5 0 0 1 25,66 L25,66 A5,5 0 0 1 20,61 L20,35 A5,5 0 0 1 25,30 Z" />
+
+    <!-- Right inner plate (thick pill) -->
+    <path
+        android:strokeColor="@color/brand_white"
+        android:strokeWidth="2.5"
+        android:fillColor="@android:color/transparent"
+        android:pathData="M71,30 L71,30 A5,5 0 0 1 76,35 L76,61 A5,5 0 0 1 71,66 L71,66 A5,5 0 0 1 66,61 L66,35 A5,5 0 0 1 71,30 Z" />
+
+    <!-- Right outer plate (thin pill) -->
+    <path
+        android:strokeColor="@color/brand_white"
+        android:strokeWidth="2.5"
+        android:fillColor="@android:color/transparent"
+        android:pathData="M82,34 L82,34 A3,3 0 0 1 85,37 L85,59 A3,3 0 0 1 82,62 L82,62 A3,3 0 0 1 79,59 L79,37 A3,3 0 0 1 82,34 Z" />
+
+    <!-- Accent node — orange dot at grip center (full circle as two arcs) -->
+    <path
+        android:fillColor="@color/brand_accent"
+        android:pathData="M44,48 a4,4 0 1 0 8,0 a4,4 0 1 0 -8,0 Z" />
+</vector>
