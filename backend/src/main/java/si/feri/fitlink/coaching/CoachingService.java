@@ -103,4 +103,11 @@ public class CoachingService {
     public List<Coaching> getPendingForTrainer(String trainerId) {
         return coachingRepo.findByTrainerIdAndStatus(trainerId, CoachingStatus.PENDING);
     }
+    public boolean isTrainerOfTrainee(String trainerId, String traineeId) {
+        return coachingRepo.findByTraineeIdAndTrainerIdAndStatusIn(
+            traineeId,
+            trainerId,
+            Arrays.asList(CoachingStatus.ACTIVE)
+        ).stream().findAny().isPresent();
+    }
 }

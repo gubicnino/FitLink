@@ -1,44 +1,44 @@
-import React, { useCallback, useState } from 'react';
 import {
-  ActivityIndicator,
-  Alert,
-  Image,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  View,
-} from 'react-native';
-import {
-  CommonActions,
-  useFocusEffect,
-  useNavigation,
-  useRoute,
-  RouteProp,
+    CommonActions,
+    RouteProp,
+    useFocusEffect,
+    useNavigation,
+    useRoute,
 } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import {
-  ChevronDown,
-  ChevronLeft,
-  Clock,
-  Dumbbell,
-  Hash,
-  Info,
-  Pencil,
-  Play,
-  Trash2,
+    ChevronDown,
+    ChevronLeft,
+    Clock,
+    Dumbbell,
+    Hash,
+    Info,
+    Pencil,
+    Play,
+    Trash2,
 } from 'lucide-react-native';
-import { colors, radii, shadows, spacing } from '../../theme';
+import React, { useCallback, useState } from 'react';
 import {
-  Button,
-  Dot,
-  IconButton,
-  Screen,
-  Text,
-} from '../../components/ui';
-import { ScreenHeader } from '../../components/layout';
+    ActivityIndicator,
+    Alert,
+    Image,
+    Pressable,
+    ScrollView,
+    StyleSheet,
+    View,
+} from 'react-native';
 import { exerciseApi } from '../../api/exerciseApi';
 import { workoutApi } from '../../api/workoutApi';
+import { ScreenHeader } from '../../components/layout';
+import {
+    Button,
+    Dot,
+    IconButton,
+    Screen,
+    Text,
+} from '../../components/ui';
 import type { RootStackParamList } from '../../navigation/types';
+import { colors, radii, shadows, spacing } from '../../theme';
 import type { WorkoutTemplate } from '../../types/workout';
 import { setTypeMeta } from '../../utils/setTypeMeta';
 
@@ -54,7 +54,7 @@ interface ExerciseDetail {
 
 export function TemplateDetailScreen() {
   const navigation = useNavigation<Nav>();
-  const { templateId } = useRoute<Route>().params;
+  const { templateId, canStart=true } = useRoute<Route>().params;
 
   const [template, setTemplate] = useState<WorkoutTemplate | null>(null);
   const [details, setDetails] = useState<Map<string, ExerciseDetail>>(new Map());
@@ -97,8 +97,8 @@ export function TemplateDetailScreen() {
   );
 
   const onEdit = useCallback(() => {
-    navigation.navigate('TemplateForm', { mode: 'edit', templateId });
-  }, [navigation, templateId]);
+    navigation.navigate('TemplateForm', { mode: 'edit', templateId, canStart });
+  }, [navigation, templateId, canStart]);
 
   const onStart = useCallback(() => {
     navigation.navigate('LiveWorkout', { templateId });
@@ -386,14 +386,16 @@ export function TemplateDetailScreen() {
           onPress={onEdit}
           style={styles.ctaEdit}
         />
-        <Button
-          label="Start workout"
-          variant="primary"
-          size="lg"
-          leftIcon={<Play size={16} color={colors.white} fill={colors.white} strokeWidth={0} />}
-          onPress={onStart}
-          style={styles.ctaStart}
-        />
+        {canStart && (
+          <Button
+            label="Start workout"
+            variant="primary"
+            size="lg"
+            leftIcon={<Play size={16} color={colors.white} fill={colors.white} strokeWidth={0} />}
+            onPress={onStart}
+            style={styles.ctaStart}
+          />
+        )}
       </View>
     </Screen>
   );

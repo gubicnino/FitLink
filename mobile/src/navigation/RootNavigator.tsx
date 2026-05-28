@@ -5,6 +5,7 @@ import { ProtectedAdminApplicationsScreen } from '../screens/admin/ProtectedAdmi
 import { ConversationScreen } from '../screens/chat/ConversationScreen';
 import { WeeklyCheckInScreen } from '../screens/checkin/WeeklyCheckInScreen';
 import { ClientDetailScreen } from '../screens/coach/ClientDetailScreen';
+import { ClientWorkouts } from '../screens/coach/ClientWorkouts';
 import { FindTrainerScreen } from '../screens/coach/FindTrainerScreen';
 import { TrainerProfileScreen } from '../screens/coach/TrainerProfileScreen';
 import { AddCourses } from '../screens/courses/AddCourses';
@@ -47,6 +48,7 @@ export function RootNavigator({ user }: RootNavigatorProps) {
         <Stack.Screen name="Auth" component={AuthStack} />
         <Stack.Screen name="TraineeRoot" component={TraineeTabs} />
         <Stack.Screen name="TrainerRoot" component={TrainerTabs} />
+        <Stack.Screen name="ClientWorkouts" component={ClientWorkouts} />
         <Stack.Screen name="AdminRoot" component={AdminTabs} />
         <Stack.Screen name="TrainerApplication" component={TrainerApplicationScreen} />
         <Stack.Screen name="AdminApplications" component={ProtectedAdminApplicationsScreen} />

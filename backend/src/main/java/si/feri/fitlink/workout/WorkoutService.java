@@ -7,6 +7,7 @@ import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 
 import lombok.RequiredArgsConstructor;
+import si.feri.fitlink.coaching.CoachingService;
 import si.feri.fitlink.common.NotificationService;
 import si.feri.fitlink.common.exception.ResourceNotFoundException;
 import si.feri.fitlink.workout.dto.WorkoutSessionCreateDTO;
@@ -18,6 +19,7 @@ public class WorkoutService {
     private final WorkoutSessionRepository sessionRepo;
     private final WorkoutTemplateRepository templateRepo;
     private final NotificationService notificationService;
+    private final CoachingService coachingService;
 
     public WorkoutSession finishSession(String userId, WorkoutSessionCreateDTO dto) {
         WorkoutSession session = WorkoutSession.builder()
@@ -38,7 +40,7 @@ public class WorkoutService {
     public WorkoutSession getSession(String sessionId, String requesterId) {
         WorkoutSession session = sessionRepo.findById(sessionId)
                 .orElseThrow(() -> new ResourceNotFoundException("WorkoutSession not found"));
-        if (!session.getOwnerId().equals(requesterId))
+        if (!session.getOwnerId().equals(requesterId) && !coachingService.isTrainerOfTrainee(requesterId, session.getOwnerId()))
             throw new AccessDeniedException("Not your session");
         return session;
     }
@@ -60,6 +62,22 @@ public class WorkoutService {
         return templateRepo.findByOwnerId(ownerId);
     }
 
+    public List<WorkoutTemplate> getTemplatesForTraineeOfTrainer(String ownerId, String trainerId) {
+        // Check if the requester is indeed the trainer of the specified trainee
+        if (!coachingService.isTrainerOfTrainee(trainerId, ownerId)) {
+            throw new AccessDeniedException("Not your trainee");
+        }
+        return templateRepo.findByOwnerId(ownerId);
+    }
+
+    public List<WorkoutSession> getSessionsForTraineeOfTrainer(String ownerId, String trainerId) {
+        // Check if the requester is indeed the trainer of the specified trainee
+        if (!coachingService.isTrainerOfTrainee(trainerId, ownerId)) {
+            throw new AccessDeniedException("Not your trainee");
+        }
+        return sessionRepo.findByOwnerIdOrderByStartedAtDesc(ownerId);
+    }
+
     public WorkoutTemplate getTemplate(String templateId) {
         return templateRepo.findById(templateId)
                 .orElseThrow(() -> new ResourceNotFoundException("WorkoutTemplate not found"));
@@ -76,7 +94,7 @@ public class WorkoutService {
             List<WorkoutTemplate.TemplateExercise> newExercises
     ) {
         WorkoutTemplate existing = getTemplate(templateId);
-        if (!existing.getOwnerId().equals(requesterId)) {
+        if (!existing.getOwnerId().equals(requesterId) && !coachingService.isTrainerOfTrainee(requesterId, existing.getOwnerId())) {
             throw new AccessDeniedException("Not your template");
         }
         existing.setName(newName);
@@ -89,7 +107,7 @@ public class WorkoutService {
     /** Izbriše template. lejko samo lastnik. */
     public void deleteTemplate(String templateId, String requesterId) {
         WorkoutTemplate existing = getTemplate(templateId);
-        if (!existing.getOwnerId().equals(requesterId)) {
+        if (!existing.getOwnerId().equals(requesterId) && !coachingService.isTrainerOfTrainee(requesterId, existing.getOwnerId())) {
             throw new AccessDeniedException("Not your template");
         }
         templateRepo.deleteById(templateId);

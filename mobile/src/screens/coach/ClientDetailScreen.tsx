@@ -1,11 +1,11 @@
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp, NativeStackScreenProps } from '@react-navigation/native-stack';
-import { Camera, ChevronLeft, Scale, Smile, TrendingUp, UserRound } from 'lucide-react-native';
+import { ArrowRight, Camera, ChevronLeft, HeartPulse, Scale, Smile, TrendingUp, UserRound } from 'lucide-react-native';
 import React, { useMemo } from 'react';
 import { Image, StyleSheet, View } from 'react-native';
 import { API_ORIGIN } from '../../api/apiClient';
 import { ScreenHeader } from '../../components/layout';
-import { Avatar, Card, IconButton, Screen, Tag, Text } from '../../components/ui';
+import { Avatar, Button, Card, IconButton, Screen, Tag, Text } from '../../components/ui';
 import type { RootStackParamList } from '../../navigation/types';
 import { colors, spacing } from '../../theme';
 import { CheckIn } from '../../types/checkin';
@@ -136,6 +136,27 @@ export function ClientDetailScreen({ route }: Props) {
             </View>
           </View>
 
+          <View style={styles.actionsRow}>
+            <Button
+              variant="primary"
+              label="View workouts"
+              leftIcon={<ArrowRight size={16} color={colors.white} strokeWidth={2.25} />}
+              onPress={() => navigation.navigate('ClientWorkouts', { traineeId: client.firebaseUid })}
+              style={styles.workoutsButton}
+            />
+
+            <View style={styles.healthCard}>
+              <View style={styles.healthIconWrap}>
+                <HeartPulse size={18} color={colors.primary} strokeWidth={2} />
+              </View>
+              <View style={styles.healthText}>
+                <Text variant="bodySmall" weight="700">
+                  Health data
+                </Text>
+              </View>
+            </View>
+          </View>
+
           <View style={styles.cadenceRow}>
             <View style={styles.cadenceText}>
               <Text variant="caption" color="muted">
@@ -171,9 +192,10 @@ export function ClientDetailScreen({ route }: Props) {
           <View style={styles.checkInList}>
             {sortedCheckIns.map((checkIn, index) => {
               const photos = getCheckInPhotos(checkIn);
+              const checkInKey = checkIn.id ?? checkIn.start ?? `checkin-${index}`;
 
               return (
-                <Card key={checkIn.id} padding="md" style={styles.checkInCard}>
+                <Card key={checkInKey} padding="md" style={styles.checkInCard}>
                   <View style={styles.checkInHeader}>
                     <View style={styles.checkInHeaderText}>
                       <Text variant="body" weight="600">
@@ -330,6 +352,39 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.md,
+    gap: 2,
+  },
+  actionsRow: {
+    flexDirection: 'row',
+    gap: spacing.md,
+    alignItems: 'stretch',
+  },
+  workoutsButton: {
+    
+  },
+  healthCard: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.md,
+    borderRadius: 14,
+    backgroundColor: colors.surfaceElevated,
+    borderWidth: 1,
+    borderColor: colors.line,
+  },
+  healthIconWrap: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.primarySoft,
+  },
+  healthText: {
+    flex: 1,
+    minWidth: 0,
     gap: 2,
   },
   noteBlock: {

@@ -18,6 +18,7 @@ import org.springframework.web.bind.annotation.RestController;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import si.feri.fitlink.auth.AuthPrincipal;
+import si.feri.fitlink.coaching.CoachingService;
 import si.feri.fitlink.workout.WorkoutDtos.SessionExerciseInput;
 import si.feri.fitlink.workout.WorkoutDtos.SessionResponse;
 import si.feri.fitlink.workout.WorkoutDtos.SessionUpsertRequest;
@@ -52,12 +53,20 @@ import si.feri.fitlink.workout.WorkoutDtos.TemplateUpsertRequest;
 public class WorkoutController {
 
     private final WorkoutService workoutService;
+    private final CoachingService coachingService;
 
     // DEJANSKI TEMPLATEI
 
     @GetMapping("/templates")
     public List<TemplateResponse> listMyTemplates(@AuthenticationPrincipal AuthPrincipal principal) {
         return workoutService.getTemplatesForUser(principal.uid()).stream()
+                .map(TemplateResponse::from)
+                .toList();
+    }
+
+    @GetMapping("/templates/trainee/{id}")
+    public List<TemplateResponse> listTraineeTemplates(@PathVariable String id, @AuthenticationPrincipal AuthPrincipal principal) {
+        return workoutService.getTemplatesForTraineeOfTrainer(id, principal.uid()).stream()
                 .map(TemplateResponse::from)
                 .toList();
     }
@@ -81,6 +90,18 @@ public class WorkoutController {
         t.setName(body.name());
         t.setExercises(mapTemplateExercises(body.exercises()));
         WorkoutTemplate saved = workoutService.saveTemplate(principal.uid(), principal.uid(), t);
+        return ResponseEntity.status(HttpStatus.CREATED).body(TemplateResponse.from(saved));
+    }
+    @PostMapping("/templates/trainee/{id}")
+    public ResponseEntity<TemplateResponse> createTemplateForTrainee(
+            @AuthenticationPrincipal AuthPrincipal principal,
+            @PathVariable("id") String traineeId,
+            @Valid @RequestBody TemplateUpsertRequest body
+    ) {
+        WorkoutTemplate t = new WorkoutTemplate();
+        t.setName(body.name());
+        t.setExercises(mapTemplateExercises(body.exercises()));
+        WorkoutTemplate saved = workoutService.saveTemplate(traineeId, principal.uid(), t);
         return ResponseEntity.status(HttpStatus.CREATED).body(TemplateResponse.from(saved));
     }
 
@@ -113,6 +134,12 @@ public class WorkoutController {
     @GetMapping("/sessions")
     public List<SessionResponse> listMySessions(@AuthenticationPrincipal AuthPrincipal principal) {
         return workoutService.getSessionsForUser(principal.uid()).stream()
+                .map(SessionResponse::from)
+                .toList();
+    }
+    @GetMapping("/sessions/trainee/{id}")
+    public List<SessionResponse> listTraineeSessions(@PathVariable String id, @AuthenticationPrincipal AuthPrincipal principal) {
+        return workoutService.getSessionsForTraineeOfTrainer(id, principal.uid()).stream()
                 .map(SessionResponse::from)
                 .toList();
     }
@@ -164,8 +191,8 @@ public class WorkoutController {
 
     // helpers
 
-    private static void ensureOwner(String ownerId, AuthPrincipal principal) {
-        if (ownerId == null || !ownerId.equals(principal.uid())) {
+    private void ensureOwner(String ownerId, AuthPrincipal principal) {
+        if (ownerId == null || (!ownerId.equals(principal.uid()) && !coachingService.isTrainerOfTrainee(principal.uid(), ownerId))) {
             throw new org.springframework.security.access.AccessDeniedException("Not your resource");
         }
     }

@@ -173,13 +173,14 @@ export function ClientsScreen() {
           </Card>
         ) : (
           <View style={styles.list}>
-            {activeCoachings.map((item) => {
+            {activeCoachings.map((item, index) => {
               const latestCheckIn = item.latestCheckIn;
               const weightTrend = getWeightTrendLabel(item.coaching.checkIns);
+              const cardKey = item.coaching.id ?? item.client.firebaseUid ?? `client-${index}`;
 
               return (
                 <Card
-                  key={item.coaching.id}
+                  key={cardKey}
                   onPress={() => navigation.navigate('ClientDetail', { coaching: item.coaching, client: item.client })}
                   style={styles.clientCard}
                 >

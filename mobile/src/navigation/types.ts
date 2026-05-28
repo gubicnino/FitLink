@@ -35,6 +35,7 @@ export type AdminTabParamList = {
 export type RootStackParamList = {
   Auth: NavigatorScreenParams<AuthStackParamList>;
   AddCourses: { courseId?: string } | undefined;
+  ClientWorkouts: { traineeId: string };
   TraineeRoot: NavigatorScreenParams<TraineeTabParamList>;
   TrainerRoot: NavigatorScreenParams<TrainerTabParamList>;
   AdminRoot: NavigatorScreenParams<AdminTabParamList>;
@@ -54,13 +55,14 @@ export type RootStackParamList = {
         mode?: 'browse' | 'select';
         appendToTemplateId?: string;
         appendToLiveSession?: boolean;
+        forTraineeId?: string;
       }
     | undefined;
   ExerciseDetail: { exerciseId: string };
-  TemplateDetail: { templateId: string };
+  TemplateDetail: { templateId: string, canStart?: boolean };
   SessionDetail: { sessionId: string };
   TemplateForm:
-    | { mode: 'create'; exerciseIds: string[]; pendingExerciseIds?: string[] }
-    | { mode: 'edit'; templateId: string; pendingExerciseIds?: string[] };
+    | { mode: 'create'; exerciseIds: string[]; pendingExerciseIds?: string[]; traineeId?: string; canStart?: boolean }
+    | { mode: 'edit'; templateId: string; pendingExerciseIds?: string[]; canStart?: boolean };
   ChatThread: { conversationId: string };
 };

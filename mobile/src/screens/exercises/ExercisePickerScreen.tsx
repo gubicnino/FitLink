@@ -43,6 +43,7 @@ export function ExercisePickerScreen() {
   const isSelect = mode === 'select';
   const appendToTemplateId = route.params?.appendToTemplateId;
   const appendToLiveSession = route.params?.appendToLiveSession;
+  const forTraineeId = route.params?.forTraineeId;
 
   const handleContinue = useCallback(
     (ids: string[]) => {
@@ -63,10 +64,14 @@ export function ExercisePickerScreen() {
           merge: true,
         });
       } else {
-        navigation.navigate('TemplateForm', { mode: 'create', exerciseIds: ids });
+        navigation.navigate('TemplateForm', {
+          mode: 'create',
+          exerciseIds: ids,
+          traineeId: forTraineeId,
+        });
       }
     },
-    [navigation, appendToTemplateId, appendToLiveSession],
+    [navigation, appendToTemplateId, appendToLiveSession, forTraineeId],
   );
 
   const [selectedIds, setSelectedIds] = useState<string[]>([]);

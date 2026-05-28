@@ -1,10 +1,10 @@
-import apiClient from './apiClient';
 import type {
-  SessionUpsertRequest,
-  TemplateUpsertRequest,
-  WorkoutSession,
-  WorkoutTemplate,
+    SessionUpsertRequest,
+    TemplateUpsertRequest,
+    WorkoutSession,
+    WorkoutTemplate,
 } from '../types/workout';
+import apiClient from './apiClient';
 
 /**
  * REST klient za Workout (templates + sessions).
@@ -19,6 +19,10 @@ export const workoutApi = {
     const res = await apiClient.get<WorkoutTemplate[]>('/workouts/templates');
     return res.data;
   },
+  listTemplatesForTraineeOfTrainer: async (traineeId: string): Promise<WorkoutTemplate[]> => {
+    const res = await apiClient.get<WorkoutTemplate[]>(`/workouts/templates/trainee/${encodeURIComponent(traineeId)}`);
+    return res.data;
+  },
 
   getTemplate: async (id: string): Promise<WorkoutTemplate> => {
     const res = await apiClient.get<WorkoutTemplate>(
@@ -29,6 +33,11 @@ export const workoutApi = {
 
   createTemplate: async (body: TemplateUpsertRequest): Promise<WorkoutTemplate> => {
     const res = await apiClient.post<WorkoutTemplate>('/workouts/templates', body);
+    return res.data;
+  },
+
+  createTemplateForTrainee: async (traineeId: string, body: TemplateUpsertRequest): Promise<WorkoutTemplate> => {
+    const res = await apiClient.post<WorkoutTemplate>(`/workouts/templates/trainee/${encodeURIComponent(traineeId)}`, body);
     return res.data;
   },
 
@@ -47,6 +56,11 @@ export const workoutApi = {
   // Sessions
   listSessions: async (): Promise<WorkoutSession[]> => {
     const res = await apiClient.get<WorkoutSession[]>('/workouts/sessions');
+    return res.data;
+  },
+  
+  listSessionsForTraineeOfTrainer: async (traineeId: string): Promise<WorkoutSession[]> => {
+    const res = await apiClient.get<WorkoutSession[]>(`/workouts/sessions/trainee/${encodeURIComponent(traineeId)}`);
     return res.data;
   },
 

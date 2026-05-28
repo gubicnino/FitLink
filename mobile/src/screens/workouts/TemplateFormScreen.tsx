@@ -1,38 +1,38 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-  ActivityIndicator,
-  Alert,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  View,
-} from 'react-native';
-import {
-  CommonActions,
-  useFocusEffect,
-  useNavigation,
-  useRoute,
-  RouteProp,
+    CommonActions,
+    RouteProp,
+    useFocusEffect,
+    useNavigation,
+    useRoute,
 } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { ChevronLeft, Plus } from 'lucide-react-native';
-import { colors, radii, shadows, spacing } from '../../theme';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-  Button,
-  IconButton,
-  Input,
-  Screen,
-  Text,
-} from '../../components/ui';
-import { ScreenHeader } from '../../components/layout';
+    ActivityIndicator,
+    Alert,
+    Pressable,
+    ScrollView,
+    StyleSheet,
+    View,
+} from 'react-native';
 import { exerciseApi } from '../../api/exerciseApi';
 import { workoutApi } from '../../api/workoutApi';
+import { ScreenHeader } from '../../components/layout';
+import {
+    Button,
+    IconButton,
+    Input,
+    Screen,
+    Text,
+} from '../../components/ui';
 import type { RootStackParamList } from '../../navigation/types';
+import { colors, radii, shadows, spacing } from '../../theme';
 import type { TemplateUpsertRequest, WorkoutTemplate } from '../../types/workout';
 import {
-  FormSet,
-  TemplateExerciseRow,
-  TemplateFormExercise,
+    FormSet,
+    TemplateExerciseRow,
+    TemplateFormExercise,
 } from './TemplateExerciseRow';
 
 type Nav = NativeStackNavigationProp<RootStackParamList, 'TemplateForm'>;
@@ -59,6 +59,9 @@ export function TemplateFormScreen() {
   const isEdit = params.mode === 'edit';
   const editTemplateId = params.mode === 'edit' ? params.templateId : undefined;
   const createExerciseIds = params.mode === 'create' ? params.exerciseIds : undefined;
+  const createForTraineeId = params.mode === 'create' ? params.traineeId : undefined;
+  const canStart = params.canStart ?? true;
+  const trainerContext = Boolean(createForTraineeId || !canStart);
   const pendingExerciseIds = params.pendingExerciseIds;
 
   const [name, setName] = useState('');
@@ -193,8 +196,9 @@ export function TemplateFormScreen() {
     navigation.navigate('ExercisePicker', {
       mode: 'select',
       appendToTemplateId: editTemplateId,
+      forTraineeId: createForTraineeId,
     });
-  }, [navigation, editTemplateId]);
+  }, [navigation, editTemplateId, createForTraineeId]);
 
   const handleSaveSuccess = useCallback(
     (saved: WorkoutTemplate) => {
@@ -209,7 +213,10 @@ export function TemplateFormScreen() {
         // po create ali edit, land nazaj na templateDetail za template keri je glihkar biu shranjene
         const next = [
           ...keep,
-          { name: 'TemplateDetail' as const, params: { templateId: saved.id } },
+          {
+            name: 'TemplateDetail' as const,
+            params: { templateId: saved.id, canStart: trainerContext ? false : undefined },
+          },
         ];
         return CommonActions.reset({
           ...state,
@@ -218,7 +225,7 @@ export function TemplateFormScreen() {
         });
       });
     },
-    [navigation],
+    [navigation, trainerContext],
   );
 
   // Save templatte: validation + API call
@@ -259,13 +266,15 @@ export function TemplateFormScreen() {
     try {
       const saved = editTemplateId
         ? await workoutApi.updateTemplate(editTemplateId, body)
-        : await workoutApi.createTemplate(body);
+        : createForTraineeId
+          ? await workoutApi.createTemplateForTrainee(createForTraineeId, body)
+          : await workoutApi.createTemplate(body);
       handleSaveSuccess(saved);
     } catch (err) {
       Alert.alert('Could not save template', extractMessage(err));
       setSaving(false);
     }
-  }, [name, items, editTemplateId, handleSaveSuccess]);
+  }, [name, items, editTemplateId, createForTraineeId, handleSaveSuccess]);
 
   // DEjanski rendering
 

@@ -10,30 +10,29 @@ import {
 } from 'react-native';
 
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
-import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { Dumbbell, History, Plus, Trash2 } from 'lucide-react-native';
+import type { NativeStackNavigationProp, NativeStackScreenProps } from '@react-navigation/native-stack';
+import { ChevronLeft, Dumbbell, History, Plus, Trash2 } from 'lucide-react-native';
 import { Swipeable } from 'react-native-gesture-handler';
 import { workoutApi } from '../../api/workoutApi';
 import { ScreenHeader } from '../../components/layout';
-import { Button, Screen, TabSwitcher, Text } from '../../components/ui';
-import { useLiveSession } from '../../hooks/useLiveSession';
+import { Button, IconButton, Screen, TabSwitcher, Text } from '../../components/ui';
 import type { RootStackParamList } from '../../navigation/types';
 import { colors, radii, shadows, spacing } from '../../theme';
 import type { WorkoutSession, WorkoutTemplate } from '../../types/workout';
-import { SessionHistoryCard } from './SessionHistoryCard';
-import { ResumeHero, WeeklySummary } from './WorkoutsHeroCards';
-import { WorkoutTemplate as CardTemplate, WorkoutTemplateCard } from './WorkoutTemplateCard';
+import { SessionHistoryCard } from '../workouts/SessionHistoryCard';
+import { WeeklySummary } from '../workouts/WorkoutsHeroCards';
+import { WorkoutTemplate as CardTemplate, WorkoutTemplateCard } from '../workouts/WorkoutTemplateCard';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
+type Props = NativeStackScreenProps<RootStackParamList, 'ClientWorkouts'>;
 
 const TABS = ['Templates', 'History'] as const;
 type Tab = (typeof TABS)[number];
 
-export function WorkoutsListScreen() {
+export function ClientWorkouts({ route }: Props) {
+  const { traineeId } = route.params;
   const navigation = useNavigation<Nav>();
   const [tab, setTab] = useState<Tab>('Templates');
-
-  const { session: liveSession, hydrated: liveHydrated } = useLiveSession();
 
   const [templates, setTemplates] = useState<WorkoutTemplate[]>([]);
   const [sessions, setSessions] = useState<WorkoutSession[]>([]);
@@ -45,8 +44,8 @@ export function WorkoutsListScreen() {
     setError(null);
     try {
       const [t, s] = await Promise.all([
-        workoutApi.listTemplates(),
-        workoutApi.listSessions(),
+        workoutApi.listTemplatesForTraineeOfTrainer(traineeId),
+        workoutApi.listSessionsForTraineeOfTrainer(traineeId),
       ]);
       setTemplates(t);
       setSessions(s);
@@ -96,20 +95,18 @@ export function WorkoutsListScreen() {
     );
   }, []);
 
-  const onResumeLive = useCallback(() => {
-    if (!liveSession) return;
-    navigation.navigate('LiveWorkout', { templateId: liveSession.templateId });
-  }, [liveSession, navigation]);
-
   const onNewTemplate = useCallback(() => {
-    navigation.navigate('ExercisePicker', { mode: 'select' });
-  }, [navigation]);
-
-  const showResume = liveHydrated && liveSession != null;
+    navigation.navigate('ExercisePicker', { mode: 'select', forTraineeId: traineeId });
+  }, [navigation, traineeId]);
 
   return (
     <Screen edges={['top']}>
-      <ScreenHeader title="My Workouts" />
+      <ScreenHeader title="Client's Workouts" left={
+          <IconButton variant="surface" withBorder onPress={() => navigation.goBack()}>
+            <ChevronLeft size={18} color={colors.inkPrimary} strokeWidth={2.25} />
+          </IconButton>
+        } />
+      
 
       <View style={styles.gutter}>
         <TabSwitcher<Tab> tabs={TABS} value={tab} onChange={setTab} />
@@ -138,10 +135,6 @@ export function WorkoutsListScreen() {
         >
           {tab === 'Templates' ? (
             <View style={styles.section}>
-              {showResume ? (
-                <ResumeHero session={liveSession!} onResume={onResumeLive} />
-              ) : null}
-
               {templates.length === 0 ? (
                 <EmptyState
                   icon={<Dumbbell size={28} color={colors.primary} strokeWidth={2} />}
@@ -153,7 +146,7 @@ export function WorkoutsListScreen() {
               ) : (
                 <>
                   <SectionHeader
-                    label="My templates"
+                    label="Client's templates"
                     count={templates.length}
                   />
                   <View style={styles.list}>
@@ -161,7 +154,7 @@ export function WorkoutsListScreen() {
                       <WorkoutTemplateCard
                         key={t.id}
                         template={toCardTemplate(t)}
-                        onPress={() => navigation.navigate('TemplateDetail', { templateId: t.id })}
+                        onPress={() => navigation.navigate('TemplateDetail', { templateId: t.id, canStart: false })}
                       />
                     ))}
                   </View>
