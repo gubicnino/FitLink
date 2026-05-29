@@ -23,9 +23,11 @@ public class CourseResponse {
     private String contentType;
     private String youtubeVideoId;
     private String articleUrl;
+    private String articleContent;
     private String pdfUrl;
     private String thumbnailUrl;
     private Boolean reviewsEnabled;
+    private Boolean completedByCurrentUser;
     private Instant publishedAt;
     private Course.CourseStats stats;
     private List<Course.CourseReview> reviews;

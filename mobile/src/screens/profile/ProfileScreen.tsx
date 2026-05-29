@@ -41,9 +41,14 @@ import { ScreenHeader } from '../../components/layout';
 import { Button, IconButton, Screen, Text } from '../../components/ui';
 import { RootStackParamList } from '../../navigation';
 import { authService } from '../../services/authService';
+import { CourseDto, courseService } from '../../services/courseService';
 import { colors, radii, shadows, spacing } from '../../theme';
 import { User } from '../../types/types';
 import { DEFAULT_AVATAR, getAvatarUrl } from '../../utils/avatar';
+import { CourseCard, Course } from '../courses/CourseCard';
+
+const FALLBACK_COURSE_IMG =
+  'https://images.unsplash.com/photo-1581009146145-b5ef050c2e1e?w=500&q=80&auto=format';
 
 type Nav = NavigationProp<RootStackParamList>;
 
@@ -67,6 +72,11 @@ export function ProfileScreen() {
   const [isEditingDisplayName, setIsEditingDisplayName] = useState(false);
   const [displayName, setDisplayName] = useState('');
   const [isSavingDisplayName, setIsSavingDisplayName] = useState(false);
+  const [savedCourses, setSavedCourses] = useState<CourseDto[]>([]);
+  const [completedCourses, setCompletedCourses] = useState<CourseDto[]>([]);
+  const [trainerBio, setTrainerBio] = useState('');
+  const [trainerSpecializations, setTrainerSpecializations] = useState('');
+  const [isSavingTrainerProfile, setIsSavingTrainerProfile] = useState(false);
   const displayNameInputRef = useRef<TextInput>(null);
 
   // Edit modal control: Kere field je v stanje editanja
@@ -83,7 +93,26 @@ export function ProfileScreen() {
       setHeightCm(currentUser?.profile?.heightCm?.toString() ?? '');
       setCurrentWeightKg(currentUser?.profile?.currentWeightKg?.toString() ?? '');
       setDisplayName(currentUser?.displayName ?? '');
+      setTrainerBio(currentUser?.trainer?.bio ?? '');
+      setTrainerSpecializations(currentUser?.trainer?.specializations?.join(', ') ?? '');
       setUser(currentUser);
+      if (currentUser) {
+        try {
+          const [nextSavedCourses, nextCourses] = await Promise.all([
+            courseService.getSaved(),
+            courseService.getAll(),
+          ]);
+          setSavedCourses(nextSavedCourses);
+          setCompletedCourses(nextCourses.filter(course => course.completedByCurrentUser));
+        } catch (savedError) {
+          console.error('Failed to load course collections:', savedError);
+          setSavedCourses([]);
+          setCompletedCourses([]);
+        }
+      } else {
+        setSavedCourses([]);
+        setCompletedCourses([]);
+      }
     } catch (err) {
       console.error('Failed to load user in ProfileScreen:', err);
       setError('Failed to load profile.');
@@ -282,6 +311,46 @@ export function ProfileScreen() {
     [loadUser],
   );
 
+  const handleTrainerProfileUpdate = async () => {
+    try {
+      setIsSavingTrainerProfile(true);
+      setError(null);
+
+      const specializations = trainerSpecializations
+        .split(',')
+        .map(value => value.trim())
+        .filter(Boolean);
+
+      const response = await apiClient.put('/profile/trainer', {
+        bio: trainerBio.trim(),
+        specializations,
+      });
+
+      setUser(currentUser =>
+        currentUser ? { ...currentUser, trainer: response.data } : currentUser,
+      );
+      setTrainerBio(response.data?.bio ?? '');
+      setTrainerSpecializations(response.data?.specializations?.join(', ') ?? '');
+      Alert.alert('Saved', 'Trainer profile updated.');
+    } catch (err: any) {
+      const msg = err?.response?.data?.message || err?.message || 'Failed to update trainer profile.';
+      setError(msg);
+    } finally {
+      setIsSavingTrainerProfile(false);
+    }
+  };
+
+  const savedCourseCards = savedCourses.map(toSavedCourseCard);
+  const savedCoursePairs: Course[][] = [];
+  for (let i = 0; i < savedCourseCards.length; i += 2) {
+    savedCoursePairs.push(savedCourseCards.slice(i, i + 2));
+  }
+  const completedCourseCards = completedCourses.map(toSavedCourseCard);
+  const completedCoursePairs: Course[][] = [];
+  for (let i = 0; i < completedCourseCards.length; i += 2) {
+    completedCoursePairs.push(completedCourseCards.slice(i, i + 2));
+  }
+
   const stats = useMemo(() => buildStats(user, heightCm, currentWeightKg, birthDate), [user, heightCm, currentWeightKg, birthDate]);
   const isTrainer = user?.role === 'TRAINER';
   const trainerStatus = user?.trainer?.verificationStatus ?? null;
@@ -428,7 +497,6 @@ export function ProfileScreen() {
             </View>
           </View>
         ) : null}
-
         {/* Quick actions -------------------------------------------- */}
         {!isTrainer ? (
           <View style={styles.gutter}>
@@ -468,6 +536,61 @@ export function ProfileScreen() {
             </View>
           </View>
         )}
+
+        {isTrainer ? (
+          <>
+            <SectionHeader label="TRAINER PROFILE" />
+            <View style={styles.gutter}>
+              <View style={styles.trainerProfilePanel}>
+                <Text variant="body" weight="800">Coach details</Text>
+                <Text variant="micro" color="muted" style={styles.trainerProfileHint}>
+                  Shown when someone opens your coach profile from a course.
+                </Text>
+                <View style={styles.fieldBlock}>
+                  <Text variant="micro" color="muted" weight="700" style={styles.fieldLabel}>
+                    BIO
+                  </Text>
+                  <TextInput
+                    value={trainerBio}
+                    onChangeText={value => {
+                      setTrainerBio(value);
+                      setError(null);
+                    }}
+                    placeholder="Tell clients who you coach, your style, and your experience."
+                    placeholderTextColor={colors.inkMuted}
+                    multiline
+                    numberOfLines={5}
+                    textAlignVertical="top"
+                    style={[styles.textField, styles.textArea]}
+                  />
+                </View>
+                <View style={styles.fieldBlock}>
+                  <Text variant="micro" color="muted" weight="700" style={styles.fieldLabel}>
+                    SPECIALIZATIONS
+                  </Text>
+                  <TextInput
+                    value={trainerSpecializations}
+                    onChangeText={value => {
+                      setTrainerSpecializations(value);
+                      setError(null);
+                    }}
+                    placeholder="Nutrition, Strength, Hypertrophy, Mobility"
+                    placeholderTextColor={colors.inkMuted}
+                    style={styles.textField}
+                  />
+                </View>
+                <Button
+                  label={isSavingTrainerProfile ? 'Saving trainer profile...' : 'Save trainer profile'}
+                  variant="primary"
+                  size="md"
+                  loading={isSavingTrainerProfile}
+                  disabled={isSavingTrainerProfile}
+                  onPress={handleTrainerProfileUpdate}
+                />
+              </View>
+            </View>
+          </>
+        ) : null}
 
         {/* Body / Personal section --------------------------------- */}
         <SectionHeader label="PERSONAL" />
@@ -541,6 +664,24 @@ export function ProfileScreen() {
           </View>
         ) : null}
 
+        <SectionHeader label="COURSES" />
+        <View style={[styles.gutter, styles.courseSectionStack]}>
+          <CourseCollectionSection
+            title="Saved courses"
+            count={savedCourses.length}
+            pairs={savedCoursePairs}
+            emptyText="Saved courses will appear here."
+            onPressCourse={courseId => navigation.navigate('CourseDetail', { courseId })}
+          />
+          <CourseCollectionSection
+            title="Completed courses"
+            count={completedCourses.length}
+            pairs={completedCoursePairs}
+            emptyText="Completed courses will appear here."
+            onPressCourse={courseId => navigation.navigate('CourseDetail', { courseId })}
+          />
+        </View>
+
         {/* Account section ----------------------------------------- */}
         <SectionHeader label="ACCOUNT" />
         <View style={styles.gutter}>
@@ -592,6 +733,53 @@ export function ProfileScreen() {
         }}
       />
     </Screen>
+  );
+}
+
+function CourseCollectionSection({
+  title,
+  count,
+  pairs,
+  emptyText,
+  onPressCourse,
+}: {
+  title: string;
+  count: number;
+  pairs: Course[][];
+  emptyText: string;
+  onPressCourse: (courseId: string) => void;
+}) {
+  return (
+    <View style={styles.courseCollection}>
+      <View style={styles.courseCollectionHeader}>
+        <Text variant="body" weight="800">{title}</Text>
+        <Text variant="caption" color="secondary">
+          {count}
+        </Text>
+      </View>
+      {pairs.length > 0 ? (
+        <View style={styles.courseGrid}>
+          {pairs.map((pair, rowIdx) => (
+            <View key={rowIdx} style={styles.courseGridRow}>
+              {pair.map(course => (
+                <CourseCard
+                  key={course.id}
+                  course={course}
+                  onPress={() => onPressCourse(course.id)}
+                />
+              ))}
+              {pair.length === 1 ? <View style={styles.courseGridFiller} /> : null}
+            </View>
+          ))}
+        </View>
+      ) : (
+        <View style={styles.emptyCourseBox}>
+          <Text variant="bodySmall" color="secondary">
+            {emptyText}
+          </Text>
+        </View>
+      )}
+    </View>
   );
 }
 
@@ -1016,7 +1204,6 @@ function capitalize(s: string): string {
   return s.charAt(0).toUpperCase() + s.slice(1);
 }
 
-
 const styles = StyleSheet.create({
   scroll: { paddingBottom: spacing.huge + 40 },
   gutter: { paddingHorizontal: spacing.xxl },
@@ -1341,6 +1528,52 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(239,68,68,0.3)',
   },
 
+  // Trainer profile and course collections
+  trainerProfilePanel: {
+    padding: spacing.lg,
+    borderWidth: 1,
+    borderColor: colors.line,
+    borderRadius: radii.lg,
+    backgroundColor: colors.surface,
+    gap: spacing.md,
+  },
+  trainerProfileHint: { lineHeight: 16 },
+  fieldBlock: { gap: spacing.sm },
+  fieldLabel: { letterSpacing: 0.8 },
+  textField: {
+    borderWidth: 1,
+    borderColor: colors.line,
+    borderRadius: radii.lg,
+    backgroundColor: colors.surfaceElevated,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
+    color: colors.inkPrimary,
+    fontSize: 14,
+  },
+  textArea: {
+    minHeight: 108,
+    lineHeight: 20,
+  },
+  courseSectionStack: { gap: spacing.lg },
+  courseCollection: {
+    gap: spacing.md,
+  },
+  courseCollectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  courseGrid: { gap: spacing.lg },
+  courseGridRow: { flexDirection: 'row', gap: spacing.lg },
+  courseGridFiller: { flex: 1 },
+  emptyCourseBox: {
+    padding: spacing.lg,
+    borderWidth: 1,
+    borderColor: colors.line,
+    borderRadius: radii.lg,
+    backgroundColor: colors.surface,
+  },
+
   // Edit modal
   modalScrim: {
     flex: 1,
@@ -1454,3 +1687,34 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(239,68,68,0.12)',
   },
 });
+
+function toSavedCourseCard(course: CourseDto): Course {
+  return {
+    id: course.id,
+    title: course.title,
+    description: course.description,
+    author: course.authorDisplayName ?? 'Coach',
+    type: getCourseTypeLabel(course.contentType),
+    imageUrl: getCourseImageUrl(course),
+    category: course.category,
+    level: course.level,
+  };
+}
+
+function getCourseImageUrl(course: CourseDto) {
+  if (course.thumbnailUrl) {
+    return course.thumbnailUrl.startsWith('/uploads/')
+      ? `${API_ORIGIN}${course.thumbnailUrl}`
+      : course.thumbnailUrl;
+  }
+
+  return course.youtubeVideoId
+    ? `https://img.youtube.com/vi/${course.youtubeVideoId}/hqdefault.jpg`
+    : FALLBACK_COURSE_IMG;
+}
+
+function getCourseTypeLabel(contentType?: string | null) {
+  if (contentType === 'PDF') return 'PDF';
+  if (contentType === 'ARTICLE' || contentType === 'ARTICLE_LINK') return 'ARTICLE';
+  return 'VIDEO';
+}

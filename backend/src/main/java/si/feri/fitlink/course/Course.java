@@ -21,12 +21,14 @@ public class Course {
     private String youtubeVideoId;
     private String contentType; // VIDEO, ARTICLE, PDF
     private String articleUrl;
+    private String articleContent;
     private String pdfUrl;
     private String thumbnailUrl;
     private Boolean reviewsEnabled;
     private Instant publishedAt;
     private CourseStats stats;
     private List<CourseReview> reviews;
+    private List<String> completedUserIds;
 
     @Data
     public static class CourseStats {
@@ -46,6 +48,8 @@ public class Course {
         private String userAvatarUrl;
         private int rating;
         private String comment;
+        private Integer originalRating;
+        private String originalComment;
         private Instant createdAt;
         private Instant editedAt;
     }

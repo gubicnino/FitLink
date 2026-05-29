@@ -7,12 +7,14 @@ import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
 import java.util.Locale;
 import java.util.Map;
+import java.util.List;
 
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -24,6 +26,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import si.feri.fitlink.auth.AuthPrincipal;
 import si.feri.fitlink.user.dto.ProfileDTO;
+import si.feri.fitlink.user.dto.TrainerProfileDTO;
 
 @RestController
 @RequestMapping("/api/profile")
@@ -70,6 +73,41 @@ public class ProfileController {
             return ResponseEntity.ok(profile);
         }
         return ResponseEntity.ok(null);
+    }
+
+    @PutMapping("/trainer")
+    public ResponseEntity<User.TrainerInfo> updateTrainerProfile(
+            @AuthenticationPrincipal AuthPrincipal principal,
+            @RequestBody TrainerProfileDTO dto) {
+
+        User user = userRepository.findByFirebaseUid(principal.uid())
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        if (user.getRole() != Role.TRAINER) {
+            throw new IllegalArgumentException("Only trainers can update trainer profile details");
+        }
+
+        User.TrainerInfo trainer = user.getTrainer();
+        if (trainer == null) {
+            trainer = new User.TrainerInfo();
+        }
+
+        if (dto != null) {
+            trainer.setBio(dto.getBio() != null ? dto.getBio().trim() : null);
+            List<String> specializations = dto.getSpecializations() != null
+                    ? dto.getSpecializations().stream()
+                            .map(String::trim)
+                            .filter(value -> !value.isBlank())
+                            .distinct()
+                            .toList()
+                    : List.of();
+            trainer.setSpecializations(specializations);
+        }
+
+        user.setTrainer(trainer);
+        userRepository.save(user);
+
+        return ResponseEntity.ok(trainer);
     }
 
     @PostMapping(value = "/avatar", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)

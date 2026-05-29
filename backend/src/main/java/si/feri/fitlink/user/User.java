@@ -29,6 +29,7 @@ public class User {
     private TrainerInfo trainer;
     private String fcmToken;
     private String avatarUrl;
+    private List<String> savedCourseIds;
 
     private Instant createdAt;
     private Instant updatedAt;

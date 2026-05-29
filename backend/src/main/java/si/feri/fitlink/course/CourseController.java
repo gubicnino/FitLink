@@ -34,7 +34,7 @@ public class CourseController {
     @PreAuthorize("hasRole('TRAINER')")
     public CourseResponse createCourse(@Valid @RequestBody CourseRequest request,
                                        @AuthenticationPrincipal AuthPrincipal principal) {
-        return courseService.getResponseById(courseService.create(request, principal).getId());
+        return courseService.getResponseById(courseService.create(request, principal).getId(), principal);
     }
 
     @PutMapping("/{id}")
@@ -42,7 +42,7 @@ public class CourseController {
     public CourseResponse updateCourse(@PathVariable String id,
                                        @Valid @RequestBody CourseRequest request,
                                        @AuthenticationPrincipal AuthPrincipal principal) {
-        return courseService.getResponseById(courseService.update(id, request, principal).getId());
+        return courseService.getResponseById(courseService.update(id, request, principal).getId(), principal);
     }
 
     @DeleteMapping("/{id}")
@@ -64,6 +64,35 @@ public class CourseController {
     public Map<String, String> uploadPdf(@AuthenticationPrincipal AuthPrincipal principal,
                                          @RequestParam("file") MultipartFile file) throws Exception {
         return courseService.uploadPdf(principal, file);
+    }
+
+    @GetMapping("/saved")
+    public List<CourseResponse> getSavedCourses(@AuthenticationPrincipal AuthPrincipal principal) {
+        return courseService.getSavedResponses(principal);
+    }
+
+    @PostMapping("/{id}/save")
+    public CourseResponse saveCourse(@PathVariable String id,
+                                     @AuthenticationPrincipal AuthPrincipal principal) {
+        return courseService.saveCourse(id, principal);
+    }
+
+    @DeleteMapping("/{id}/save")
+    public CourseResponse unsaveCourse(@PathVariable String id,
+                                       @AuthenticationPrincipal AuthPrincipal principal) {
+        return courseService.unsaveCourse(id, principal);
+    }
+
+    @PostMapping("/{id}/complete")
+    public CourseResponse completeCourse(@PathVariable String id,
+                                         @AuthenticationPrincipal AuthPrincipal principal) {
+        return courseService.completeCourse(id, principal);
+    }
+
+    @DeleteMapping("/{id}/complete")
+    public CourseResponse uncompleteCourse(@PathVariable String id,
+                                           @AuthenticationPrincipal AuthPrincipal principal) {
+        return courseService.uncompleteCourse(id, principal);
     }
 
     @PostMapping("/{id}/reviews")
@@ -89,12 +118,13 @@ public class CourseController {
     }
 
     @GetMapping
-    public List<CourseResponse> getAllCourses() {
-        return courseService.getAllResponses();
+    public List<CourseResponse> getAllCourses(@AuthenticationPrincipal AuthPrincipal principal) {
+        return courseService.getAllResponses(principal);
     }
 
     @GetMapping("/{id}")
-    public CourseResponse getCourse(@PathVariable String id) {
-        return courseService.getResponseById(id);
+    public CourseResponse getCourse(@PathVariable String id,
+                                    @AuthenticationPrincipal AuthPrincipal principal) {
+        return courseService.getResponseById(id, principal);
     }
 }

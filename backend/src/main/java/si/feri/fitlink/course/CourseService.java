@@ -19,6 +19,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 
 @Service
@@ -39,6 +40,7 @@ public class CourseService {
         stats.setCompletionsCount(0);
         course.setStats(stats);
         course.setReviews(new ArrayList<>());
+        course.setCompletedUserIds(new ArrayList<>());
         return courseRepo.save(course);
     }
 
@@ -60,13 +62,100 @@ public class CourseService {
     }
 
     public CourseResponse getResponseById(String id) {
-        return toResponse(getById(id));
+        return toResponse(getById(id), null);
+    }
+
+    public CourseResponse getResponseById(String id, AuthPrincipal principal) {
+        return toResponse(getById(id), principal);
     }
 
     public List<CourseResponse> getAllResponses() {
+        return getAllResponses(null);
+    }
+
+    public List<CourseResponse> getAllResponses(AuthPrincipal principal) {
         return courseRepo.findAll().stream()
-                .map(this::toResponse)
+                .map(course -> toResponse(course, principal))
                 .toList();
+    }
+
+    public List<CourseResponse> getSavedResponses(AuthPrincipal principal) {
+        User user = getUser(principal);
+        List<String> savedCourseIds = user.getSavedCourseIds() != null
+                ? user.getSavedCourseIds()
+                : List.of();
+
+        return savedCourseIds.stream()
+                .map(courseRepo::findById)
+                .flatMap(Optional::stream)
+                .map(course -> toResponse(course, principal))
+                .toList();
+    }
+
+    public CourseResponse saveCourse(String id, AuthPrincipal principal) {
+        Course course = getById(id);
+        User user = getUser(principal);
+        List<String> savedCourseIds = user.getSavedCourseIds() != null
+                ? new ArrayList<>(user.getSavedCourseIds())
+                : new ArrayList<>();
+
+        if (!savedCourseIds.contains(id)) {
+            savedCourseIds.add(id);
+            user.setSavedCourseIds(savedCourseIds);
+            user.setUpdatedAt(Instant.now());
+            userRepository.save(user);
+        }
+
+        return toResponse(course, principal);
+    }
+
+    public CourseResponse unsaveCourse(String id, AuthPrincipal principal) {
+        Course course = getById(id);
+        User user = getUser(principal);
+        List<String> savedCourseIds = user.getSavedCourseIds() != null
+                ? new ArrayList<>(user.getSavedCourseIds())
+                : new ArrayList<>();
+
+        if (savedCourseIds.remove(id)) {
+            user.setSavedCourseIds(savedCourseIds);
+            user.setUpdatedAt(Instant.now());
+            userRepository.save(user);
+        }
+
+        return toResponse(course, principal);
+    }
+
+    public CourseResponse completeCourse(String id, AuthPrincipal principal) {
+        Course course = getById(id);
+        List<String> completedUserIds = course.getCompletedUserIds() != null
+                ? new ArrayList<>(course.getCompletedUserIds())
+                : new ArrayList<>();
+
+        if (!completedUserIds.contains(principal.uid())) {
+            completedUserIds.add(principal.uid());
+            course.setCompletedUserIds(completedUserIds);
+            updateCompletionStats(course);
+            return toResponse(courseRepo.save(course), principal);
+        }
+
+        updateCompletionStats(course);
+        return toResponse(courseRepo.save(course), principal);
+    }
+
+    public CourseResponse uncompleteCourse(String id, AuthPrincipal principal) {
+        Course course = getById(id);
+        List<String> completedUserIds = course.getCompletedUserIds() != null
+                ? new ArrayList<>(course.getCompletedUserIds())
+                : new ArrayList<>();
+
+        if (completedUserIds.remove(principal.uid())) {
+            course.setCompletedUserIds(completedUserIds);
+            updateCompletionStats(course);
+            return toResponse(courseRepo.save(course), principal);
+        }
+
+        updateCompletionStats(course);
+        return toResponse(courseRepo.save(course), principal);
     }
 
     public Course update(String id, CourseRequest request, AuthPrincipal principal) {
@@ -166,6 +255,10 @@ public class CourseService {
 
         review.setUserDisplayName(user.getDisplayName());
         review.setUserAvatarUrl(user.getAvatarUrl());
+        if (!createdReview[0] && review.getOriginalComment() == null && review.getOriginalRating() == null) {
+            review.setOriginalRating(review.getRating());
+            review.setOriginalComment(review.getComment());
+        }
         review.setRating(request.getRating());
         review.setComment(request.getComment().trim());
         if (!createdReview[0]) {
@@ -174,7 +267,7 @@ public class CourseService {
 
         course.setReviews(reviews);
         updateReviewStats(course);
-        return toResponse(courseRepo.save(course));
+        return toResponse(courseRepo.save(course), principal);
     }
 
     public CourseResponse updateReview(String id, String reviewId, CourseReviewRequest request, AuthPrincipal principal) {
@@ -188,12 +281,16 @@ public class CourseService {
             throw new AccessDeniedException("You can only edit your own review");
         }
 
+        if (review.getOriginalComment() == null && review.getOriginalRating() == null) {
+            review.setOriginalRating(review.getRating());
+            review.setOriginalComment(review.getComment());
+        }
         review.setRating(request.getRating());
         review.setComment(request.getComment().trim());
         review.setEditedAt(Instant.now());
 
         updateReviewStats(course);
-        return toResponse(courseRepo.save(course));
+        return toResponse(courseRepo.save(course), principal);
     }
 
     public CourseResponse deleteReview(String id, String reviewId, AuthPrincipal principal) {
@@ -213,7 +310,7 @@ public class CourseService {
         course.setReviews(reviews);
 
         updateReviewStats(course);
-        return toResponse(courseRepo.save(course));
+        return toResponse(courseRepo.save(course), principal);
     }
 
     public List<Course> getAll() {
@@ -227,15 +324,18 @@ public class CourseService {
         String articleUrl = request.getArticleUrl() != null
                 ? request.getArticleUrl().trim()
                 : "";
+        String articleContent = request.getArticleContent() != null
+                ? request.getArticleContent().trim()
+                : "";
         String pdfUrl = request.getPdfUrl() != null
                 ? request.getPdfUrl().trim()
                 : "";
         boolean hasVideo = !youtubeVideoId.isBlank();
-        boolean hasArticle = !articleUrl.isBlank();
+        boolean hasArticle = !articleUrl.isBlank() || !articleContent.isBlank();
         boolean hasPdf = !pdfUrl.isBlank();
 
         if (!hasVideo && !hasArticle && !hasPdf) {
-            throw new IllegalArgumentException("Course requires a YouTube video, article URL, or PDF URL");
+            throw new IllegalArgumentException("Course requires a YouTube video, article URL, written article, or PDF");
         }
 
         String contentType = normalizeContentType(request.getContentType(), hasVideo, hasArticle);
@@ -244,7 +344,7 @@ public class CourseService {
             throw new IllegalArgumentException("YouTube video is required for VIDEO courses");
         }
         if (contentType.equals("ARTICLE") && !hasArticle) {
-            throw new IllegalArgumentException("Article URL is required for ARTICLE courses");
+            throw new IllegalArgumentException("Article URL or written article is required for ARTICLE courses");
         }
         if (contentType.equals("PDF") && !hasPdf) {
             throw new IllegalArgumentException("PDF URL is required for PDF courses");
@@ -257,6 +357,7 @@ public class CourseService {
         course.setContentType(contentType);
         course.setYoutubeVideoId(contentType.equals("VIDEO") ? youtubeVideoId : null);
         course.setArticleUrl(contentType.equals("ARTICLE") ? articleUrl : null);
+        course.setArticleContent(contentType.equals("ARTICLE") ? articleContent : null);
         course.setPdfUrl(contentType.equals("PDF") ? pdfUrl : null);
         String thumbnailUrl = request.getThumbnailUrl() != null
                 ? request.getThumbnailUrl().trim()
@@ -296,6 +397,13 @@ public class CourseService {
                 .mapToInt(Course.CourseReview::getRating)
                 .average()
                 .orElse(0));
+        stats.setCompletionsCount(course.getCompletedUserIds() != null ? course.getCompletedUserIds().size() : 0);
+        course.setStats(stats);
+    }
+
+    private void updateCompletionStats(Course course) {
+        Course.CourseStats stats = course.getStats() != null ? course.getStats() : new Course.CourseStats();
+        stats.setCompletionsCount(course.getCompletedUserIds() != null ? course.getCompletedUserIds().size() : 0);
         course.setStats(stats);
     }
 
@@ -326,9 +434,12 @@ public class CourseService {
         return ".jpg";
     }
 
-    private CourseResponse toResponse(Course course) {
+    private CourseResponse toResponse(Course course, AuthPrincipal principal) {
         User author = userRepository.findByFirebaseUid(course.getAuthorId()).orElse(null);
         User.TrainerInfo trainer = author != null ? author.getTrainer() : null;
+        boolean completedByCurrentUser = principal != null &&
+                course.getCompletedUserIds() != null &&
+                course.getCompletedUserIds().contains(principal.uid());
 
         return CourseResponse.builder()
                 .id(course.getId())
@@ -345,9 +456,11 @@ public class CourseService {
                 .contentType(course.getContentType() != null ? normalizeStoredContentType(course.getContentType()) : "VIDEO")
                 .youtubeVideoId(course.getYoutubeVideoId())
                 .articleUrl(course.getArticleUrl())
+                .articleContent(course.getArticleContent())
                 .pdfUrl(course.getPdfUrl())
                 .thumbnailUrl(course.getThumbnailUrl())
                 .reviewsEnabled(course.getReviewsEnabled() == null || course.getReviewsEnabled())
+                .completedByCurrentUser(completedByCurrentUser)
                 .publishedAt(course.getPublishedAt())
                 .stats(course.getStats())
                 .reviews(course.getReviews() != null ? course.getReviews() : List.of())
@@ -356,5 +469,10 @@ public class CourseService {
 
     private String normalizeStoredContentType(String contentType) {
         return contentType.equals("ARTICLE_LINK") ? "ARTICLE" : contentType;
+    }
+
+    private User getUser(AuthPrincipal principal) {
+        return userRepository.findByFirebaseUid(principal.uid())
+                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
     }
 }

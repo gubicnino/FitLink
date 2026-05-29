@@ -30,6 +30,6 @@ export interface User {
 	createdAt: string;
 	updatedAt: string;
 	avatarUrl: string | null;
+	savedCourseIds?: string[] | null;
 
 }
-

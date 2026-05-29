@@ -23,6 +23,8 @@ public class CourseRequest {
 
     private String articleUrl;
 
+    private String articleContent;
+
     private String pdfUrl;
 
     private String thumbnailUrl;

@@ -1,5 +1,5 @@
 import React, { useCallback, useMemo, useState } from 'react';
-import { Image, Pressable, StyleSheet, View } from 'react-native';
+import { Image, Pressable, StyleSheet, TextInput, View } from 'react-native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import {
@@ -37,6 +37,21 @@ type Nav = NativeStackNavigationProp<RootStackParamList>;
 
 const CATEGORIES = ['Strength', 'Hypertrophy', 'Mobility', 'Cardio', 'Nutrition'] as const;
 type Category = (typeof CATEGORIES)[number] | typeof ALL_VALUE;
+const COURSE_TYPES = ['VIDEO', 'ARTICLE', 'PDF'] as const;
+type CourseTypeFilter = (typeof COURSE_TYPES)[number] | typeof ALL_VALUE;
+const COURSE_VIEWS = [
+  { label: 'All', value: 'ALL' },
+  { label: 'Saved', value: 'SAVED' },
+  { label: 'My courses', value: 'MINE' },
+] as const;
+type CourseView = (typeof COURSE_VIEWS)[number]['value'];
+const SORT_OPTIONS = [
+  { label: 'Newest', value: 'NEWEST' },
+  { label: 'Best rated', value: 'RATED' },
+  { label: 'Most reviewed', value: 'REVIEWED' },
+  { label: 'Most completed', value: 'COMPLETED' },
+] as const;
+type CourseSort = (typeof SORT_OPTIONS)[number]['value'];
 
 const FALLBACK_IMG =
   'https://images.unsplash.com/photo-1581009146145-b5ef050c2e1e?w=500&q=80&auto=format';
@@ -48,6 +63,10 @@ export function CourseListScreen() {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [pickerOpen, setPickerOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [contentType, setContentType] = useState<CourseTypeFilter>(ALL_VALUE);
+  const [courseView, setCourseView] = useState<CourseView>('ALL');
+  const [sortBy, setSortBy] = useState<CourseSort>('NEWEST');
 
   useFocusEffect(
     useCallback(() => {
@@ -76,8 +95,42 @@ export function CourseListScreen() {
     }, []),
   );
 
-  const visibleCourses = courses.filter(
-    course => category === ALL_VALUE || course.category === category,
+  const normalizedSearch = searchQuery.trim().toLowerCase();
+  const savedCourseIds = user?.savedCourseIds ?? [];
+  const visibleCourses = useMemo(
+    () => {
+      const filtered = courses.filter(course => {
+        const matchesView =
+          courseView === 'SAVED'
+            ? savedCourseIds.includes(course.id)
+            : courseView === 'MINE'
+              ? course.authorId === user?.firebaseUid
+              : true;
+        if (!matchesView) return false;
+
+        const matchesCategory = category === ALL_VALUE || course.category === category;
+        if (!matchesCategory) return false;
+
+        const courseTypeLabel = getCourseTypeLabel(course.contentType);
+        const matchesType = contentType === ALL_VALUE || courseTypeLabel === contentType;
+        if (!matchesType) return false;
+
+        if (!normalizedSearch) return true;
+
+        return [
+          course.title,
+          course.description,
+          course.articleContent,
+          course.authorDisplayName,
+          course.category,
+          course.level,
+          courseTypeLabel,
+        ].some(value => value?.toString().toLowerCase().includes(normalizedSearch));
+      });
+
+      return filtered.sort((a, b) => compareCourses(a, b, sortBy));
+    },
+    [category, contentType, courseView, courses, normalizedSearch, savedCourseIds, sortBy, user?.firebaseUid],
   );
 
   const categoryOptions = useMemo(
@@ -91,6 +144,9 @@ export function CourseListScreen() {
     category === ALL_VALUE
       ? 'Category'
       : (categoryOptions.find(o => o.value === category)?.label ?? 'Category');
+  const hasSearch = normalizedSearch.length > 0;
+  const emptyTitle = getEmptyTitle(hasSearch, courseView, category, contentType);
+  const emptyHint = getEmptyHint(hasSearch, courseView, category, contentType);
   const cards = visibleCourses.map(toCourseCard);
   const featured = visibleCourses[0];
   const isEmpty = !isLoading && visibleCourses.length === 0;
@@ -119,6 +175,95 @@ export function CourseListScreen() {
       />
 
       <View style={styles.filterBar}>
+        <View style={styles.searchBox}>
+          <Search size={17} color={colors.inkMuted} strokeWidth={2.25} />
+          <TextInput
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+            placeholder="Search courses"
+            placeholderTextColor={colors.inkMuted}
+            autoCapitalize="none"
+            autoCorrect={false}
+            returnKeyType="search"
+            style={styles.searchInput}
+          />
+          {searchQuery.length > 0 ? (
+            <Pressable
+              onPress={() => setSearchQuery('')}
+              hitSlop={8}
+              accessibilityLabel="Clear search"
+              style={({ pressed }) => [styles.searchClear, pressed && { opacity: 0.55 }]}
+            >
+              <X size={16} color={colors.inkMuted} strokeWidth={2.5} />
+            </Pressable>
+          ) : null}
+        </View>
+        <View style={styles.viewTabs}>
+          {COURSE_VIEWS.filter(view => view.value !== 'MINE' || user?.role === 'TRAINER').map(view => {
+            const selected = courseView === view.value;
+            return (
+              <Pressable
+                key={view.value}
+                onPress={() => setCourseView(view.value)}
+                style={({ pressed }) => [
+                  styles.viewTab,
+                  selected && styles.viewTabActive,
+                  pressed && { opacity: 0.75 },
+                ]}
+              >
+                <Text variant="micro" weight="700" style={{ color: selected ? colors.white : colors.inkSecondary }}>
+                  {view.label}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </View>
+        <View style={styles.typeChipsRow}>
+          {[ALL_VALUE, ...COURSE_TYPES].map(type => {
+            const selected = contentType === type;
+            const label = type === ALL_VALUE ? 'All types' : type;
+            return (
+              <Pressable
+                key={type}
+                onPress={() => setContentType(type as CourseTypeFilter)}
+                style={({ pressed }) => [
+                  styles.typeChip,
+                  selected && styles.typeChipActive,
+                  pressed && { opacity: 0.75 },
+                ]}
+              >
+                <Text variant="micro" weight="700" style={{ color: selected ? colors.primary : colors.inkSecondary }}>
+                  {label}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </View>
+        <View style={styles.sortRow}>
+          <Text variant="micro" color="muted" weight="700" style={styles.sortLabel}>
+            Sort
+          </Text>
+          <View style={styles.sortOptions}>
+            {SORT_OPTIONS.map(option => {
+              const selected = sortBy === option.value;
+              return (
+                <Pressable
+                  key={option.value}
+                  onPress={() => setSortBy(option.value)}
+                  style={({ pressed }) => [
+                    styles.sortChip,
+                    selected && styles.sortChipActive,
+                    pressed && { opacity: 0.75 },
+                  ]}
+                >
+                  <Text variant="micro" weight="700" style={{ color: selected ? colors.primary : colors.inkSecondary }}>
+                    {option.label}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
+        </View>
         <View style={styles.filterPillsRow}>
           <Pressable
             onPress={() => setPickerOpen(true)}
@@ -192,12 +337,10 @@ export function CourseListScreen() {
             <BookOpen size={28} color={colors.primary} strokeWidth={2} />
           </View>
           <Text variant="h3" weight="700" align="center">
-            {category === ALL_VALUE ? 'No courses yet' : `No ${category.toLowerCase()} courses yet`}
+            {emptyTitle}
           </Text>
           <Text variant="bodySmall" color="secondary" align="center" style={styles.emptyHint}>
-            {category === ALL_VALUE
-              ? 'Courses from trainers will appear here once they are published.'
-              : 'Try another category or check back when more courses are added.'}
+            {emptyHint}
           </Text>
           {user?.role === 'TRAINER' ? (
             <Button
@@ -303,6 +446,91 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.xxl,
     paddingBottom: spacing.lg,
     gap: spacing.md,
+  },
+  searchBox: {
+    minHeight: 46,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    paddingHorizontal: spacing.lg,
+    borderRadius: radii.lg,
+    borderWidth: 1,
+    borderColor: colors.line,
+    backgroundColor: colors.surface,
+  },
+  searchInput: {
+    flex: 1,
+    minWidth: 0,
+    color: colors.inkPrimary,
+    paddingVertical: 0,
+  },
+  searchClear: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  viewTabs: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+  },
+  viewTab: {
+    minHeight: 34,
+    flex: 1,
+    borderRadius: radii.pill,
+    borderWidth: 1,
+    borderColor: colors.line,
+    backgroundColor: colors.surface,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: spacing.sm,
+  },
+  viewTabActive: {
+    borderColor: colors.inkPrimary,
+    backgroundColor: colors.inkPrimary,
+  },
+  typeChipsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.sm,
+  },
+  typeChip: {
+    minHeight: 30,
+    borderRadius: radii.pill,
+    borderWidth: 1,
+    borderColor: colors.line,
+    backgroundColor: colors.surface,
+    justifyContent: 'center',
+    paddingHorizontal: spacing.lg,
+  },
+  typeChipActive: {
+    borderColor: colors.primaryBorder,
+    backgroundColor: colors.primarySoft,
+  },
+  sortRow: {
+    gap: spacing.sm,
+  },
+  sortLabel: {
+    paddingHorizontal: spacing.xs,
+  },
+  sortOptions: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.sm,
+  },
+  sortChip: {
+    minHeight: 30,
+    borderRadius: radii.pill,
+    borderWidth: 1,
+    borderColor: colors.line,
+    backgroundColor: colors.surface,
+    justifyContent: 'center',
+    paddingHorizontal: spacing.md,
+  },
+  sortChipActive: {
+    borderColor: colors.primaryBorder,
+    backgroundColor: colors.primarySoft,
   },
   filterPillsRow: {
     flexDirection: 'row',
@@ -420,4 +648,53 @@ function getCourseTypeLabel(contentType?: string | null) {
   if (contentType === 'PDF') return 'PDF';
   if (contentType === 'ARTICLE' || contentType === 'ARTICLE_LINK') return 'ARTICLE';
   return 'VIDEO';
+}
+
+function compareCourses(a: CourseDto, b: CourseDto, sortBy: CourseSort) {
+  if (sortBy === 'RATED') {
+    return (b.stats?.avgRating ?? 0) - (a.stats?.avgRating ?? 0);
+  }
+  if (sortBy === 'REVIEWED') {
+    return (b.stats?.ratingsCount ?? 0) - (a.stats?.ratingsCount ?? 0);
+  }
+  if (sortBy === 'COMPLETED') {
+    return (b.stats?.completionsCount ?? 0) - (a.stats?.completionsCount ?? 0);
+  }
+
+  return getTime(b.publishedAt) - getTime(a.publishedAt);
+}
+
+function getTime(value?: string | null) {
+  if (!value) return 0;
+  const time = new Date(value).getTime();
+  return Number.isNaN(time) ? 0 : time;
+}
+
+function getEmptyTitle(
+  hasSearch: boolean,
+  courseView: CourseView,
+  category: Category,
+  contentType: CourseTypeFilter,
+) {
+  if (hasSearch) return 'No courses found';
+  if (courseView === 'SAVED') return 'No saved courses yet';
+  if (courseView === 'MINE') return 'No courses created yet';
+  if (contentType !== ALL_VALUE) return `No ${contentType.toLowerCase()} courses yet`;
+  if (category !== ALL_VALUE) return `No ${category.toLowerCase()} courses yet`;
+  return 'No courses yet';
+}
+
+function getEmptyHint(
+  hasSearch: boolean,
+  courseView: CourseView,
+  category: Category,
+  contentType: CourseTypeFilter,
+) {
+  if (hasSearch) return 'Try a different title, coach, category, level, or course type.';
+  if (courseView === 'SAVED') return 'Tap the bookmark on a course to save it here.';
+  if (courseView === 'MINE') return 'Courses you create as a trainer will appear here.';
+  if (contentType !== ALL_VALUE || category !== ALL_VALUE) {
+    return 'Try another filter or check back when more courses are added.';
+  }
+  return 'Courses from trainers will appear here once they are published.';
 }

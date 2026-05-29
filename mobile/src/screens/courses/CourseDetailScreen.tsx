@@ -8,7 +8,6 @@ import {
   ChevronLeft,
   ExternalLink,
   Pencil,
-  Share2,
   Star,
   Trash2,
 } from 'lucide-react-native';
@@ -51,6 +50,8 @@ export function CourseDetailScreen({ navigation, route }: Props) {
   const [editingReviewRating, setEditingReviewRating] = useState(5);
   const [editingReviewComment, setEditingReviewComment] = useState('');
   const [reviewDeletingId, setReviewDeletingId] = useState<string | null>(null);
+  const [savingCourse, setSavingCourse] = useState(false);
+  const [completingCourse, setCompletingCourse] = useState(false);
 
   useEffect(() => {
     const load = async () => {
@@ -73,10 +74,14 @@ export function CourseDetailScreen({ navigation, route }: Props) {
   }, [route.params?.courseId]);
 
   const canEdit = user?.role === 'TRAINER' && course?.authorId === user.firebaseUid;
+  const savedCourseIds = user?.savedCourseIds ?? [];
+  const isSaved = Boolean(course && savedCourseIds.includes(course.id));
+  const isCompleted = Boolean(course?.completedByCurrentUser);
   const specializations = course?.authorSpecializations?.filter(Boolean) ?? [];
   const contentType = normalizeContentType(course?.contentType);
   const isVideo = contentType === 'VIDEO';
   const isPdf = contentType === 'PDF';
+  const hasArticleContent = contentType === 'ARTICLE' && Boolean(course?.articleContent?.trim());
   const hasMediaHeader = Boolean((isVideo && course?.youtubeVideoId) || course?.thumbnailUrl);
   const reviews = course?.reviews ?? [];
   const reviewsEnabled = course?.reviewsEnabled !== false;
@@ -117,6 +122,54 @@ export function CourseDetailScreen({ navigation, route }: Props) {
         },
       ],
     );
+  };
+
+  const handleToggleSave = async () => {
+    if (!course || !user || savingCourse) return;
+
+    try {
+      setSavingCourse(true);
+      if (isSaved) {
+        await courseService.unsave(course.id);
+      } else {
+        await courseService.save(course.id);
+      }
+
+      setUser(currentUser => {
+        if (!currentUser) return currentUser;
+        const currentSavedIds = currentUser.savedCourseIds ?? [];
+        const nextSavedIds = isSaved
+          ? currentSavedIds.filter(courseId => courseId !== course.id)
+          : Array.from(new Set([...currentSavedIds, course.id]));
+        return { ...currentUser, savedCourseIds: nextSavedIds };
+      });
+    } catch (error: any) {
+      Alert.alert(
+        isSaved ? 'Remove saved course failed' : 'Save course failed',
+        error?.response?.data?.message || error?.message || 'Could not update saved courses.',
+      );
+    } finally {
+      setSavingCourse(false);
+    }
+  };
+
+  const handleToggleComplete = async () => {
+    if (!course || !user || completingCourse) return;
+
+    try {
+      setCompletingCourse(true);
+      const nextCourse = isCompleted
+        ? await courseService.uncomplete(course.id)
+        : await courseService.complete(course.id);
+      setCourse(nextCourse);
+    } catch (error: any) {
+      Alert.alert(
+        isCompleted ? 'Could not update completion' : 'Could not complete course',
+        error?.response?.data?.message || error?.message || 'Could not update course progress.',
+      );
+    } finally {
+      setCompletingCourse(false);
+    }
   };
 
   const handleSubmitReview = async () => {
@@ -247,11 +300,13 @@ export function CourseDetailScreen({ navigation, route }: Props) {
                   </IconButton>
                 </>
               ) : null}
-              <IconButton variant="overlay">
-                <Bookmark size={16} color={colors.white} strokeWidth={2} />
-              </IconButton>
-              <IconButton variant="overlay">
-                <Share2 size={16} color={colors.white} strokeWidth={2} />
+              <IconButton variant="overlay" onPress={handleToggleSave} disabled={!user || savingCourse}>
+                <Bookmark
+                  size={16}
+                  color={colors.white}
+                  fill={isSaved ? colors.white : 'transparent'}
+                  strokeWidth={2}
+                />
               </IconButton>
             </View>
           </View>
@@ -262,16 +317,26 @@ export function CourseDetailScreen({ navigation, route }: Props) {
           <IconButton variant="surface" withBorder onPress={() => navigation.goBack()}>
             <ChevronLeft size={18} color={colors.inkPrimary} strokeWidth={2.25} />
           </IconButton>
-          {canEdit ? (
-            <View style={styles.controlsRight}>
+          <View style={styles.controlsRight}>
+            {canEdit ? (
+              <>
               <IconButton variant="surface" withBorder onPress={() => navigation.navigate('AddCourses', { courseId: course.id })}>
                 <Pencil size={16} color={colors.inkPrimary} strokeWidth={2} />
               </IconButton>
               <IconButton variant="surface" withBorder onPress={handleDeleteCourse} disabled={deleting}>
                 <Trash2 size={16} color={colors.inkPrimary} strokeWidth={2} />
               </IconButton>
-            </View>
-          ) : null}
+              </>
+            ) : null}
+            <IconButton variant="surface" withBorder onPress={handleToggleSave} disabled={!user || savingCourse}>
+              <Bookmark
+                size={16}
+                color={isSaved ? colors.primary : colors.inkPrimary}
+                fill={isSaved ? colors.primary : 'transparent'}
+                strokeWidth={2}
+              />
+            </IconButton>
+          </View>
         </View>
       )}
 
@@ -338,24 +403,43 @@ export function CourseDetailScreen({ navigation, route }: Props) {
               </View>
             ) : null}
 
-            {!isVideo ? (
+            {hasArticleContent ? (
+              <View style={styles.articleContent}>
+                <Text variant="caption" color="muted" style={styles.articleContentLabel}>
+                  Article
+                </Text>
+                <Text variant="bodySmall" color="secondary" style={styles.articleContentText}>
+                  {course?.articleContent}
+                </Text>
+              </View>
+            ) : null}
+
+            {!isVideo && (isPdf || course?.articleUrl) ? (
               <Button
                 label={isPdf ? 'Open PDF' : 'Open article'}
                 variant="primary"
                 fullWidth
                 onPress={handleOpenSource}
                 leftIcon={<ExternalLink size={16} color={colors.white} strokeWidth={2.5} />}
-                style={styles.cta}
+                style={styles.sourceCta}
               />
-            ) : (
-              <Button
-                label="Mark as complete"
-                variant="primary"
-                fullWidth
-                leftIcon={<Check size={16} color={colors.white} strokeWidth={2.5} />}
-                style={styles.cta}
-              />
-            )}
+            ) : null}
+            <Button
+              label={isCompleted ? 'Completed' : 'Mark as complete'}
+              variant={isCompleted ? 'outline' : 'primary'}
+              fullWidth
+              loading={completingCourse}
+              disabled={!course || !user || completingCourse}
+              onPress={handleToggleComplete}
+              leftIcon={
+                <Check
+                  size={16}
+                  color={isCompleted ? colors.primary : colors.white}
+                  strokeWidth={2.5}
+                />
+              }
+              style={styles.cta}
+            />
 
             <ReviewsSection
               reviews={reviews}
@@ -551,6 +635,8 @@ function ReviewsSection({
                     comment: review.comment,
                     avatarUrl: getAvatarUrl(review.userAvatarUrl),
                     edited: Boolean(review.editedAt),
+                    originalStars: review.originalRating,
+                    originalComment: review.originalComment,
                   }}
                   canEdit={canEditEnabledReview}
                   canDelete={canDeleteReview && deletingReviewId !== review.id}
@@ -681,6 +767,15 @@ const styles = StyleSheet.create({
   },
   trainerBioLabel: { marginBottom: spacing.sm },
   trainerBioText: { lineHeight: 18 },
+  articleContent: {
+    paddingBottom: spacing.xxl,
+    marginBottom: spacing.xxl,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.line,
+  },
+  articleContentLabel: { marginBottom: spacing.sm },
+  articleContentText: { lineHeight: 19 },
+  sourceCta: { marginBottom: spacing.md },
   cta: { marginBottom: spacing.xxl },
 
   reviewsHeader: {

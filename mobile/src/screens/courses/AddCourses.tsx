@@ -6,13 +6,15 @@ import { Alert, Image, PermissionsAndroid, Platform, Pressable, ScrollView, Styl
 import { launchImageLibrary } from 'react-native-image-picker';
 import { API_ORIGIN } from '../../api/apiClient';
 import { ScreenHeader } from '../../components/layout';
-import { Button, Card, Chip, Input, Screen, Text } from '../../components/ui';
+import { Button, Card, Chip, Input, Screen, Text, Textarea } from '../../components/ui';
 import type { RootStackParamList } from '../../navigation/types';
 import { colors, spacing } from '../../theme';
 import { CoursePayload, courseService } from '../../services/courseService';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'AddCourses'>;
 
+const FALLBACK_COURSE_IMG =
+  'https://images.unsplash.com/photo-1581009146145-b5ef050c2e1e?w=500&q=80&auto=format';
 const CATEGORIES = ['Strength', 'Hypertrophy', 'Mobility', 'Cardio', 'Nutrition'];
 const LEVELS = ['BEGINNER', 'INTERMEDIATE', 'ADVANCED'];
 const CONTENT_TYPES = [
@@ -29,6 +31,7 @@ const emptyForm: CoursePayload = {
   contentType: 'VIDEO',
   youtubeVideoId: '',
   articleUrl: '',
+  articleContent: '',
   pdfUrl: '',
   thumbnailUrl: '',
   reviewsEnabled: true,
@@ -58,6 +61,7 @@ export function AddCourses({ navigation, route }: Props) {
           contentType: normalizeContentType(course.contentType),
           youtubeVideoId: course.youtubeVideoId,
           articleUrl: course.articleUrl ?? '',
+          articleContent: course.articleContent ?? '',
           pdfUrl: course.pdfUrl ?? '',
           thumbnailUrl: course.thumbnailUrl ?? '',
           reviewsEnabled: course.reviewsEnabled !== false,
@@ -186,6 +190,7 @@ export function AddCourses({ navigation, route }: Props) {
       contentType: normalizeContentType(form.contentType),
       youtubeVideoId: form.contentType === 'VIDEO' ? extractYoutubeId(form.youtubeVideoId?.trim() ?? '') : '',
       articleUrl: form.contentType === 'ARTICLE' ? form.articleUrl?.trim() : '',
+      articleContent: form.contentType === 'ARTICLE' ? form.articleContent?.trim() : '',
       pdfUrl: form.contentType === 'PDF' ? form.pdfUrl?.trim() : '',
       thumbnailUrl: form.thumbnailUrl?.trim(),
       reviewsEnabled: form.reviewsEnabled !== false,
@@ -199,8 +204,8 @@ export function AddCourses({ navigation, route }: Props) {
       setError('Add a YouTube URL or video ID.');
       return null;
     }
-    if (payload.contentType === 'ARTICLE' && !payload.articleUrl) {
-      setError('Add an article URL.');
+    if (payload.contentType === 'ARTICLE' && !payload.articleUrl && !payload.articleContent) {
+      setError('Add an article URL or write the article text.');
       return null;
     }
     if (payload.contentType === 'PDF' && !payload.pdfUrl) {
@@ -344,13 +349,25 @@ export function AddCourses({ navigation, route }: Props) {
               </Pressable>
 
               {form.contentType === 'ARTICLE' ? (
-                <Input
-                  label="Article URL"
-                  value={form.articleUrl ?? ''}
-                  onChangeText={value => updateField('articleUrl', value)}
-                  autoCapitalize="none"
-                  placeholder="Paste article link"
-                />
+                <View style={styles.articleFields}>
+                  <Input
+                    label="Article URL"
+                    value={form.articleUrl ?? ''}
+                    onChangeText={value => updateField('articleUrl', value)}
+                    autoCapitalize="none"
+                    placeholder="Paste article link"
+                  />
+                  <Textarea
+                    label="Written article"
+                    value={form.articleContent ?? ''}
+                    onChangeText={value => updateField('articleContent', value)}
+                    placeholder="Write the course article here"
+                    rows={8}
+                  />
+                  <Text variant="caption" color="secondary">
+                    Add a URL, write the article, or use both.
+                  </Text>
+                </View>
               ) : form.contentType === 'PDF' ? (
                 <View style={styles.filePickerBlock}>
                   {form.pdfUrl ? (
@@ -401,6 +418,8 @@ export function AddCourses({ navigation, route }: Props) {
               />
             </View>
 
+            <CoursePreview form={form} />
+
             <Button
               label={isEditing ? 'Save changes' : 'Create course'}
               variant="primary"
@@ -437,6 +456,48 @@ function FieldGroup({ label, children }: { label: string; children: React.ReactN
   );
 }
 
+function CoursePreview({ form }: { form: CoursePayload }) {
+  const contentType = normalizeContentType(form.contentType);
+  const title = form.title.trim() || 'Course title';
+  const description = form.description.trim() || 'Course description will appear here.';
+  const sourceLabel =
+    contentType === 'PDF'
+      ? 'PDF'
+      : contentType === 'ARTICLE'
+        ? form.articleContent?.trim()
+          ? 'WRITTEN ARTICLE'
+          : 'ARTICLE'
+        : 'VIDEO';
+
+  return (
+    <Card padding="none">
+      <View style={styles.previewImageWrap}>
+        <Image source={{ uri: getPreviewImageUrl(form) }} style={styles.previewImage} />
+        <View style={styles.previewOverlay} />
+        <View style={styles.previewTypePill}>
+          <Text variant="micro" weight="700" style={styles.previewTypeText}>
+            {sourceLabel}
+          </Text>
+        </View>
+      </View>
+      <View style={styles.previewBody}>
+        <Text variant="caption" color="muted">
+          Course preview
+        </Text>
+        <Text variant="bodyLarge" weight="700" numberOfLines={2}>
+          {title}
+        </Text>
+        <Text variant="bodySmall" color="secondary" numberOfLines={3} style={styles.previewDescription}>
+          {description}
+        </Text>
+        <Text variant="micro" color="secondary">
+          {form.category} / {form.level}
+        </Text>
+      </View>
+    </Card>
+  );
+}
+
 function extractYoutubeId(value: string) {
   const match = value.match(/(?:v=|youtu\.be\/|embed\/|shorts\/)([a-zA-Z0-9_-]{11})/);
   return match?.[1] ?? value;
@@ -448,6 +509,21 @@ function normalizeContentType(value?: string | null) {
 
 function getMediaUrl(value: string) {
   return value.startsWith('/uploads/') ? `${API_ORIGIN}${value}` : value;
+}
+
+function getPreviewImageUrl(form: CoursePayload) {
+  if (form.thumbnailUrl) {
+    return getMediaUrl(form.thumbnailUrl);
+  }
+
+  if (form.contentType === 'VIDEO' && form.youtubeVideoId) {
+    const youtubeId = extractYoutubeId(form.youtubeVideoId.trim());
+    if (youtubeId) {
+      return `https://img.youtube.com/vi/${youtubeId}/hqdefault.jpg`;
+    }
+  }
+
+  return FALLBACK_COURSE_IMG;
 }
 
 function getRequestErrorMessage(error: any, fallback: string) {
@@ -469,6 +545,7 @@ const styles = StyleSheet.create({
   },
   form: { gap: spacing.lg },
   textArea: { height: 112, paddingTop: spacing.lg },
+  articleFields: { gap: spacing.md },
   thumbnailBlock: { gap: spacing.sm },
   thumbnailPreview: {
     width: '100%',
@@ -485,6 +562,29 @@ const styles = StyleSheet.create({
   },
   removeThumbnailText: { color: colors.danger },
   filePickerBlock: { gap: spacing.md },
+  previewImageWrap: {
+    width: '100%',
+    aspectRatio: 16 / 9,
+    backgroundColor: colors.surfaceElevated,
+    position: 'relative',
+  },
+  previewImage: { width: '100%', height: '100%' },
+  previewOverlay: {
+    ...StyleSheet.absoluteFill,
+    backgroundColor: 'rgba(0,0,0,0.18)',
+  },
+  previewTypePill: {
+    position: 'absolute',
+    right: spacing.md,
+    bottom: spacing.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs,
+    borderRadius: 8,
+    backgroundColor: 'rgba(0,0,0,0.72)',
+  },
+  previewTypeText: { color: colors.white },
+  previewBody: { padding: spacing.lg, gap: spacing.sm },
+  previewDescription: { lineHeight: 18 },
   fileSelectedRow: {
     minHeight: 42,
     borderRadius: 12,

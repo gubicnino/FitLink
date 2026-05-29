@@ -1,5 +1,5 @@
-import React from 'react';
-import { StyleSheet, View } from 'react-native';
+import React, { useState } from 'react';
+import { Pressable, StyleSheet, View } from 'react-native';
 import { Pencil, Trash2 } from 'lucide-react-native';
 import { colors, spacing } from '../../theme';
 import { Avatar, Card, IconButton, StarRating, Text } from '../../components/ui';
@@ -11,6 +11,8 @@ export interface Review {
   comment: string;
   avatarUrl: string;
   edited?: boolean;
+  originalStars?: number | null;
+  originalComment?: string | null;
 }
 
 interface ReviewCardProps {
@@ -22,6 +24,9 @@ interface ReviewCardProps {
 }
 
 export function ReviewCard({ review, canEdit = false, canDelete = false, onEdit, onDelete }: ReviewCardProps) {
+  const [showOriginal, setShowOriginal] = useState(false);
+  const hasOriginal = review.edited && Boolean(review.originalComment || review.originalStars);
+
   return (
     <Card padding="sm">
       <View style={styles.header}>
@@ -31,9 +36,18 @@ export function ReviewCard({ review, canEdit = false, canDelete = false, onEdit,
             {review.name}
           </Text>
           {review.edited ? (
-            <Text variant="micro" color="muted">
-              Edited
-            </Text>
+            <View style={styles.editedRow}>
+              <Text variant="micro" color="muted">
+                Edited
+              </Text>
+              {hasOriginal ? (
+                <Pressable onPress={() => setShowOriginal(value => !value)} hitSlop={6}>
+                  <Text variant="micro" style={styles.originalLink}>
+                    {showOriginal ? 'Hide original' : 'See original'}
+                  </Text>
+                </Pressable>
+              ) : null}
+            </View>
           ) : null}
         </View>
         <View style={styles.flex} />
@@ -52,6 +66,21 @@ export function ReviewCard({ review, canEdit = false, canDelete = false, onEdit,
       <Text variant="bodySmall" color="secondary" style={styles.comment}>
         {review.comment}
       </Text>
+      {showOriginal && hasOriginal ? (
+        <View style={styles.originalBlock}>
+          <View style={styles.originalHeader}>
+            <Text variant="micro" color="muted" weight="700">
+              Original review
+            </Text>
+            {review.originalStars ? <StarRating value={review.originalStars} size={10} /> : null}
+          </View>
+          {review.originalComment ? (
+            <Text variant="bodySmall" color="secondary" style={styles.comment}>
+              {review.originalComment}
+            </Text>
+          ) : null}
+        </View>
+      ) : null}
     </Card>
   );
 }
@@ -64,6 +93,21 @@ const styles = StyleSheet.create({
     marginBottom: spacing.md,
   },
   nameBlock: { flexShrink: 1 },
+  editedRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+  originalLink: { color: colors.primary, fontWeight: '700' },
   flex: { flex: 1 },
   comment: { lineHeight: 18 },
+  originalBlock: {
+    marginTop: spacing.md,
+    paddingTop: spacing.md,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: colors.line,
+    gap: spacing.sm,
+  },
+  originalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: spacing.md,
+  },
 });
