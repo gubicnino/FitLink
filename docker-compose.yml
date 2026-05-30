@@ -3,9 +3,14 @@ services:
     build: ./backend
     ports:
       - "8080:8080"
-    env_file:
-      - .env
+    environment:
+      MONGODB_URI: mongodb://mongodb:27017/fitlink
   mongodb:
     image: mongo:7
     ports:
       - "27017:27017"
+    volumes:
+      - mongodb_data:/data/db
+
+volumes:
+  mongodb_data:
