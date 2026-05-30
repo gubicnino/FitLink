@@ -18,6 +18,11 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Set up Firebase credentials
+        run: echo "$FIREBASE_CREDENTIALS_JSON" | base64 --decode > backend/src/main/resources/firebase-adminsdk.json
+        env:
+          FIREBASE_CREDENTIALS_JSON: ${{ secrets.FIREBASE_CREDENTIALS_JSON }}
+
       - name: Set up Java
         uses: actions/setup-java@v4
         with:
