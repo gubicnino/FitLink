@@ -34,6 +34,11 @@ jobs:
       - name: Make Maven wrapper executable
         run: chmod +x backend/mvnw
 
+      - name: Start MongoDB
+        uses: supercharge/mongodb-github-action@v1
+        with:
+          mongodb-version: '6.0'
+
       - name: Run backend tests
         working-directory: backend
         run: ./mvnw test
