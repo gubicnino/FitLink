@@ -46,6 +46,7 @@ export function RootNavigator({ user }: RootNavigatorProps) {
     <NavigationContainer ref={navigationRef}>
       <FcmHandlersBridge />
       <Stack.Navigator
+        key={user?.id ?? 'guest'}
         initialRouteName={getInitialRoute()}
         screenOptions={{ headerShown: false, animation: 'slide_from_right' }}
       >

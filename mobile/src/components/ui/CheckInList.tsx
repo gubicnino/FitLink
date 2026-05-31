@@ -119,7 +119,7 @@ export function CheckInList({ checkIns }: CheckInListProps) {
           />
         ) : (
           resolvedCheckIns.map((checkIn, index) => (
-            <View key={checkIn.id}>
+            <View key={checkIn.id ?? `${checkIn.start}-${index}`}>
               <CheckInCard
                 title={checkIn.start ? formatDateRange(checkIn.start) : 'Unknown week'}
                 subtitle={renderCheckInSubtitle(checkIn)}
