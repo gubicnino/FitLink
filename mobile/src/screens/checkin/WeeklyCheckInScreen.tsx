@@ -1,15 +1,39 @@
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { Camera, ChevronLeft, Lock, Trash2, TrendingDown } from 'lucide-react-native';
+import {
+  AlertCircle,
+  Camera,
+  ChevronLeft,
+  ClipboardCheck,
+  ImagePlus,
+  Lock,
+  MessageSquare,
+  Scale,
+  Trash2,
+  X,
+  Zap,
+} from 'lucide-react-native';
 import React, { useMemo, useState } from 'react';
-import { Alert, Image, Modal, PermissionsAndroid, Platform, Pressable, StyleSheet, View } from 'react-native';
+import {
+  Alert,
+  Image,
+  KeyboardAvoidingView,
+  Modal,
+  PermissionsAndroid,
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  TextInput,
+  View,
+} from 'react-native';
 import { launchCamera } from 'react-native-image-picker';
 import { API_ORIGIN } from '../../api/apiClient';
 import { checkInApi } from '../../api/checkInApi';
 import { ScreenHeader } from '../../components/layout';
-import { Button, Card, IconButton, Input, Screen, Tag, Text, Textarea } from '../../components/ui';
+import { Button, IconButton, Screen, Text } from '../../components/ui';
 import type { RootStackParamList } from '../../navigation/types';
-import { colors, radii, spacing } from '../../theme';
+import { colors, radii, shadows, spacing } from '../../theme';
 import { CheckIn, CheckInPhotoInput } from '../../types/checkin';
 import { MoodOption, MoodPicker } from './MoodPicker';
 
@@ -20,51 +44,61 @@ interface WeeklyCheckInScreenProps {
 }
 
 const MOODS: MoodOption[] = [
-  { value: 1, label: 'Poor' },
-  { value: 2, label: 'Below avg' },
+  { value: 1, label: 'Drained' },
+  { value: 2, label: 'Low' },
   { value: 3, label: 'Average' },
-  { value: 4, label: 'Good' },
-  { value: 5, label: 'Excellent' },
+  { value: 4, label: 'Energised' },
+  { value: 5, label: 'On fire' },
 ];
+
+const MAX_PHOTOS = 5;
 
 const formatStartDate = (value?: string | null) => {
   if (!value) return '';
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return value;
   return date.toLocaleDateString(undefined, {
-    month: 'short',
+    weekday: 'long',
     day: 'numeric',
+    month: 'short',
     year: 'numeric',
   });
 };
 
 export function WeeklyCheckInScreen({ checkIn }: WeeklyCheckInScreenProps = {}) {
-  const MAX_PHOTOS = 5;
   const navigation = useNavigation<Nav>();
   const isReadOnly = Boolean(checkIn);
+
   const [notes, setNotes] = useState<string>(checkIn?.note ?? '');
-  const [overallEnergyLevel, setOverallEnergyLevel] = useState<number>(checkIn?.overallEnergyLevel ?? 3);
-  const [weightKg, setWeightKg] = useState<string>(checkIn?.weightKg != null ? String(checkIn.weightKg) : '');
+  const [overallEnergyLevel, setOverallEnergyLevel] = useState<number>(
+    checkIn?.overallEnergyLevel ?? 3,
+  );
+  const [weightKg, setWeightKg] = useState<string>(
+    checkIn?.weightKg != null ? String(checkIn.weightKg) : '',
+  );
   const [photos, setPhotos] = useState<CheckInPhotoInput[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [previewImageUri, setPreviewImageUri] = useState<string | null>(null);
-  const savedWeight = checkIn?.weightKg != null ? String(checkIn.weightKg) : '-';
+  const [error, setError] = useState<string | null>(null);
 
   const readOnlyPhotoUris = useMemo(() => {
     if (!checkIn) return [];
-    const rawUris = checkIn.photoUrls?.length ? checkIn.photoUrls : checkIn.photoUrl ? [checkIn.photoUrl] : [];
-    return rawUris.map((url) => (url.startsWith('http://') || url.startsWith('https://') ? url : `${API_ORIGIN}${url}`));
+    const rawUris = checkIn.photoUrls?.length
+      ? checkIn.photoUrls
+      : checkIn.photoUrl
+        ? [checkIn.photoUrl]
+        : [];
+    return rawUris.map((url) =>
+      url.startsWith('http://') || url.startsWith('https://') ? url : `${API_ORIGIN}${url}`,
+    );
   }, [checkIn]);
 
   const previewUris = isReadOnly ? readOnlyPhotoUris : photos.map((item) => item.uri);
-
-  const title = isReadOnly ? 'Check-in details' : 'Weekly Check-in';
-  const eyebrow = useMemo(() => {
-    if (isReadOnly) {
-      return checkIn?.start ? formatStartDate(checkIn.start) : 'Saved check-in';
-    }
-    return 'Create a new check-in';
-  }, [checkIn?.start, isReadOnly]);
+  const heroDate = isReadOnly
+    ? checkIn?.start
+      ? formatStartDate(checkIn.start)
+      : 'Saved check-in'
+    : formatStartDate(new Date().toISOString());
 
   const requestCameraPermission = async () => {
     if (Platform.OS !== 'android') return true;
@@ -78,13 +112,11 @@ export function WeeklyCheckInScreen({ checkIn }: WeeklyCheckInScreenProps = {}) 
       Alert.alert('Limit reached', `You can add up to ${MAX_PHOTOS} photos.`);
       return;
     }
-
     const granted = await requestCameraPermission();
     if (!granted) {
-      Alert.alert('Permission required', 'Camera permission is required to take a check-in photo.');
+      setError('Camera permission is required to take a check-in photo.');
       return;
     }
-
     const result = await launchCamera({
       mediaType: 'photo',
       cameraType: 'back',
@@ -92,29 +124,26 @@ export function WeeklyCheckInScreen({ checkIn }: WeeklyCheckInScreenProps = {}) 
       saveToPhotos: false,
       includeBase64: false,
     });
-
     if (result.didCancel) return;
     if (result.errorCode) {
-      Alert.alert('Camera error', result.errorMessage ?? 'Could not open camera.');
+      setError(result.errorMessage ?? 'Could not open camera.');
       return;
     }
-
     const asset = result.assets?.[0];
     if (!asset?.uri) {
-      Alert.alert('Camera error', 'No photo captured.');
+      setError('No photo captured.');
       return;
     }
-
-    const capturedPhoto: CheckInPhotoInput = {
+    const captured: CheckInPhotoInput = {
       uri: asset.uri,
       name: asset.fileName ?? `checkin.${asset.type?.split('/')[1] ?? 'jpg'}`,
       type: asset.type ?? 'image/jpeg',
     };
-
     setPhotos((current) => {
       if (current.length >= MAX_PHOTOS) return current;
-      return [...current, capturedPhoto];
+      return [...current, captured];
     });
+    setError(null);
   };
 
   const handleRemovePhoto = (index: number) => {
@@ -122,34 +151,23 @@ export function WeeklyCheckInScreen({ checkIn }: WeeklyCheckInScreenProps = {}) 
     setPhotos((current) => current.filter((_, itemIndex) => itemIndex !== index));
   };
 
-  const openPreview = (uri: string) => {
-    setPreviewImageUri(uri);
-  };
-
-  const closePreview = () => {
-    setPreviewImageUri(null);
-  };
-
   const handleSubmit = () => {
     if (isReadOnly) return;
-
     const parsedWeight = Number(weightKg);
     if (!weightKg.trim()) {
-      Alert.alert('Validation', 'Weight is required.');
+      setError('Weight is required.');
       return;
     }
-
-    if (Number.isNaN(parsedWeight) || parsedWeight <= 0) {
-      Alert.alert('Validation', 'Weight must be a valid positive number.');
+    if (Number.isNaN(parsedWeight) || parsedWeight <= 0 || parsedWeight > 500) {
+      setError('Weight must be a valid number (1–500 kg).');
       return;
     }
-
     if (!overallEnergyLevel || overallEnergyLevel < 1 || overallEnergyLevel > 5) {
-      Alert.alert('Validation', 'Please select your overall energy level.');
+      setError('Please pick your energy level.');
       return;
     }
-
-    const submit = async () => {
+    setError(null);
+    (async () => {
       try {
         setIsSubmitting(true);
         await checkInApi.submitCheckIn({
@@ -159,261 +177,732 @@ export function WeeklyCheckInScreen({ checkIn }: WeeklyCheckInScreenProps = {}) 
           start: new Date().toISOString(),
           photos,
         });
-        Alert.alert('Success', 'Check-in saved successfully.', [
+        Alert.alert('Check-in saved', 'Your check-in has been logged.', [
           { text: 'OK', onPress: () => navigation.goBack() },
         ]);
-      } catch (error) {
-        console.error('Failed to submit check-in:', error);
-        Alert.alert('Error', 'Could not save your check-in. Please try again.');
+      } catch (err) {
+        console.error('Failed to submit check-in:', err);
+        setError('Could not save your check-in. Please try again.');
       } finally {
         setIsSubmitting(false);
       }
-    };
-
-    submit();
+    })();
   };
 
+  const moodLabel =
+    MOODS.find((m) => m.value === (isReadOnly ? checkIn?.overallEnergyLevel : overallEnergyLevel))
+      ?.label ?? 'Average';
+
   return (
-    <Screen scroll keyboardAware edges={['top']}>
+    <Screen edges={['top']} keyboardAware>
       <ScreenHeader
-        title={title}
-        eyebrow={eyebrow}
+        title={isReadOnly ? 'Check-in' : 'New check-in'}
         left={
           <IconButton variant="surface" withBorder onPress={() => navigation.goBack()}>
             <ChevronLeft size={18} color={colors.inkPrimary} strokeWidth={2.25} />
           </IconButton>
         }
-        right={<Tag label={isReadOnly ? 'Saved' : 'New'} tone="primary" uppercase />}
       />
 
-      <View style={styles.gutter}>
-        <Text variant="caption" color="muted" style={styles.sectionLabel}>
-          Progress photos
-        </Text>
-
-        <View style={styles.photoGrid}>
-          {previewUris.map((uri, index) => (
-            <Pressable key={`${uri}-${index}`} style={styles.photoTile} onPress={() => openPreview(uri)}>
-              <Image source={{ uri }} style={styles.photoPreview} resizeMode="cover" />
-              {!isReadOnly ? (
-                <Pressable style={styles.removePhotoButton} onPress={() => handleRemovePhoto(index)}>
-                  <Trash2 size={12} color={colors.white} strokeWidth={2.25} />
-                </Pressable>
-              ) : null}
-            </Pressable>
-          ))}
-
-          {!isReadOnly && photos.length < MAX_PHOTOS ? (
-            <Pressable style={styles.photoCard} onPress={handleTakePhoto}>
-              <View style={styles.photoIcon}>
-                <Camera size={20} color={colors.inkSecondary} strokeWidth={1.75} />
+      <ScrollView
+        contentContainerStyle={styles.scroll}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
+        {/* Hero --------------------------------------------- */}
+        <View style={styles.heroWrap}>
+          <View style={[styles.hero, shadows.card]}>
+            <View style={styles.heroGlow} />
+            <View style={styles.heroTop}>
+              <View style={styles.heroIcon}>
+                <ClipboardCheck size={20} color={colors.white} strokeWidth={2.25} />
               </View>
-              <Text variant="bodySmall" weight="600" style={styles.photoTitle}>
-                Tap to take photo
-              </Text>
-            </Pressable>
-          ) : null}
-        </View>
-
-        <View style={styles.photoInfoRow}>
-          <Text variant="bodySmall" weight="600" style={styles.photoTitle}>
-            {isReadOnly
-              ? previewUris.length > 0
-                ? `${previewUris.length} photo${previewUris.length > 1 ? 's' : ''} saved`
-                : 'No photos saved'
-              : `${photos.length}/${MAX_PHOTOS} photos`}
-          </Text>
-          <View style={styles.photoMeta}>
-            <Lock size={10} color={colors.inkSecondary} strokeWidth={2} />
-            <Text variant="micro" color="secondary">
-              {' '}
-              Shared only with your coach
+              <View style={styles.heroStatusPill}>
+                <View style={[styles.statusDot, isReadOnly ? styles.statusDotSaved : styles.statusDotNew]} />
+                <Text style={styles.heroStatusText}>{isReadOnly ? 'SAVED' : 'IN PROGRESS'}</Text>
+              </View>
+            </View>
+            <Text style={styles.heroEyebrow}>
+              {isReadOnly ? 'CHECK-IN DETAILS' : 'WEEKLY CHECK-IN'}
             </Text>
+            <Text style={styles.heroTitle} numberOfLines={1}>
+              {isReadOnly ? 'Saved log' : 'How was this week?'}
+            </Text>
+            <Text style={styles.heroSub}>{heroDate}</Text>
           </View>
         </View>
 
-        <Text variant="caption" color="muted" style={styles.sectionLabel}>
-          Body weight
-        </Text>
-        {isReadOnly ? (
-          <Card padding="md" style={styles.section}>
-            <View style={styles.weightRow}>
-              <View style={styles.weightValue}>
-                <Text mono tabular style={styles.weightNumber}>
-                  {savedWeight}
-                </Text>
-                <Text variant="bodySmall" color="secondary" weight="500" style={styles.weightUnit}>
-                  kg
+        {/* Weight ------------------------------------------- */}
+        <SectionHeader label="WEIGHT" />
+        <View style={styles.gutter}>
+          {isReadOnly ? (
+            <View style={styles.statTile}>
+              <View style={styles.statTileHeader}>
+                <View style={styles.statTileIcon}>
+                  <Scale size={14} color={colors.primary} strokeWidth={2.25} />
+                </View>
+                <Text variant="micro" weight="800" style={styles.statTileLabel}>
+                  BODY WEIGHT
                 </Text>
               </View>
-              <View style={styles.deltaBadge}>
-                <TrendingDown size={13} color={colors.success} strokeWidth={2.25} />
-                <Text mono tabular weight="600" style={styles.deltaText}>
-                  Saved
+              <View style={styles.statTileValueRow}>
+                <Text mono tabular style={styles.statTileValue}>
+                  {checkIn?.weightKg != null ? checkIn.weightKg.toFixed(1) : '—'}
                 </Text>
+                <Text style={styles.statTileUnit}>kg</Text>
               </View>
             </View>
-            <Text variant="micro" color="secondary">
-              Saved check-in data
-            </Text>
-          </Card>
-        ) : (
-          <Input
-            label="Weight (kg)"
-            value={weightKg}
-            onChangeText={setWeightKg}
-            keyboardType="numeric"
-            placeholder=""
-            containerStyle={styles.section}
-          />
-        )}
-
-        <Text variant="caption" color="muted" style={styles.sectionLabel}>
-          How did you feel this week?
-        </Text>
-        <Textarea
-          value={isReadOnly ? checkIn?.note ?? '' : notes}
-          onChangeText={setNotes}
-          rows={3}
-          containerStyle={styles.section}
-          editable={!isReadOnly}
-        />
-
-        <Text variant="caption" color="muted" style={styles.sectionLabel}>
-          Overall energy
-        </Text>
-        <View style={styles.section} pointerEvents={isReadOnly ? 'none' : 'auto'}>
-          <MoodPicker options={MOODS} value={isReadOnly ? checkIn?.overallEnergyLevel ?? 3 : overallEnergyLevel} onChange={setOverallEnergyLevel} />
+          ) : (
+            <WeightStepper value={weightKg} onChange={(v) => { setWeightKg(v); setError(null); }} />
+          )}
         </View>
 
-        {!isReadOnly ? (
-          <Button
-            label={isSubmitting ? 'Submitting...' : 'Submit check-in'}
-            variant="accent"
-            fullWidth
-            style={styles.cta}
-            onPress={handleSubmit}
-            disabled={isSubmitting}
-          />
+        {/* Energy ------------------------------------------- */}
+        <SectionHeader label="ENERGY LEVEL" />
+        <View style={styles.gutter}>
+          {isReadOnly ? (
+            <View style={styles.statTile}>
+              <View style={styles.statTileHeader}>
+                <View style={[styles.statTileIcon, { backgroundColor: 'rgba(255,107,53,0.14)' }]}>
+                  <Zap size={14} color={colors.accent} strokeWidth={2.25} />
+                </View>
+                <Text variant="micro" weight="800" style={styles.statTileLabel}>
+                  OVERALL ENERGY
+                </Text>
+              </View>
+              <View style={styles.statTileValueRow}>
+                <Text mono tabular style={styles.statTileValue}>
+                  {checkIn?.overallEnergyLevel ?? '—'}
+                </Text>
+                <Text style={styles.statTileUnit}>/ 5</Text>
+              </View>
+              <Text variant="micro" color="muted" style={{ marginTop: 4 }}>
+                {moodLabel}
+              </Text>
+            </View>
+          ) : (
+            <View pointerEvents={isReadOnly ? 'none' : 'auto'}>
+              <MoodPicker options={MOODS} value={overallEnergyLevel} onChange={setOverallEnergyLevel} />
+            </View>
+          )}
+        </View>
+
+        {/* Notes -------------------------------------------- */}
+        <SectionHeader label="NOTES" />
+        <View style={styles.gutter}>
+          {isReadOnly ? (
+            <View style={styles.notesCard}>
+              <View style={styles.notesIcon}>
+                <MessageSquare size={14} color={colors.primary} strokeWidth={2.25} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text variant="micro" weight="800" style={styles.statTileLabel}>
+                  HOW THIS WEEK FELT
+                </Text>
+                <Text variant="bodySmall" style={styles.notesText}>
+                  {checkIn?.note?.trim() || 'No notes left this week.'}
+                </Text>
+                {checkIn?.trainerComment ? (
+                  <View style={styles.coachReply}>
+                    <Text variant="micro" weight="800" style={styles.coachReplyLabel}>
+                      COACH REPLY
+                    </Text>
+                    <Text variant="bodySmall" style={styles.coachReplyText}>
+                      {checkIn.trainerComment}
+                    </Text>
+                  </View>
+                ) : null}
+              </View>
+            </View>
+          ) : (
+            <View style={styles.textareaCard}>
+              <TextInput
+                value={notes}
+                onChangeText={setNotes}
+                placeholder="What worked, what didn't? Energy, sleep, nutrition…"
+                placeholderTextColor={colors.inkMuted}
+                multiline
+                textAlignVertical="top"
+                style={styles.textareaInput}
+              />
+              <Text variant="micro" color="muted" style={styles.textareaHint}>
+                Optional — shared with your coach
+              </Text>
+            </View>
+          )}
+        </View>
+
+        {/* Photos ------------------------------------------- */}
+        <SectionHeader
+          label="PROGRESS PHOTOS"
+          count={isReadOnly ? previewUris.length : photos.length}
+        />
+        <View style={styles.gutter}>
+          <View style={styles.photoMetaRow}>
+            <View style={styles.photoLockRow}>
+              <Lock size={11} color={colors.inkMuted} strokeWidth={2.25} />
+              <Text variant="micro" color="muted">
+                Visible only to you and your coach
+              </Text>
+            </View>
+            {!isReadOnly ? (
+              <Text variant="micro" weight="800" style={styles.photoCount}>
+                {photos.length}/{MAX_PHOTOS}
+              </Text>
+            ) : null}
+          </View>
+
+          <View style={styles.photoGrid}>
+            {previewUris.map((uri, index) => (
+              <Pressable
+                key={`${uri}-${index}`}
+                style={styles.photoTile}
+                onPress={() => setPreviewImageUri(uri)}
+              >
+                <Image source={{ uri }} style={styles.photoPreview} resizeMode="cover" />
+                {!isReadOnly ? (
+                  <Pressable
+                    style={({ pressed }) => [styles.removePhotoBtn, pressed && { opacity: 0.7 }]}
+                    onPress={() => handleRemovePhoto(index)}
+                    hitSlop={6}
+                    accessibilityLabel="Remove photo"
+                  >
+                    <Trash2 size={12} color={colors.white} strokeWidth={2.5} />
+                  </Pressable>
+                ) : null}
+              </Pressable>
+            ))}
+
+            {!isReadOnly && photos.length < MAX_PHOTOS ? (
+              <Pressable
+                style={({ pressed }) => [styles.photoAddTile, pressed && { opacity: 0.85 }]}
+                onPress={handleTakePhoto}
+                accessibilityLabel="Add photo"
+              >
+                <View style={styles.photoAddIcon}>
+                  <ImagePlus size={20} color={colors.primary} strokeWidth={2.25} />
+                </View>
+                <Text variant="micro" weight="800" color="brand" style={styles.photoAddLabel}>
+                  ADD
+                </Text>
+              </Pressable>
+            ) : null}
+
+            {isReadOnly && previewUris.length === 0 ? (
+              <View style={styles.photoEmpty}>
+                <Camera size={20} color={colors.inkMuted} strokeWidth={2} />
+                <Text variant="micro" color="muted">No photos for this check-in</Text>
+              </View>
+            ) : null}
+          </View>
+        </View>
+
+        {/* Error -------------------------------------------- */}
+        {error ? (
+          <View style={[styles.gutter, { marginTop: spacing.md }]}>
+            <View style={styles.errorBox}>
+              <AlertCircle size={16} color={colors.danger} strokeWidth={2.25} />
+              <Text variant="bodySmall" weight="600" color="danger" style={{ flex: 1 }}>
+                {error}
+              </Text>
+            </View>
+          </View>
         ) : null}
-      </View>
 
-      <Modal visible={Boolean(previewImageUri)} transparent animationType="fade" onRequestClose={closePreview}>
-        <Pressable style={styles.previewOverlay} onPress={closePreview}>
-          <Pressable style={styles.previewContent} onPress={() => undefined}>
-            {previewImageUri ? <Image source={{ uri: previewImageUri }} style={styles.previewImage} resizeMode="contain" /> : null}
-            <Button label="Close" variant="outline" fullWidth onPress={closePreview} style={styles.previewCloseButton} />
-          </Pressable>
-        </Pressable>
+        <View style={styles.bottomSpacer} />
+      </ScrollView>
+
+      {/* Sticky CTA --------------------------------------- */}
+      {!isReadOnly ? (
+        <View style={[styles.ctaBar, shadows.modal]}>
+          <View style={styles.ctaInfo}>
+            <Text style={styles.ctaInfoLabel}>READY?</Text>
+            <Text variant="bodySmall" weight="800" numberOfLines={1} style={styles.ctaInfoName}>
+              {weightKg ? `${weightKg} kg · ${moodLabel}` : `Energy · ${moodLabel}`}
+            </Text>
+          </View>
+          <Button
+            label={isSubmitting ? 'Saving…' : 'Submit'}
+            variant="accent"
+            size="lg"
+            loading={isSubmitting}
+            disabled={isSubmitting}
+            onPress={handleSubmit}
+            leftIcon={<ClipboardCheck size={16} color={colors.white} strokeWidth={2.5} />}
+            style={styles.ctaButton}
+          />
+        </View>
+      ) : null}
+
+      {/* Photo preview modal ------------------------------ */}
+      <Modal
+        visible={Boolean(previewImageUri)}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setPreviewImageUri(null)}
+      >
+        <KeyboardAvoidingView style={styles.previewWrap} behavior="padding">
+          <Pressable style={styles.previewBackdrop} onPress={() => setPreviewImageUri(null)} />
+          <View style={styles.previewClose}>
+            <IconButton variant="overlay" onPress={() => setPreviewImageUri(null)}>
+              <X size={18} color={colors.white} strokeWidth={2.25} />
+            </IconButton>
+          </View>
+          {previewImageUri ? (
+            <Image
+              source={{ uri: previewImageUri }}
+              style={styles.previewImage}
+              resizeMode="contain"
+            />
+          ) : null}
+        </KeyboardAvoidingView>
       </Modal>
-
-      <View style={styles.bottomSpacer} />
     </Screen>
   );
 }
 
-const styles = StyleSheet.create({
-  gutter: { paddingHorizontal: spacing.xxl },
-  sectionLabel: { marginBottom: spacing.md, marginTop: spacing.md },
-  section: { marginBottom: spacing.xl },
 
-  photoCard: {
-    borderWidth: 1.5,
-    borderStyle: 'dashed',
-    borderColor: colors.line,
-    backgroundColor: colors.surface,
-    borderRadius: radii.lg,
-    width: '31%',
-    aspectRatio: 1,
+function SectionHeader({ label, count }: { label: string; count?: number }) {
+  return (
+    <View style={styles.sectionHeader}>
+      <View style={styles.sectionTitleLeft}>
+        <View style={styles.sectionBar} />
+        <Text variant="caption" weight="800" style={styles.sectionLabel}>
+          {label}
+        </Text>
+      </View>
+      {count != null ? (
+        <View style={styles.sectionCount}>
+          <Text variant="micro" weight="700" mono tabular style={styles.sectionCountText}>
+            {count}
+          </Text>
+        </View>
+      ) : null}
+    </View>
+  );
+}
+
+function WeightStepper({
+  value,
+  onChange,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+}) {
+  const parsed = Number(value);
+  const valid = !Number.isNaN(parsed) && parsed > 0;
+
+  const step = (delta: number) => {
+    const next = (valid ? parsed : 70) + delta;
+    const clamped = Math.max(0, Math.min(500, next));
+    onChange(clamped.toFixed(1).replace(/\.0$/, ''));
+  };
+
+  return (
+    <View style={styles.weightCard}>
+      <View style={styles.weightHeader}>
+        <View style={styles.statTileIcon}>
+          <Scale size={14} color={colors.primary} strokeWidth={2.25} />
+        </View>
+        <Text variant="micro" weight="800" style={styles.statTileLabel}>
+          BODY WEIGHT
+        </Text>
+      </View>
+      <View style={styles.weightRow}>
+        <Pressable
+          onPress={() => step(-0.5)}
+          style={({ pressed }) => [styles.stepBtn, pressed && { opacity: 0.7 }]}
+          hitSlop={8}
+          accessibilityLabel="Decrease weight"
+        >
+          <Text style={styles.stepText}>−</Text>
+        </Pressable>
+        <View style={styles.weightInputWrap}>
+          <TextInput
+            value={value}
+            onChangeText={onChange}
+            keyboardType="decimal-pad"
+            placeholder="0.0"
+            placeholderTextColor={colors.inkMuted}
+            style={styles.weightInput}
+            maxLength={6}
+          />
+          <Text style={styles.weightUnit}>kg</Text>
+        </View>
+        <Pressable
+          onPress={() => step(0.5)}
+          style={({ pressed }) => [styles.stepBtn, pressed && { opacity: 0.7 }]}
+          hitSlop={8}
+          accessibilityLabel="Increase weight"
+        >
+          <Text style={styles.stepText}>+</Text>
+        </Pressable>
+      </View>
+    </View>
+  );
+}
+
+
+const styles = StyleSheet.create({
+  scroll: { paddingBottom: spacing.huge + 80, paddingTop: spacing.xs },
+  gutter: { paddingHorizontal: spacing.xxl },
+  bottomSpacer: { height: spacing.xl },
+
+  // Hero
+  heroWrap: { paddingHorizontal: spacing.xxl, paddingTop: spacing.md },
+  hero: {
+    backgroundColor: colors.primary,
+    borderRadius: radii.xl,
+    paddingHorizontal: spacing.xl,
+    paddingTop: spacing.xl,
+    paddingBottom: spacing.lg,
+    gap: 4,
+    overflow: 'hidden',
+    position: 'relative',
+  },
+  heroGlow: {
+    position: 'absolute',
+    top: -90,
+    right: -70,
+    width: 220,
+    height: 220,
+    borderRadius: 110,
+    backgroundColor: colors.primaryDark,
+    opacity: 0.5,
+  },
+  heroTop: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: spacing.sm,
+  },
+  heroIcon: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: 'rgba(255,255,255,0.18)',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  photoGrid: {
+  heroStatusPill: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
+    alignItems: 'center',
+    gap: 5,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 4,
+    borderRadius: radii.pill,
+    backgroundColor: 'rgba(255,255,255,0.14)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.22)',
+  },
+  statusDot: { width: 6, height: 6, borderRadius: 3 },
+  statusDotNew: { backgroundColor: colors.accent },
+  statusDotSaved: { backgroundColor: colors.success },
+  heroStatusText: { color: colors.white, fontSize: 10, fontWeight: '800', letterSpacing: 0.8 },
+  heroEyebrow: {
+    color: 'rgba(255,255,255,0.6)',
+    letterSpacing: 1.4,
+    fontSize: 10,
+    fontWeight: '800',
+  },
+  heroTitle: {
+    color: colors.white,
+    fontSize: 26,
+    lineHeight: 30,
+    letterSpacing: -0.5,
+    fontWeight: '800',
+    marginTop: 2,
+  },
+  heroSub: {
+    color: 'rgba(255,255,255,0.7)',
+    fontSize: 12,
+    fontWeight: '500',
+    marginTop: 2,
+  },
+
+  // Section header
+  sectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: spacing.xxl,
+    paddingTop: spacing.xxl,
+    paddingBottom: spacing.md,
+  },
+  sectionTitleLeft: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+  sectionBar: {
+    width: 3,
+    height: 14,
+    borderRadius: 2,
+    backgroundColor: colors.accent,
+  },
+  sectionLabel: {
+    fontSize: 11,
+    letterSpacing: 1.2,
+    color: colors.inkPrimary,
+  },
+  sectionCount: {
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: radii.pill,
+    backgroundColor: colors.surfaceElevated,
+  },
+  sectionCountText: { color: colors.inkSecondary, fontSize: 10 },
+
+  // Stat tile (read-only result)
+  statTile: {
+    padding: spacing.lg,
+    borderRadius: radii.lg,
+    borderWidth: 1,
+    borderColor: colors.line,
+    backgroundColor: colors.surface,
+    gap: 4,
+  },
+  statTileHeader: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  statTileIcon: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: colors.primarySoft,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  statTileLabel: { fontSize: 10, letterSpacing: 0.8, color: colors.inkSecondary },
+  statTileValueRow: { flexDirection: 'row', alignItems: 'baseline', marginTop: 2 },
+  statTileValue: {
+    fontSize: 36,
+    lineHeight: 38,
+    letterSpacing: -1,
+    fontWeight: '800',
+    color: colors.inkPrimary,
+  },
+  statTileUnit: {
+    marginLeft: 5,
+    fontSize: 14,
+    fontWeight: '700',
+    color: colors.inkSecondary,
+  },
+
+  // Weight stepper card
+  weightCard: {
+    padding: spacing.lg,
+    borderRadius: radii.lg,
+    borderWidth: 1,
+    borderColor: colors.line,
+    backgroundColor: colors.surface,
     gap: spacing.md,
+  },
+  weightHeader: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  weightRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    paddingHorizontal: spacing.sm,
+  },
+  stepBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: colors.surfaceElevated,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  stepText: { fontSize: 24, fontWeight: '800', color: colors.inkPrimary, lineHeight: 26 },
+  weightInputWrap: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    justifyContent: 'center',
+    gap: 6,
+  },
+  weightInput: {
+    fontSize: 36,
+    fontWeight: '800',
+    letterSpacing: -1,
+    color: colors.inkPrimary,
+    fontVariant: ['tabular-nums'],
+    minWidth: 90,
+    textAlign: 'right',
+    paddingVertical: 0,
+  },
+  weightUnit: { fontSize: 14, fontWeight: '700', color: colors.inkSecondary },
+
+  // Textarea card
+  textareaCard: {
+    padding: spacing.lg,
+    borderRadius: radii.lg,
+    borderWidth: 1,
+    borderColor: colors.line,
+    backgroundColor: colors.surface,
+    gap: spacing.sm,
+  },
+  textareaInput: {
+    minHeight: 96,
+    fontSize: 14,
+    lineHeight: 20,
+    color: colors.inkPrimary,
+    fontWeight: '500',
+    padding: 0,
+  },
+  textareaHint: { letterSpacing: 0.2 },
+
+  // Read-only notes
+  notesCard: {
+    flexDirection: 'row',
+    gap: spacing.md,
+    padding: spacing.lg,
+    borderRadius: radii.lg,
+    borderWidth: 1,
+    borderColor: colors.line,
+    backgroundColor: colors.surface,
+  },
+  notesIcon: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: colors.primarySoft,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  notesText: { color: colors.inkPrimary, lineHeight: 20, marginTop: 6 },
+
+  coachReply: {
+    marginTop: spacing.lg,
+    padding: spacing.md,
+    borderRadius: radii.md,
+    backgroundColor: colors.accentSoft,
+    borderWidth: 1,
+    borderColor: 'rgba(255,107,53,0.22)',
+  },
+  coachReplyLabel: { color: colors.accent, fontSize: 10, letterSpacing: 0.8 },
+  coachReplyText: { marginTop: 4, lineHeight: 19, color: colors.inkPrimary },
+
+  // Photos
+  photoMetaRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     marginBottom: spacing.md,
   },
+  photoLockRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  photoCount: { color: colors.inkSecondary, fontSize: 11, letterSpacing: 0.4 },
+  photoGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.md },
   photoTile: {
     width: '31%',
     aspectRatio: 1,
     borderRadius: radii.lg,
     overflow: 'hidden',
-    backgroundColor: colors.surface,
-  },
-  photoIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
     backgroundColor: colors.surfaceElevated,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: spacing.lg,
   },
-  photoPreview: {
-    width: '100%',
-    height: '100%',
-  },
-  removePhotoButton: {
+  photoPreview: { width: '100%', height: '100%' },
+  removePhotoBtn: {
     position: 'absolute',
     top: spacing.xs,
     right: spacing.xs,
-    width: 22,
-    height: 22,
-    borderRadius: 11,
-    backgroundColor: colors.danger,
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: 'rgba(0,0,0,0.65)',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  photoInfoRow: { marginBottom: spacing.xl },
-  photoTitle: { marginBottom: spacing.xs },
-  photoMeta: { flexDirection: 'row', alignItems: 'center' },
-
-  previewOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.88)',
+  photoAddTile: {
+    width: '31%',
+    aspectRatio: 1,
+    borderRadius: radii.lg,
+    borderWidth: 1.5,
+    borderStyle: 'dashed',
+    borderColor: colors.primaryBorder,
+    backgroundColor: colors.primarySoft,
     alignItems: 'center',
     justifyContent: 'center',
-    padding: spacing.xl,
+    gap: spacing.sm,
   },
-  previewContent: {
+  photoAddIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: colors.primarySoftStrong,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  photoAddLabel: { letterSpacing: 0.8 },
+  photoEmpty: {
     width: '100%',
-    maxWidth: 520,
+    paddingVertical: spacing.xl,
     alignItems: 'center',
-    gap: spacing.lg,
+    gap: spacing.sm,
+    borderRadius: radii.lg,
+    borderWidth: 1,
+    borderColor: colors.line,
+    borderStyle: 'dashed',
+    backgroundColor: colors.surface,
+  },
+
+  // Error
+  errorBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
+    backgroundColor: 'rgba(239,68,68,0.08)',
+    borderRadius: radii.md,
+    borderWidth: 1,
+    borderColor: 'rgba(239,68,68,0.3)',
+  },
+
+  // Sticky CTA
+  ctaBar: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    paddingHorizontal: spacing.xxl,
+    paddingTop: spacing.lg,
+    paddingBottom: spacing.xxl,
+    backgroundColor: colors.surface,
+    borderTopWidth: 1,
+    borderTopColor: colors.line,
+  },
+  ctaInfo: { flex: 1, minWidth: 0, gap: 2 },
+  ctaInfoLabel: {
+    fontSize: 9,
+    letterSpacing: 1,
+    fontWeight: '800',
+    color: colors.inkMuted,
+  },
+  ctaInfoName: { letterSpacing: -0.1 },
+  ctaButton: { minWidth: 130 },
+
+  // Preview modal
+  previewWrap: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.92)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  previewBackdrop: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+  },
+  previewClose: {
+    position: 'absolute',
+    top: spacing.xxl,
+    right: spacing.xxl,
+    zIndex: 10,
   },
   previewImage: {
-    width: '100%',
-    height: 420,
+    width: '92%',
+    height: '70%',
     borderRadius: radii.lg,
-    backgroundColor: colors.black,
   },
-  previewCloseButton: {
-    alignSelf: 'stretch',
-  },
-
-  weightRow: {
-    flexDirection: 'row',
-    alignItems: 'baseline',
-    justifyContent: 'space-between',
-    marginBottom: spacing.md,
-  },
-  weightValue: { flexDirection: 'row', alignItems: 'baseline' },
-  weightNumber: { fontSize: 32, fontWeight: '700', lineHeight: 32 },
-  weightUnit: { marginLeft: 4 },
-  deltaBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: spacing.md,
-    paddingVertical: 4,
-    borderRadius: radii.xs,
-    backgroundColor: colors.successSoft,
-  },
-  deltaText: { fontSize: 11, color: colors.success },
-
-  cta: { marginTop: spacing.xl },
-  bottomSpacer: { height: spacing.huge },
 });
 
 export default WeeklyCheckInScreen;

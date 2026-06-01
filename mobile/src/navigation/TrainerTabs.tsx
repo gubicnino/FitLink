@@ -1,11 +1,10 @@
 import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { GraduationCap, Home, Library, MessageSquare, User, Users } from 'lucide-react-native';
+import { GraduationCap, Home, MessageSquare, User, Users } from 'lucide-react-native';
 import type { TrainerTabParamList } from './types';
 import { BottomTabBar } from '../components/layout';
 import { TrainerDashboardScreen } from '../screens/coach/TrainerDashboardScreen';
 import { ClientsScreen } from '../screens/coach/ClientsScreen';
-import { LibraryScreen } from '../screens/coach/LibraryScreen';
 import { ProfileScreen } from '../screens/profile/ProfileScreen';
 import { CourseListScreen } from '../screens/courses/CourseListScreen';
 import { ChatListScreen } from '../screens/chat/ChatListScreen';
@@ -34,16 +33,6 @@ export function TrainerTabs() {
         options={{
           title: 'Clients',
           tabBarIcon: ({ color, size }) => <Users size={size} color={color} strokeWidth={1.75} />,
-        }}
-      />
-      <Tab.Screen
-        name="Library"
-        component={LibraryScreen}
-        options={{
-          title: 'Library',
-          tabBarIcon: ({ color, size }) => (
-            <Library size={size} color={color} strokeWidth={1.75} />
-          ),
         }}
       />
       <Tab.Screen

@@ -20,7 +20,6 @@ export type TrainerTabParamList = {
   Home: undefined;
   Clients: undefined;
   Courses: undefined;
-  Library: undefined;
   Chat: undefined;
   Profile: undefined;
 };
