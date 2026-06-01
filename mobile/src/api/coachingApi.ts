@@ -23,5 +23,17 @@ export const coachingApi = {
   getActiveCoachingsForTrainer: async (): Promise<Coaching[]> => {
     const res = await apiClient.get<Coaching[]>('/coaching/active');
     return res.data;
-  }
+  },
+  getTrainerCalendar: async (): Promise<TrainerCalendarDay[]> => {
+    const res = await apiClient.get<TrainerCalendarDay[]>('/coaching/calendar');
+    return res.data;
+  },
 };
+
+export interface TrainerCalendarDay {
+  date: string;
+  checkInsCount: number;
+  weightLogsCount: number;
+  activeClients: number;
+  overdueClientNames: string[];
+}

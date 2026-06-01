@@ -25,6 +25,7 @@ import { coachingApi } from '../../api/coachingApi';
 import { userApi } from '../../api/userApi';
 import { ScreenHeader } from '../../components/layout';
 import { Avatar, Button, IconButton, ProgressBar, Screen, Text } from '../../components/ui';
+import { TrainerCalendarCard } from '../../components/calendar/TrainerCalendarCard';
 import type { RootStackParamList } from '../../navigation/types';
 import { authService } from '../../services/authService';
 import { colors, radii, shadows, spacing } from '../../theme';
@@ -217,6 +218,12 @@ export function TrainerDashboardScreen() {
               accent
             />
           </View>
+        </View>
+
+        {/* Calendar ----------------------------------------- */}
+        <SectionHeader label="CALENDAR" />
+        <View style={styles.gutter}>
+          <TrainerCalendarCard />
         </View>
 
         {/* Pending requests --------------------------------- */}

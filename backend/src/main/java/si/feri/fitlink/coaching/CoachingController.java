@@ -15,6 +15,7 @@ import lombok.RequiredArgsConstructor;
 import si.feri.fitlink.auth.AuthPrincipal;
 import si.feri.fitlink.coaching.dto.CoachingActionDTO;
 import si.feri.fitlink.coaching.dto.CoachingRequestDTO;
+import si.feri.fitlink.coaching.dto.TrainerCalendarDTO;
 
 @RestController
 @RequiredArgsConstructor
@@ -42,6 +43,11 @@ public class CoachingController {
     @GetMapping("/active")
     public ResponseEntity<List<Coaching>> getActiveCoachingsForTrainer(@AuthenticationPrincipal AuthPrincipal principal) {
         return ResponseEntity.ok(coachingService.getActiveForTrainer(principal.uid()));
+    }
+
+    @GetMapping("/calendar")
+    public ResponseEntity<List<TrainerCalendarDTO>> getTrainerCalendar(@AuthenticationPrincipal AuthPrincipal principal) {
+        return ResponseEntity.ok(coachingService.buildTrainerCalendar(principal.uid()));
     }
     @PostMapping("/accept")
     public ResponseEntity<Coaching> acceptCoaching(

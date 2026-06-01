@@ -32,6 +32,7 @@ import { workoutApi } from '../../api/workoutApi';
 import { ScreenHeader } from '../../components/layout';
 import { Avatar, BadgeCheck, Screen, Text } from '../../components/ui';
 import { HealthHomeCards } from '../../components/health/HealthHomeCards';
+import { TraineeCalendarCard } from '../../components/calendar/TraineeCalendarCard';
 import type { RootStackParamList } from '../../navigation/types';
 import { authService } from '../../services/authService';
 import { colors, radii, shadows, spacing } from '../../theme';
@@ -201,6 +202,12 @@ export function TraineeDashboardScreen() {
                 onPress={() => navigation.navigate('ExercisePicker', { mode: 'select' })}
               />
             )}
+          </View>
+
+          {/* Activity calendar ---------------------------------- */}
+          <SectionHeader label="CALENDAR" />
+          <View style={styles.gutter}>
+            <TraineeCalendarCard />
           </View>
 
           {/* Health ------------------------------------------- */}
