@@ -8,16 +8,18 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
-import si.feri.fitlink.auth.AuthPrincipal;
-
 import lombok.RequiredArgsConstructor;
+import si.feri.fitlink.auth.AuthPrincipal;
+import si.feri.fitlink.checkin.dto.CheckInCommentDTO;
 import si.feri.fitlink.checkin.dto.CheckInDTO;
 
 @RestController
@@ -61,5 +63,15 @@ public class CheckInController {
         }
 
         return ResponseEntity.ok(checkInService.submitCheckIn(principal.uid(), checkInDTO, uploadPhotos));
+    }
+
+
+    @PutMapping("/{checkInId}/comment")
+    public ResponseEntity<CheckIn> addTrainerComment(
+            @AuthenticationPrincipal AuthPrincipal principal,
+            @PathVariable String checkInId,
+            @RequestBody CheckInCommentDTO commentDTO) {
+        return ResponseEntity.ok(
+                checkInService.addTrainerComment(principal.uid(), commentDTO.getCoachingId(), checkInId, commentDTO.getComment()));
     }
 }

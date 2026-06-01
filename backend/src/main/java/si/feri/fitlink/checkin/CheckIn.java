@@ -3,6 +3,8 @@ package si.feri.fitlink.checkin;
 import java.time.Instant;
 import java.util.List;
 
+import org.springframework.data.annotation.Id;
+
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -13,6 +15,7 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 public class CheckIn {
+    @Id
     private String id;
     private String traineeId;
     private Instant start;
@@ -28,7 +31,6 @@ public class CheckIn {
     @Data
     public static class TrainerComment {
         private String text;
-        private String authorId;
         private Instant createdAt;
     }
 }

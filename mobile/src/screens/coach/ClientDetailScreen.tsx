@@ -1,9 +1,10 @@
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp, NativeStackScreenProps } from '@react-navigation/native-stack';
 import { ArrowRight, Camera, ChevronLeft, HeartPulse, Scale, Smile, TrendingUp, UserRound } from 'lucide-react-native';
-import React, { useMemo } from 'react';
-import { Image, Pressable, StyleSheet, View } from 'react-native';
+import React, { useEffect, useMemo, useState } from 'react';
+import { Image, Modal, Pressable, StyleSheet, TextInput, View } from 'react-native';
 import { API_ORIGIN } from '../../api/apiClient';
+import { checkInApi } from '../../api/checkInApi';
 import { ScreenHeader } from '../../components/layout';
 import { Avatar, Button, Card, IconButton, Screen, Tag, Text } from '../../components/ui';
 import { useClientWeight } from '../../hooks/useClientWeight';
@@ -64,14 +65,48 @@ const formatWeightChange = (delta: number | null) => {
 export function ClientDetailScreen({ route }: Props) {
   const navigation = useNavigation<Nav>();
   const { coaching, client } = route.params;
+  const [commentModalVisible, setCommentModalVisible] = useState(false);
+  const [selectedCheckInId, setSelectedCheckInId] = useState<string | null>(null);
+  const [commentText, setCommentText] = useState('');
+  const [checkIns, setCheckIns] = useState<CheckIn[]>(coaching.checkIns);
 
-  const sortedCheckIns = useMemo(() => sortCheckInsNewestFirst(coaching.checkIns), [coaching.checkIns]);
-  const latestCheckIn = useMemo(() => getLatestCheckIn(coaching.checkIns), [coaching.checkIns]);
-  const averageEnergy = useMemo(() => getAverageEnergy(coaching.checkIns), [coaching.checkIns]);
-  const weightDelta = useMemo(() => getWeightChange(coaching.checkIns), [coaching.checkIns]);
+  useEffect(() => {
+    setCheckIns(coaching.checkIns);
+  }, [coaching.checkIns]);
+
+  const sortedCheckIns = useMemo(() => sortCheckInsNewestFirst(checkIns), [checkIns]);
+  const latestCheckIn = useMemo(() => getLatestCheckIn(checkIns), [checkIns]);
+  const averageEnergy = useMemo(() => getAverageEnergy(checkIns), [checkIns]);
+  const weightDelta = useMemo(() => getWeightChange(checkIns), [checkIns]);
   // Preferiramo HC weight kda je connected in synced, fallbackamo na zadnji checkin weight.
   const hcWeight = useClientWeight(client.firebaseUid);
   const displayedWeightKg = hcWeight ?? latestCheckIn?.weightKg ?? null;
+
+  const openCommentModal = (checkInId: string) => {
+    setSelectedCheckInId(checkInId);
+    setCommentText('');
+    setCommentModalVisible(true);
+  };
+
+  const closeCommentModal = () => {
+    setCommentModalVisible(false);
+    setSelectedCheckInId(null);
+    setCommentText('');
+  };
+
+  const handleSubmitComment = async () => {
+    if (!selectedCheckInId) return;
+
+    try {
+      const updatedCheckIn = await checkInApi.addComment(selectedCheckInId, coaching.id, commentText);
+      setCheckIns((current) =>
+        current.map((checkIn) => (checkIn.id === updatedCheckIn.id ? updatedCheckIn : checkIn)),
+      );
+      closeCommentModal();
+    } catch (error) {
+      console.error('Error submitting comment:', error);
+    }
+  };
 
   return (
     <Screen scroll edges={['top']}>
@@ -135,7 +170,7 @@ export function ClientDetailScreen({ route }: Props) {
                 Check-ins
               </Text>
               <Text variant="body" weight="600">
-                {coaching.checkIns.length}
+                {checkIns.length}
               </Text>
             </View>
           </View>
@@ -279,12 +314,56 @@ export function ClientDetailScreen({ route }: Props) {
                       ) : null}
                     </View>
                   ) : null}
+                  {checkIn.trainerComment?.text ? (
+                    <View style={styles.noteBlock}>
+                      <Text variant="caption" color="muted">
+                        Trainer's comment
+                      </Text>
+                      <Text variant="bodySmall" color="secondary">
+                        {checkIn.trainerComment.text}
+                      </Text>
+                    </View>
+                  ) : (
+                    <Button
+                      label="Add comment"
+                      variant="outline"
+                      onPress={() => checkIn.id && openCommentModal(checkIn.id)}
+                      disabled={!checkIn.id}
+                    />
+                  )}
                 </Card>
               );
             })}
           </View>
         )}
       </View>
+
+      <Modal visible={commentModalVisible} transparent animationType="fade" onRequestClose={closeCommentModal}>
+        <Pressable style={styles.modalBackdrop} onPress={closeCommentModal}>
+          <Pressable style={styles.modalCard} onPress={() => {}}>
+            <Text variant="h3">Add comment</Text>
+            <Text variant="bodySmall" color="secondary" style={styles.modalSubtitle}>
+              Leave a note for this check-in.
+            </Text>
+            <TextInput
+              value={commentText}
+              onChangeText={setCommentText}
+              placeholder="Type comment here"
+              placeholderTextColor={colors.inkMuted}
+              multiline
+              style={styles.commentInput}
+            />
+            <View style={styles.modalActions}>
+              <View style={styles.modalButton}>
+                <Button label="Cancel" variant="outline" onPress={closeCommentModal} />
+              </View>
+              <View style={styles.modalButton}>
+                <Button label="Submit" onPress={handleSubmitComment} />
+              </View>
+            </View>
+          </Pressable>
+        </Pressable>
+      </Modal>
     </Screen>
   );
 }
@@ -401,6 +480,39 @@ const styles = StyleSheet.create({
   },
   noteBlock: {
     gap: 4,
+  },
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.45)',
+    justifyContent: 'center',
+    paddingHorizontal: spacing.xxl,
+  },
+  modalCard: {
+    backgroundColor: colors.surface,
+    borderRadius: 20,
+    padding: spacing.lg,
+    gap: spacing.md,
+  },
+  modalSubtitle: {
+    marginTop: -spacing.xs,
+  },
+  commentInput: {
+    minHeight: 120,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: colors.line,
+    backgroundColor: colors.surfaceElevated,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.md,
+    textAlignVertical: 'top',
+    color: colors.inkPrimary,
+  },
+  modalActions: {
+    flexDirection: 'row',
+    gap: spacing.md,
+  },
+  modalButton: {
+    flex: 1,
   },
   photoStrip: {
     flexDirection: 'row',

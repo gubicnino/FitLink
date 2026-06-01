@@ -6,9 +6,13 @@ export interface CheckIn {
   photoUrl?: string;
   photoUrls?: string[];
   note?: string;
-  trainerComment?: string;
+  trainerComment?: CheckInComment;
   overallEnergyLevel: number;
   createdAt: string; 
+}
+export interface CheckInComment {
+  text: string;
+  createdAt: string;
 }
 
 export interface CheckInPhotoInput {
@@ -25,5 +29,6 @@ export interface CheckInData {
   photo?: CheckInPhotoInput;
   photos?: CheckInPhotoInput[];
   note?: string;
+  trainerComment?: CheckInComment;
   overallEnergyLevel: number;
 }

@@ -59,6 +59,12 @@ public class CheckInService {
                 .build();
     }
 
+    private void ensureCheckInId(CheckIn checkIn) {
+        if (checkIn.getId() == null || checkIn.getId().isBlank()) {
+            checkIn.setId(UUID.randomUUID().toString());
+        }
+    }
+
     private String storeCheckInPhoto(String checkInId, MultipartFile file) {
         if (file == null || file.isEmpty()) {
             return null;
@@ -126,6 +132,7 @@ public class CheckInService {
                 .findFirst()
                 .orElseGet(() -> createCheckIn(traineeId, start));
 
+        ensureCheckInId(checkIn);
         checkIn.setStart(start);
         checkIn.setWeightKg(dto.getWeightKg());
         if (photos != null && !photos.isEmpty()) {
@@ -207,5 +214,26 @@ public class CheckInService {
                 .filter(checkIn -> start.equals(checkIn.getStart()))
                 .findFirst()
                 .orElseThrow(() -> new ResourceNotFoundException("No check-in for current week"));
+    }
+
+    public CheckIn addTrainerComment(String trainerId, String coachingId, String checkInId, String comment) {
+        Coaching coaching = coachingRepo.findById(coachingId)
+                .orElseThrow(() -> new ResourceNotFoundException("Coaching not found"));
+
+        CheckIn checkIn = getCheckIns(coaching).stream()
+                .filter(item -> checkInId.equals(item.getId()))
+                .findFirst()
+                .orElseThrow(() -> new ResourceNotFoundException("Check-in not found"));
+
+        if (!coaching.getTrainerId().equals(trainerId)) {
+            throw new AccessDeniedException("Only the assigned trainer can comment on this check-in");
+        }
+
+        CheckIn.TrainerComment trainerComment = new CheckIn.TrainerComment();
+        trainerComment.setText(comment);
+        trainerComment.setCreatedAt(Instant.now());
+        checkIn.setTrainerComment(trainerComment);
+        coachingRepo.save(coaching);
+        return checkIn;
     }
 }

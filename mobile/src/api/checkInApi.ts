@@ -1,5 +1,5 @@
 import { CheckIn, CheckInData } from '../types/checkin';
-import apiClient from "./apiClient";
+import apiClient from './apiClient';
 
 export const checkInApi = {
   getMyCheckIns: async (): Promise<CheckIn[]> => {
@@ -37,6 +37,10 @@ export const checkInApi = {
     const res = await apiClient.post<CheckIn>('/checkin', formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
     });
+    return res.data;
+  },
+  addComment: async (checkInId: string, coachingId: string, comment: string) => {
+    const res = await apiClient.put<CheckIn>(`/checkin/${checkInId}/comment`, { comment, coachingId });
     return res.data;
   }
 };
