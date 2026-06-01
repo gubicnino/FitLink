@@ -18,6 +18,8 @@ import {
     Text
 } from '../../components/ui';
 import CoachingCard from '../../components/ui/CoachingCard';
+import { HealthHomeCards } from '../../components/health/HealthHomeCards';
+import { HealthStatsGrid } from '../../components/health/HealthStatsGrid';
 import type { RootStackParamList } from '../../navigation/types';
 import { authService } from '../../services/authService';
 import { colors, radii, spacing } from '../../theme';
@@ -86,34 +88,14 @@ export function TraineeDashboardScreen() {
         }
       />
 
-      <View style={[styles.row, styles.gutter]}>
-        <StatCard
-          label="Steps"
-          value="8,421"
-          footer={<Sparkline data={[18, 15, 17, 11, 12, 7, 9, 4]} />}
-        />
-        <StatCard
-          label="Streak"
-          value="12"
-          unit="days"
-          footer={
-            <View style={styles.streakRow}>
-              <Flame size={14} color={colors.accent} fill={colors.accent} strokeWidth={2} />
-              <Text variant="micro" color="secondary">
-                Personal best
-              </Text>
-            </View>
-          }
-        />
-        <StatCard
-          label="This week"
-          value="3"
-          unit="/ 4"
-          footer={
-            <Text variant="micro" color="secondary">
-              workouts
-            </Text>
-          }
+      <View style={styles.gutter}>
+        <HealthStatsGrid />
+      </View>
+
+      <View style={[styles.gutter, styles.section]}>
+        <HealthHomeCards
+          onViewAll={() => navigation.navigate('Health')}
+          onConnect={() => navigation.navigate('Health')}
         />
       </View>
 

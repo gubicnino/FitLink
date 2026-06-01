@@ -4,6 +4,7 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { useAuth } from './src/hooks/useAuth';
 import { useFcmRegistration } from './src/hooks/useFcmRegistration';
+import { useHealthSync } from './src/hooks/useHealthSync';
 import { RootNavigator } from './src/navigation';
 import { colors } from './src/theme';
 import { SplashScreen } from './src/components/brand';
@@ -14,6 +15,7 @@ function App() {
   const { user, loading } = useAuth();
   const [splashGone, setSplashGone] = useState(false);
   useFcmRegistration();
+  useHealthSync();
 
   return (
     <GestureHandlerRootView style={styles.flex}>

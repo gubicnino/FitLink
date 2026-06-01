@@ -1,0 +1,56 @@
+import type { Permission } from 'react-native-health-connect';
+
+// VSI HEALTH PERMISSIONI ZA BRANJE/PISANJE
+
+export const HEALTH_PERMISSIONS: Permission[] = [
+  { accessType: 'read', recordType: 'Steps' },
+  { accessType: 'read', recordType: 'ActiveCaloriesBurned' },
+  { accessType: 'read', recordType: 'TotalCaloriesBurned' },
+  { accessType: 'read', recordType: 'Distance' },
+  { accessType: 'read', recordType: 'Weight' },
+  { accessType: 'read', recordType: 'HeartRate' },
+  { accessType: 'read', recordType: 'BodyFat' },
+  { accessType: 'read', recordType: 'LeanBodyMass' },
+  { accessType: 'read', recordType: 'Height' },
+  { accessType: 'read', recordType: 'BasalMetabolicRate' },
+  { accessType: 'read', recordType: 'ExerciseSession' },
+  { accessType: 'read', recordType: 'FloorsClimbed' },
+  { accessType: 'read', recordType: 'ElevationGained' },
+  { accessType: 'read', recordType: 'Power' },
+  { accessType: 'read', recordType: 'Speed' },
+  { accessType: 'read', recordType: 'Vo2Max' },
+  { accessType: 'read', recordType: 'RestingHeartRate' },
+  { accessType: 'read', recordType: 'SleepSession' },
+  { accessType: 'read', recordType: 'OxygenSaturation' },
+  { accessType: 'read', recordType: 'RespiratoryRate' },
+  { accessType: 'read', recordType: 'BodyTemperature' },
+  { accessType: 'read', recordType: 'BloodPressure' },
+  { accessType: 'read', recordType: 'Hydration' },
+  { accessType: 'read', recordType: 'Nutrition' },
+  { accessType: 'write', recordType: 'Steps' },
+  { accessType: 'write', recordType: 'Weight' },
+  { accessType: 'write', recordType: 'HeartRate' },
+  { accessType: 'write', recordType: 'Hydration' },
+  { accessType: 'write', recordType: 'ExerciseSession' },
+  { accessType: 'write', recordType: 'ActiveCaloriesBurned' },
+  { accessType: 'write', recordType: 'TotalCaloriesBurned' },
+  { accessType: 'write', recordType: 'Distance' },
+  { accessType: 'write', recordType: 'FloorsClimbed' },
+  { accessType: 'write', recordType: 'SleepSession' },
+  { accessType: 'write', recordType: 'RestingHeartRate' },
+  { accessType: 'write', recordType: 'BodyFat' },
+  { accessType: 'write', recordType: 'Height' },
+  { accessType: 'write', recordType: 'BasalMetabolicRate' },
+  { accessType: 'write', recordType: 'Vo2Max' },
+  { accessType: 'write', recordType: 'OxygenSaturation' },
+  { accessType: 'write', recordType: 'RespiratoryRate' },
+  { accessType: 'write', recordType: 'BodyTemperature' },
+  { accessType: 'write', recordType: 'BloodPressure' },
+];
+
+
+export const CORE_READ_PERMISSIONS: ReadonlyArray<Permission['recordType']> = [
+  'Steps',
+  'ActiveCaloriesBurned',
+  'Weight',
+];

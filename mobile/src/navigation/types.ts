@@ -65,4 +65,6 @@ export type RootStackParamList = {
     | { mode: 'create'; exerciseIds: string[]; pendingExerciseIds?: string[]; traineeId?: string; canStart?: boolean }
     | { mode: 'edit'; templateId: string; pendingExerciseIds?: string[]; canStart?: boolean };
   ChatThread: { conversationId: string };
+  Health: undefined;
+  ClientHealth: { traineeId: string; traineeName: string };
 };

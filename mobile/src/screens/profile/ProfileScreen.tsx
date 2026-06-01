@@ -46,6 +46,7 @@ import { colors, radii, shadows, spacing } from '../../theme';
 import { User } from '../../types/types';
 import { DEFAULT_AVATAR, getAvatarUrl } from '../../utils/avatar';
 import { CourseCard, Course } from '../courses/CourseCard';
+import { useHealthConnect } from '../../hooks/useHealthConnect';
 
 const FALLBACK_COURSE_IMG =
   'https://images.unsplash.com/photo-1581009146145-b5ef050c2e1e?w=500&q=80&auto=format';
@@ -67,6 +68,9 @@ export function ProfileScreen() {
   const [gender, setGender] = useState('');
   const [heightCm, setHeightCm] = useState('');
   const [currentWeightKg, setCurrentWeightKg] = useState('');
+
+  // Two-way sync with Health Connect: HC je FINAL source of truth
+  const { status: hcStatus, snapshot: hcSnapshot, logWeightKg, refreshSnapshot } = useHealthConnect();
 
   // Inline display-name editing
   const [isEditingDisplayName, setIsEditingDisplayName] = useState(false);
@@ -120,6 +124,22 @@ export function ProfileScreen() {
       setLoading(false);
     }
   }, []);
+
+  useEffect(() => {
+    if (hcStatus !== 'granted' && hcStatus !== 'partial') return;
+    const kg = hcSnapshot.latestWeight?.kg;
+    if (kg && kg > 0) {
+      setCurrentWeightKg(kg.toFixed(1));
+    }
+  }, [hcStatus, hcSnapshot.latestWeight?.kg]);
+
+  useFocusEffect(
+    useCallback(() => {
+      if (hcStatus === 'granted' || hcStatus === 'partial') {
+        refreshSnapshot();
+      }
+    }, [hcStatus, refreshSnapshot]),
+  );
 
   useEffect(() => {
     loadUser();
@@ -297,6 +317,16 @@ export function ProfileScreen() {
           return false;
         }
         payload.currentWeightKg = w;
+
+        if (hcStatus === 'granted' || hcStatus === 'partial') {
+          try {
+            await logWeightKg(w);
+
+            setTimeout(() => refreshSnapshot(), 600);
+          } catch (err) {
+            console.warn('[profile] HC weight write failed', err);
+          }
+        }
       }
       try {
         await apiClient.post('/profile/update', payload);
@@ -308,7 +338,7 @@ export function ProfileScreen() {
         return false;
       }
     },
-    [loadUser],
+    [hcStatus, loadUser, logWeightKg, refreshSnapshot],
   );
 
   const handleTrainerProfileUpdate = async () => {

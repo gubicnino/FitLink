@@ -3,6 +3,8 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import React from 'react';
 import { ProtectedAdminApplicationsScreen } from '../screens/admin/ProtectedAdminApplicationsScreen';
 import { ConversationScreen } from '../screens/chat/ConversationScreen';
+import { HealthScreen } from '../screens/health/HealthScreen';
+import { ClientHealthScreen } from '../screens/coach/ClientHealthScreen';
 import { WeeklyCheckInScreen } from '../screens/checkin/WeeklyCheckInScreen';
 import { ClientDetailScreen } from '../screens/coach/ClientDetailScreen';
 import { ClientWorkouts } from '../screens/coach/ClientWorkouts';
@@ -85,6 +87,8 @@ export function RootNavigator({ user }: RootNavigatorProps) {
         <Stack.Screen name="TemplateForm" component={TemplateFormScreen} />
         <Stack.Screen name="SessionDetail" component={SessionDetailScreen} />
         <Stack.Screen name="ChatThread" component={ConversationScreen} />
+        <Stack.Screen name="Health" component={HealthScreen} />
+        <Stack.Screen name="ClientHealth" component={ClientHealthScreen} />
       </Stack.Navigator>
     </NavigationContainer>
   );

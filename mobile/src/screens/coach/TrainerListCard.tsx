@@ -53,6 +53,22 @@ export function TrainerListCard({ trainer, onPress, onRequestSent, requestDisabl
       return;
     }
 
+
+    Alert.alert(
+      'Health data sharing',
+      `If ${trainer.name} accepts, they will be able to see your synced Health Connect data — steps, weight, heart rate, sleep, workouts, and other metrics. You can revoke access any time by ending the coaching.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'I understand, send request',
+          style: 'default',
+          onPress: () => sendCoachRequestNow(trimmedMessage),
+        },
+      ],
+    );
+  };
+
+  const sendCoachRequestNow = async (trimmedMessage: string) => {
     setIsSending(true);
     try {
       await coachingApi.requestCoaching({

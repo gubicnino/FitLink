@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { Alert } from 'react-native';
 import messaging, { FirebaseMessagingTypes } from '@react-native-firebase/messaging';
 import { navigationRef } from '../navigation/RootNavigator';
+import { triggerHealthSync } from '../services/healthSyncService';
 
 
 export function useFcmHandlers() {
@@ -30,6 +31,15 @@ export function useFcmHandlers() {
     // (1) Foreground
     const unsubForeground = messaging().onMessage(async remote => {
       const data = remote.data ?? {};
+
+      // Trainer-initiated remote refresh. The trainee's screen does
+      // not need to know; we just push a fresh snapshot upstream and let
+      // the trainer's getForClient poll pick it up.
+      if (data.type === 'health_sync_request') {
+        triggerHealthSync();
+        return;
+      }
+
       if (
         data.route === 'chat' &&
         typeof data.conversationId === 'string' &&

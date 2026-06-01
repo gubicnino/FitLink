@@ -2,7 +2,7 @@ import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp, NativeStackScreenProps } from '@react-navigation/native-stack';
 import { ArrowRight, Camera, ChevronLeft, HeartPulse, Scale, Smile, TrendingUp, UserRound } from 'lucide-react-native';
 import React, { useMemo } from 'react';
-import { Image, StyleSheet, View } from 'react-native';
+import { Image, Pressable, StyleSheet, View } from 'react-native';
 import { API_ORIGIN } from '../../api/apiClient';
 import { ScreenHeader } from '../../components/layout';
 import { Avatar, Button, Card, IconButton, Screen, Tag, Text } from '../../components/ui';
@@ -145,7 +145,15 @@ export function ClientDetailScreen({ route }: Props) {
               style={styles.workoutsButton}
             />
 
-            <View style={styles.healthCard}>
+            <Pressable
+              onPress={() =>
+                navigation.navigate('ClientHealth', {
+                  traineeId: client.firebaseUid,
+                  traineeName: client.displayName ?? 'Client',
+                })
+              }
+              style={({ pressed }) => [styles.healthCard, pressed && { opacity: 0.7 }]}
+            >
               <View style={styles.healthIconWrap}>
                 <HeartPulse size={18} color={colors.primary} strokeWidth={2} />
               </View>
@@ -154,7 +162,7 @@ export function ClientDetailScreen({ route }: Props) {
                   Health data
                 </Text>
               </View>
-            </View>
+            </Pressable>
           </View>
 
           <View style={styles.cadenceRow}>
