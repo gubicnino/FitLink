@@ -8,6 +8,7 @@ import { coachingApi } from '../../api/coachingApi';
 import { userApi } from '../../api/userApi';
 import { ScreenHeader } from '../../components/layout';
 import { Avatar, Card, ProgressBar, Screen, Tag, Text } from '../../components/ui';
+import { useClientWeight } from '../../hooks/useClientWeight';
 import type { RootStackParamList } from '../../navigation/types';
 import { colors, spacing } from '../../theme';
 import { Coaching } from '../../types/coaching';
@@ -220,14 +221,10 @@ export function ClientsScreen() {
                   </View>
 
                   <View style={styles.statsRow}>
-                    <View style={styles.statChip}>
-                      <Text variant="micro" color="secondary">
-                        Latest weight
-                      </Text>
-                      <Text variant="bodySmall" weight="600">
-                        {latestCheckIn?.weightKg != null ? `${latestCheckIn.weightKg} kg` : 'Not saved'}
-                      </Text>
-                    </View>
+                    <ClientWeightChip
+                      traineeId={item.client.firebaseUid}
+                      checkInWeightKg={latestCheckIn?.weightKg ?? null}
+                    />
                     <View style={styles.statChip}>
                       <Text variant="micro" color="secondary">
                         Energy
@@ -251,6 +248,28 @@ export function ClientsScreen() {
         )}
       </View>
     </Screen>
+  );
+}
+
+
+function ClientWeightChip({
+  traineeId,
+  checkInWeightKg,
+}: {
+  traineeId: string;
+  checkInWeightKg: number | null;
+}) {
+  const hcWeight = useClientWeight(traineeId);
+  const kg = hcWeight ?? checkInWeightKg;
+  return (
+    <View style={styles.statChip}>
+      <Text variant="micro" color="secondary">
+        Latest weight
+      </Text>
+      <Text variant="bodySmall" weight="600">
+        {kg != null ? `${kg.toFixed(1)} kg` : 'Not saved'}
+      </Text>
+    </View>
   );
 }
 

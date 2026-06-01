@@ -6,6 +6,7 @@ import { Image, Pressable, StyleSheet, View } from 'react-native';
 import { API_ORIGIN } from '../../api/apiClient';
 import { ScreenHeader } from '../../components/layout';
 import { Avatar, Button, Card, IconButton, Screen, Tag, Text } from '../../components/ui';
+import { useClientWeight } from '../../hooks/useClientWeight';
 import type { RootStackParamList } from '../../navigation/types';
 import { colors, spacing } from '../../theme';
 import { CheckIn } from '../../types/checkin';
@@ -68,6 +69,9 @@ export function ClientDetailScreen({ route }: Props) {
   const latestCheckIn = useMemo(() => getLatestCheckIn(coaching.checkIns), [coaching.checkIns]);
   const averageEnergy = useMemo(() => getAverageEnergy(coaching.checkIns), [coaching.checkIns]);
   const weightDelta = useMemo(() => getWeightChange(coaching.checkIns), [coaching.checkIns]);
+  // Preferiramo HC weight kda je connected in synced, fallbackamo na zadnji checkin weight.
+  const hcWeight = useClientWeight(client.firebaseUid);
+  const displayedWeightKg = hcWeight ?? latestCheckIn?.weightKg ?? null;
 
   return (
     <Screen scroll edges={['top']}>
@@ -104,7 +108,7 @@ export function ClientDetailScreen({ route }: Props) {
                 Latest weight
               </Text>
               <Text variant="body" weight="600">
-                {latestCheckIn?.weightKg != null ? `${latestCheckIn.weightKg} kg` : 'No data'}
+                {displayedWeightKg != null ? `${displayedWeightKg.toFixed(1)} kg` : 'No data'}
               </Text>
             </View>
             <View style={styles.metricCard}>
