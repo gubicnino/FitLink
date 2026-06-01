@@ -1,26 +1,56 @@
 import { errorCodes, isErrorWithCode, keepLocalCopy, pick, types } from '@react-native-documents/picker';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { FileText, ImagePlus, Save, Trash2 } from 'lucide-react-native';
+import {
+  AlertCircle,
+  ChevronLeft,
+  FileText,
+  Image as ImageIcon,
+  ImagePlus,
+  Layers,
+  MessageSquare,
+  Save,
+  Sparkles,
+  Star,
+  Tag as TagIcon,
+  Trash2,
+  Video,
+} from 'lucide-react-native';
 import React, { useEffect, useState } from 'react';
-import { Alert, Image, PermissionsAndroid, Platform, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import {
+  ActivityIndicator,
+  Alert,
+  Image,
+  PermissionsAndroid,
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  TextInput,
+  View,
+} from 'react-native';
 import { launchImageLibrary } from 'react-native-image-picker';
 import { API_ORIGIN } from '../../api/apiClient';
 import { ScreenHeader } from '../../components/layout';
-import { Button, Card, Chip, Input, Screen, Text, Textarea } from '../../components/ui';
+import { Button, IconButton, Screen, Text, Textarea } from '../../components/ui';
 import type { RootStackParamList } from '../../navigation/types';
-import { colors, spacing } from '../../theme';
+import { colors, radii, shadows, spacing } from '../../theme';
 import { CoursePayload, courseService } from '../../services/courseService';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'AddCourses'>;
 
 const FALLBACK_COURSE_IMG =
   'https://images.unsplash.com/photo-1581009146145-b5ef050c2e1e?w=500&q=80&auto=format';
-const CATEGORIES = ['Strength', 'Hypertrophy', 'Mobility', 'Cardio', 'Nutrition'];
-const LEVELS = ['BEGINNER', 'INTERMEDIATE', 'ADVANCED'];
+
+const CATEGORIES = ['Strength', 'Hypertrophy', 'Mobility', 'Cardio', 'Nutrition'] as const;
+const LEVELS = [
+  { value: 'BEGINNER', label: 'Beginner' },
+  { value: 'INTERMEDIATE', label: 'Intermediate' },
+  { value: 'ADVANCED', label: 'Advanced' },
+] as const;
 const CONTENT_TYPES = [
-  { label: 'Video', value: 'VIDEO' },
-  { label: 'Article', value: 'ARTICLE' },
-  { label: 'PDF', value: 'PDF' },
+  { label: 'Video', value: 'VIDEO', icon: 'video' as const },
+  { label: 'Article', value: 'ARTICLE', icon: 'article' as const },
+  { label: 'PDF', value: 'PDF', icon: 'pdf' as const },
 ] as const;
 
 const emptyForm: CoursePayload = {
@@ -50,7 +80,6 @@ export function AddCourses({ navigation, route }: Props) {
   useEffect(() => {
     const loadCourse = async () => {
       if (!courseId) return;
-
       try {
         const course = await courseService.getById(courseId);
         setForm({
@@ -73,7 +102,6 @@ export function AddCourses({ navigation, route }: Props) {
         setInitialLoading(false);
       }
     };
-
     loadCourse();
   }, [courseId]);
 
@@ -84,12 +112,10 @@ export function AddCourses({ navigation, route }: Props) {
 
   const requestPhotoPermission = async () => {
     if (Platform.OS !== 'android') return true;
-
     const permission =
       Platform.Version >= 33
         ? PermissionsAndroid.PERMISSIONS.READ_MEDIA_IMAGES
         : PermissionsAndroid.PERMISSIONS.READ_EXTERNAL_STORAGE;
-
     const result = await PermissionsAndroid.request(permission);
     return result === PermissionsAndroid.RESULTS.GRANTED;
   };
@@ -97,13 +123,11 @@ export function AddCourses({ navigation, route }: Props) {
   const handlePickThumbnail = async () => {
     try {
       setError(null);
-
       const hasPermission = await requestPhotoPermission();
       if (!hasPermission) {
         setError('Photo permission is required to upload a thumbnail.');
         return;
       }
-
       const result = await launchImageLibrary({
         mediaType: 'photo',
         selectionLimit: 1,
@@ -112,19 +136,16 @@ export function AddCourses({ navigation, route }: Props) {
         maxHeight: 900,
         quality: 0.7,
       });
-
       if (result.didCancel) return;
       if (result.errorCode) {
         setError(result.errorMessage ?? 'Could not open photo library.');
         return;
       }
-
       const asset = result.assets?.[0];
       if (!asset?.uri) {
         setError('No image was selected.');
         return;
       }
-
       setThumbnailUploading(true);
       const response = await courseService.uploadThumbnail({
         uri: asset.uri,
@@ -143,38 +164,23 @@ export function AddCourses({ navigation, route }: Props) {
   const handlePickPdf = async () => {
     try {
       setError(null);
-
-      const [picked] = await pick({
-        type: types.pdf,
-      });
-
+      const [picked] = await pick({ type: types.pdf });
       const [localCopy] = await keepLocalCopy({
-        files: [
-          {
-            uri: picked.uri,
-            fileName: picked.name ?? 'course-document.pdf',
-          },
-        ],
+        files: [{ uri: picked.uri, fileName: picked.name ?? 'course-document.pdf' }],
         destination: 'documentDirectory',
       });
-
       if (localCopy.status !== 'success') {
         throw new Error(localCopy.copyError);
       }
-
       setPdfUploading(true);
       const response = await courseService.uploadPdf({
         uri: localCopy.localUri,
         fileName: picked.name ?? 'course-document.pdf',
         type: picked.type ?? 'application/pdf',
       });
-
       updateField('pdfUrl', response.pdfUrl);
     } catch (err: any) {
-      if (isErrorWithCode(err) && err.code === errorCodes.OPERATION_CANCELED) {
-        return;
-      }
-
+      if (isErrorWithCode(err) && err.code === errorCodes.OPERATION_CANCELED) return;
       console.error('PDF upload failed:', err);
       setError(getRequestErrorMessage(err, 'Could not upload PDF.'));
     } finally {
@@ -212,7 +218,6 @@ export function AddCourses({ navigation, route }: Props) {
       setError('Choose a PDF file.');
       return null;
     }
-
     return payload;
   };
 
@@ -221,18 +226,12 @@ export function AddCourses({ navigation, route }: Props) {
       setError('Wait for the file upload to finish before saving the course.');
       return;
     }
-
     const payload = getPayload();
     if (!payload) return;
-
     setLoading(true);
     try {
-      if (courseId) {
-        await courseService.update(courseId, payload);
-      } else {
-        await courseService.create(payload);
-      }
-
+      if (courseId) await courseService.update(courseId, payload);
+      else await courseService.create(payload);
       Alert.alert('Saved', isEditing ? 'Course updated.' : 'Course created.');
       navigation.goBack();
     } catch (err: any) {
@@ -245,7 +244,6 @@ export function AddCourses({ navigation, route }: Props) {
 
   const handleDelete = () => {
     if (!courseId) return;
-
     Alert.alert('Delete course', 'This cannot be undone.', [
       { text: 'Cancel', style: 'cancel' },
       {
@@ -267,236 +265,506 @@ export function AddCourses({ navigation, route }: Props) {
     ]);
   };
 
+  const removeThumbnail = () => updateField('thumbnailUrl', '');
+
+  const previewType =
+    form.contentType === 'PDF' ? 'PDF' :
+    form.contentType === 'ARTICLE' ? 'ARTICLE' : 'VIDEO';
+
   return (
-    <Screen edges={['top']} background="surface">
-      <ScreenHeader title={isEditing ? 'Edit Course' : 'Add Course'} />
-      <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-        {initialLoading ? (
-          <Card padding="md">
-            <Text variant="bodySmall" color="secondary">
-              Loading course...
-            </Text>
-          </Card>
-        ) : (
-          <>
-            {error ? (
-              <Card padding="md" style={styles.errorCard}>
-                <Text variant="bodySmall" style={styles.errorText}>
-                  {error}
-                </Text>
-              </Card>
-            ) : null}
+    <Screen edges={['top']} keyboardAware>
+      <ScreenHeader
+        title={isEditing ? 'Edit course' : 'New course'}
+        left={
+          <IconButton variant="surface" withBorder onPress={() => navigation.goBack()}>
+            <ChevronLeft size={18} color={colors.inkPrimary} strokeWidth={2.25} />
+          </IconButton>
+        }
+      />
 
-            <View style={styles.form}>
-              <Input label="Title" value={form.title} onChangeText={value => updateField('title', value)} />
-              <Input
-                label="Description"
-                value={form.description}
-                onChangeText={value => updateField('description', value)}
-                multiline
-                style={styles.textArea}
-                textAlignVertical="top"
-              />
-
-              <FieldGroup label="Category">
-                {CATEGORIES.map(category => (
-                  <Chip
-                    key={category}
-                    label={category}
-                    selected={form.category === category}
-                    onPress={() => updateField('category', category)}
-                  />
-                ))}
-              </FieldGroup>
-
-              <FieldGroup label="Level">
-                {LEVELS.map(level => (
-                  <Chip
-                    key={level}
-                    label={level}
-                    selected={form.level === level}
-                    onPress={() => updateField('level', level)}
-                  />
-                ))}
-              </FieldGroup>
-
-              <FieldGroup label="Type">
-                {CONTENT_TYPES.map(type => (
-                  <Chip
-                    key={type.value}
-                    label={type.label}
-                    selected={form.contentType === type.value}
-                    onPress={() => updateField('contentType', type.value)}
-                  />
-                ))}
-              </FieldGroup>
-
-              <Pressable
-                style={[styles.reviewToggle, form.reviewsEnabled !== false && styles.reviewToggleActive]}
-                onPress={() => updateField('reviewsEnabled', form.reviewsEnabled === false)}
-              >
-                <View style={styles.reviewToggleText}>
-                  <Text variant="bodySmall" weight="700">
-                    Reviews and comments
-                  </Text>
-                  <Text variant="caption" color="secondary">
-                    {form.reviewsEnabled === false ? 'Disabled for this course' : 'Enabled for this course'}
-                  </Text>
+      {initialLoading ? (
+        <View style={styles.center}>
+          <ActivityIndicator size="large" color={colors.primary} />
+        </View>
+      ) : (
+        <ScrollView
+          contentContainerStyle={styles.scroll}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
+          {/* Hero ----------------------------------------------- */}
+          <View style={styles.heroWrap}>
+            <View style={[styles.hero, shadows.card]}>
+              <View style={styles.heroGlow} />
+              <Text variant="micro" weight="800" style={styles.heroEyebrow}>
+                {isEditing ? 'EDITING COURSE' : 'NEW COURSE'}
+              </Text>
+              <Text style={styles.heroTitle} numberOfLines={2}>
+                {form.title.trim() || 'Untitled course'}
+              </Text>
+              <View style={styles.heroMetaRow}>
+                <View style={styles.heroChip}>
+                  <TagIcon size={11} color={colors.white} strokeWidth={2.5} />
+                  <Text style={styles.heroChipText}>{form.category}</Text>
                 </View>
-                <Text variant="bodySmall" color={form.reviewsEnabled === false ? 'muted' : 'brand'} weight="700">
-                  {form.reviewsEnabled === false ? 'Off' : 'On'}
-                </Text>
-              </Pressable>
-
-              {form.contentType === 'ARTICLE' ? (
-                <View style={styles.articleFields}>
-                  <Input
-                    label="Article URL"
-                    value={form.articleUrl ?? ''}
-                    onChangeText={value => updateField('articleUrl', value)}
-                    autoCapitalize="none"
-                    placeholder="Paste article link"
-                  />
-                  <Textarea
-                    label="Written article"
-                    value={form.articleContent ?? ''}
-                    onChangeText={value => updateField('articleContent', value)}
-                    placeholder="Write the course article here"
-                    rows={8}
-                  />
-                  <Text variant="caption" color="secondary">
-                    Add a URL, write the article, or use both.
-                  </Text>
+                <View style={styles.heroChip}>
+                  <Sparkles size={11} color={colors.white} strokeWidth={2.5} />
+                  <Text style={styles.heroChipText}>{capitalize(form.level)}</Text>
                 </View>
-              ) : form.contentType === 'PDF' ? (
-                <View style={styles.filePickerBlock}>
+                <View style={[styles.heroChip, styles.heroChipAccent]}>
+                  <ContentTypeIcon type={previewType} color={colors.accent} />
+                  <Text style={[styles.heroChipText, { color: colors.accent }]}>{previewType}</Text>
+                </View>
+              </View>
+            </View>
+          </View>
+
+          {/* Thumbnail ----------------------------------------- */}
+          <SectionHeader label="COVER" />
+          <View style={styles.gutter}>
+            <ThumbnailCanvas
+              url={form.thumbnailUrl ? getMediaUrl(form.thumbnailUrl) : null}
+              uploading={thumbnailUploading}
+              onPick={handlePickThumbnail}
+              onRemove={removeThumbnail}
+              fallbackPreview={
+                form.contentType === 'VIDEO' && form.youtubeVideoId
+                  ? `https://img.youtube.com/vi/${extractYoutubeId(form.youtubeVideoId.trim())}/hqdefault.jpg`
+                  : FALLBACK_COURSE_IMG
+              }
+            />
+          </View>
+
+          {/* Basics -------------------------------------------- */}
+          <SectionHeader label="BASICS" />
+          <View style={styles.gutter}>
+            <View style={styles.card}>
+              <LabeledField label="Title">
+                <TextInput
+                  value={form.title}
+                  onChangeText={value => updateField('title', value)}
+                  placeholder="Give your course a clear name"
+                  placeholderTextColor={colors.inkMuted}
+                  style={styles.textInput}
+                  maxLength={120}
+                />
+              </LabeledField>
+              <View style={styles.cardDivider} />
+              <LabeledField label="Description">
+                <Textarea
+                  value={form.description}
+                  onChangeText={value => updateField('description', value)}
+                  placeholder="What will trainees learn?"
+                  rows={4}
+                  style={styles.textareaInput}
+                  containerStyle={styles.textareaContainer}
+                />
+              </LabeledField>
+            </View>
+          </View>
+
+          {/* Classification ------------------------------------ */}
+          <SectionHeader label="CLASSIFICATION" />
+          <View style={styles.gutter}>
+            <ChipField
+              icon={<TagIcon size={13} color={colors.accent} strokeWidth={2.25} />}
+              label="Category"
+            >
+              {CATEGORIES.map(c => (
+                <ModernChip
+                  key={c}
+                  label={c}
+                  selected={form.category === c}
+                  onPress={() => updateField('category', c)}
+                />
+              ))}
+            </ChipField>
+            <ChipField
+              icon={<Sparkles size={13} color={colors.accent} strokeWidth={2.25} />}
+              label="Difficulty level"
+            >
+              {LEVELS.map(l => (
+                <ModernChip
+                  key={l.value}
+                  label={l.label}
+                  selected={form.level === l.value}
+                  onPress={() => updateField('level', l.value)}
+                />
+              ))}
+            </ChipField>
+            <ChipField
+              icon={<Layers size={13} color={colors.accent} strokeWidth={2.25} />}
+              label="Content type"
+            >
+              {CONTENT_TYPES.map(t => (
+                <ModernChip
+                  key={t.value}
+                  label={t.label}
+                  selected={form.contentType === t.value}
+                  leftIcon={
+                    <ContentTypeIcon
+                      type={t.value}
+                      color={form.contentType === t.value ? colors.primary : colors.inkSecondary}
+                    />
+                  }
+                  onPress={() => updateField('contentType', t.value)}
+                />
+              ))}
+            </ChipField>
+          </View>
+
+          {/* Content ------------------------------------------- */}
+          <SectionHeader label="CONTENT" />
+          <View style={styles.gutter}>
+            <View style={styles.card}>
+              {form.contentType === 'VIDEO' ? (
+                <LabeledField
+                  label="YouTube video"
+                  hint="Paste a full URL or just the video ID"
+                >
+                  <View style={styles.iconInputRow}>
+                    <Video size={16} color={colors.inkMuted} strokeWidth={2} />
+                    <TextInput
+                      value={form.youtubeVideoId ?? ''}
+                      onChangeText={value => updateField('youtubeVideoId', value)}
+                      placeholder="https://youtu.be/..."
+                      placeholderTextColor={colors.inkMuted}
+                      autoCapitalize="none"
+                      style={styles.iconInput}
+                    />
+                  </View>
+                </LabeledField>
+              ) : form.contentType === 'ARTICLE' ? (
+                <>
+                  <LabeledField label="Article URL" hint="Optional - link to an external article">
+                    <View style={styles.iconInputRow}>
+                      <FileText size={16} color={colors.inkMuted} strokeWidth={2} />
+                      <TextInput
+                        value={form.articleUrl ?? ''}
+                        onChangeText={value => updateField('articleUrl', value)}
+                        placeholder="https://..."
+                        placeholderTextColor={colors.inkMuted}
+                        autoCapitalize="none"
+                        style={styles.iconInput}
+                      />
+                    </View>
+                  </LabeledField>
+                  <View style={styles.cardDivider} />
+                  <LabeledField label="Written article" hint="Optional - write the article inline">
+                    <Textarea
+                      value={form.articleContent ?? ''}
+                      onChangeText={value => updateField('articleContent', value)}
+                      placeholder="Write your article here..."
+                      rows={8}
+                      style={styles.textareaInput}
+                      containerStyle={styles.textareaContainer}
+                    />
+                  </LabeledField>
+                </>
+              ) : (
+                <LabeledField label="PDF document">
                   {form.pdfUrl ? (
-                    <View style={styles.fileSelectedRow}>
-                      <FileText size={16} color={colors.primary} strokeWidth={2.25} />
-                      <Text variant="bodySmall" color="secondary" numberOfLines={1} style={styles.fileSelectedText}>
-                        PDF selected
-                      </Text>
+                    <View style={styles.pdfSelected}>
+                      <View style={styles.pdfIcon}>
+                        <FileText size={18} color={colors.primary} strokeWidth={2.25} />
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <Text variant="bodySmall" weight="700" numberOfLines={1}>
+                          PDF document
+                        </Text>
+                        <Text variant="micro" color="muted">Uploaded · tap below to replace</Text>
+                      </View>
+                      <Pressable
+                        onPress={() => updateField('pdfUrl', '')}
+                        hitSlop={8}
+                        style={({ pressed }) => [styles.pdfRemove, pressed && { opacity: 0.6 }]}
+                        accessibilityLabel="Remove PDF"
+                      >
+                        <Trash2 size={14} color={colors.danger} strokeWidth={2.25} />
+                      </Pressable>
                     </View>
                   ) : null}
                   <Button
-                    label={pdfUploading ? 'Uploading PDF...' : form.pdfUrl ? 'Change PDF' : 'Choose PDF'}
+                    label={pdfUploading ? 'Uploading PDF…' : form.pdfUrl ? 'Replace PDF' : 'Choose PDF file'}
                     variant="outline"
                     fullWidth
                     loading={pdfUploading}
                     onPress={handlePickPdf}
                     leftIcon={<FileText size={16} color={colors.primary} strokeWidth={2.25} />}
+                    style={{ marginTop: form.pdfUrl ? spacing.md : 0 }}
                   />
-                </View>
-              ) : (
-                <Input
-                  label="YouTube video ID or URL"
-                  value={form.youtubeVideoId ?? ''}
-                  onChangeText={value => updateField('youtubeVideoId', value)}
-                  autoCapitalize="none"
-                  placeholder="Paste YouTube URL or video ID"
-                />
+                </LabeledField>
               )}
-
-              {form.thumbnailUrl ? (
-                <View style={styles.thumbnailBlock}>
-                  <Image source={{ uri: getMediaUrl(form.thumbnailUrl) }} style={styles.thumbnailPreview} />
-                  <Pressable style={styles.removeThumbnailButton} onPress={() => updateField('thumbnailUrl', '')}>
-                    <Trash2 size={14} color={colors.danger} strokeWidth={2} />
-                    <Text variant="bodySmall" weight="600" style={styles.removeThumbnailText}>
-                      Remove thumbnail
-                    </Text>
-                  </Pressable>
-                </View>
-              ) : null}
-              <Button
-                label={thumbnailUploading ? 'Uploading thumbnail...' : form.thumbnailUrl ? 'Change thumbnail' : 'Choose thumbnail'}
-                variant="outline"
-                fullWidth
-                loading={thumbnailUploading}
-                onPress={handlePickThumbnail}
-                leftIcon={<ImagePlus size={16} color={colors.primary} strokeWidth={2.25} />}
-              />
             </View>
+          </View>
 
-            <CoursePreview form={form} />
+          {/* Settings ------------------------------------------ */}
+          <SectionHeader label="SETTINGS" />
+          <View style={styles.gutter}>
+            <Pressable
+              onPress={() => updateField('reviewsEnabled', form.reviewsEnabled === false)}
+              style={({ pressed }) => [styles.toggleRow, pressed && { opacity: 0.92 }]}
+            >
+              <View style={styles.toggleIcon}>
+                <MessageSquare size={16} color={colors.primary} strokeWidth={2.25} />
+              </View>
+              <View style={styles.toggleText}>
+                <Text variant="body" weight="700">Reviews & comments</Text>
+                <Text variant="micro" color="muted">
+                  {form.reviewsEnabled === false
+                    ? 'Trainees cannot rate or comment'
+                    : 'Trainees can rate this course and leave comments'}
+                </Text>
+              </View>
+              <Switch on={form.reviewsEnabled !== false} />
+            </Pressable>
+          </View>
 
-            <Button
-              label={isEditing ? 'Save changes' : 'Create course'}
-              variant="primary"
-              fullWidth
-              loading={loading}
-              disabled={loading || thumbnailUploading || pdfUploading}
-              onPress={handleSubmit}
-              leftIcon={<Save size={16} color={colors.white} strokeWidth={2.25} />}
-            />
+          {/* Error --------------------------------------------- */}
+          {error ? (
+            <View style={[styles.gutter, { marginTop: spacing.md }]}>
+              <View style={styles.errorBox}>
+                <AlertCircle size={16} color={colors.danger} strokeWidth={2.25} />
+                <Text variant="bodySmall" weight="600" color="danger" style={styles.errorText}>
+                  {error}
+                </Text>
+              </View>
+            </View>
+          ) : null}
 
-            {courseId ? (
-              <Pressable style={styles.deleteButton} onPress={handleDelete} disabled={loading}>
-                <Trash2 size={16} color={colors.danger} strokeWidth={2} />
-                <Text variant="bodySmall" weight="600" style={styles.deleteText}>
-                  Delete course
+          {/* Delete CTA (only in edit mode) ------------------ */}
+          {courseId ? (
+            <View style={[styles.gutter, { marginTop: spacing.xl }]}>
+              <Pressable
+                onPress={handleDelete}
+                disabled={loading}
+                style={({ pressed }) => [styles.deleteRow, pressed && { opacity: 0.85 }]}
+              >
+                <Trash2 size={16} color={colors.danger} strokeWidth={2.25} />
+                <Text variant="bodySmall" weight="800" color="danger">
+                  Delete this course
                 </Text>
               </Pressable>
-            ) : null}
-          </>
-        )}
-      </ScrollView>
+            </View>
+          ) : null}
+        </ScrollView>
+      )}
+
+      {/* Sticky bottom CTA ----------------------------------- */}
+      {!initialLoading ? (
+        <View style={[styles.ctaBar, shadows.modal]}>
+          <View style={styles.ctaInfo}>
+            <Text style={styles.ctaInfoLabel}>{isEditing ? 'EDITING' : 'CREATING'}</Text>
+            <Text variant="bodySmall" weight="800" numberOfLines={1} style={styles.ctaInfoName}>
+              {form.title.trim() || (isEditing ? 'Edit course' : 'New course')}
+            </Text>
+          </View>
+          <Button
+            label={loading ? 'Saving…' : isEditing ? 'Save' : 'Create'}
+            variant="primary"
+            size="lg"
+            loading={loading}
+            disabled={loading || thumbnailUploading || pdfUploading}
+            onPress={handleSubmit}
+            leftIcon={<Save size={16} color={colors.white} strokeWidth={2.5} />}
+            style={styles.ctaButton}
+          />
+        </View>
+      ) : null}
     </Screen>
   );
 }
 
-function FieldGroup({ label, children }: { label: string; children: React.ReactNode }) {
+/* -------------------------------------------------------------------------- */
+/* Sub-components                                                              */
+/* -------------------------------------------------------------------------- */
+
+function SectionHeader({ label }: { label: string }) {
   return (
-    <View>
-      <Text variant="caption" color="muted" style={styles.groupLabel}>
+    <View style={styles.sectionHeader}>
+      <View style={styles.sectionBar} />
+      <Text variant="caption" weight="800" style={styles.sectionLabel}>
         {label}
       </Text>
-      <View style={styles.chips}>{children}</View>
     </View>
   );
 }
 
-function CoursePreview({ form }: { form: CoursePayload }) {
-  const contentType = normalizeContentType(form.contentType);
-  const title = form.title.trim() || 'Course title';
-  const description = form.description.trim() || 'Course description will appear here.';
-  const sourceLabel =
-    contentType === 'PDF'
-      ? 'PDF'
-      : contentType === 'ARTICLE'
-        ? form.articleContent?.trim()
-          ? 'WRITTEN ARTICLE'
-          : 'ARTICLE'
-        : 'VIDEO';
-
+function LabeledField({
+  label,
+  hint,
+  children,
+}: {
+  label: string;
+  hint?: string;
+  children: React.ReactNode;
+}) {
   return (
-    <Card padding="none">
-      <View style={styles.previewImageWrap}>
-        <Image source={{ uri: getPreviewImageUrl(form) }} style={styles.previewImage} />
-        <View style={styles.previewOverlay} />
-        <View style={styles.previewTypePill}>
-          <Text variant="micro" weight="700" style={styles.previewTypeText}>
-            {sourceLabel}
+    <View style={styles.field}>
+      <View style={styles.fieldLabelRow}>
+        <Text variant="micro" weight="800" style={styles.fieldLabel}>
+          {label.toUpperCase()}
+        </Text>
+        {hint ? (
+          <Text variant="micro" color="muted" style={styles.fieldHint} numberOfLines={1}>
+            {hint}
           </Text>
-        </View>
+        ) : null}
       </View>
-      <View style={styles.previewBody}>
-        <Text variant="caption" color="muted">
-          Course preview
-        </Text>
-        <Text variant="bodyLarge" weight="700" numberOfLines={2}>
-          {title}
-        </Text>
-        <Text variant="bodySmall" color="secondary" numberOfLines={3} style={styles.previewDescription}>
-          {description}
-        </Text>
-        <Text variant="micro" color="secondary">
-          {form.category} / {form.level}
-        </Text>
-      </View>
-    </Card>
+      {children}
+    </View>
   );
 }
+
+function ChipField({
+  icon,
+  label,
+  children,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <View style={styles.chipField}>
+      <View style={styles.chipFieldHeader}>
+        <View style={styles.chipFieldIcon}>{icon}</View>
+        <Text variant="micro" weight="800" style={styles.chipFieldLabel}>
+          {label.toUpperCase()}
+        </Text>
+      </View>
+      <View style={styles.chipRow}>{children}</View>
+    </View>
+  );
+}
+
+function ModernChip({
+  label,
+  selected,
+  onPress,
+  leftIcon,
+}: {
+  label: string;
+  selected: boolean;
+  onPress: () => void;
+  leftIcon?: React.ReactNode;
+}) {
+  return (
+    <Pressable
+      onPress={onPress}
+      style={({ pressed }) => [
+        styles.chip,
+        selected && styles.chipActive,
+        pressed && { opacity: 0.85 },
+      ]}
+      accessibilityRole="radio"
+      accessibilityState={{ selected }}
+    >
+      {leftIcon ? <View style={styles.chipIcon}>{leftIcon}</View> : null}
+      <Text
+        variant="bodySmall"
+        weight={selected ? '800' : '600'}
+        style={[styles.chipLabel, selected && styles.chipLabelActive]}
+      >
+        {label}
+      </Text>
+    </Pressable>
+  );
+}
+
+function ContentTypeIcon({ type, color }: { type: string; color: string }) {
+  if (type === 'VIDEO') return <Video size={13} color={color} strokeWidth={2.25} />;
+  if (type === 'ARTICLE') return <FileText size={13} color={color} strokeWidth={2.25} />;
+  if (type === 'PDF') return <FileText size={13} color={color} strokeWidth={2.25} />;
+  return null;
+}
+
+function Switch({ on }: { on: boolean }) {
+  return (
+    <View style={[styles.switchTrack, on && styles.switchTrackOn]}>
+      <View style={[styles.switchThumb, on && styles.switchThumbOn]} />
+    </View>
+  );
+}
+
+function ThumbnailCanvas({
+  url,
+  uploading,
+  onPick,
+  onRemove,
+  fallbackPreview,
+}: {
+  url: string | null;
+  uploading: boolean;
+  onPick: () => void;
+  onRemove: () => void;
+  fallbackPreview: string;
+}) {
+  const hasThumb = !!url;
+  return (
+    <Pressable
+      onPress={hasThumb ? undefined : onPick}
+      disabled={uploading || hasThumb}
+      style={[styles.thumbCanvas, !hasThumb && styles.thumbCanvasEmpty]}
+    >
+      <Image
+        source={{ uri: url || fallbackPreview }}
+        style={styles.thumbImage}
+        blurRadius={hasThumb ? 0 : 6}
+      />
+      {!hasThumb ? <View style={styles.thumbDim} /> : null}
+
+      {!hasThumb ? (
+        <View style={styles.thumbEmptyOverlay} pointerEvents="none">
+          <View style={styles.thumbEmptyIcon}>
+            <ImageIcon size={26} color={colors.white} strokeWidth={2} />
+          </View>
+          <Text style={styles.thumbEmptyTitle}>Add a cover image</Text>
+          <Text style={styles.thumbEmptyHint}>16:9 recommended</Text>
+        </View>
+      ) : null}
+
+      {uploading ? (
+        <View style={styles.thumbLoading}>
+          <ActivityIndicator color={colors.white} />
+          <Text variant="micro" weight="700" style={{ color: colors.white, marginTop: 6 }}>
+            Uploading…
+          </Text>
+        </View>
+      ) : null}
+
+      {hasThumb && !uploading ? (
+        <View style={styles.thumbActions}>
+          <Pressable
+            onPress={onPick}
+            style={({ pressed }) => [styles.thumbAction, pressed && { opacity: 0.85 }]}
+          >
+            <ImagePlus size={13} color={colors.white} strokeWidth={2.25} />
+            <Text style={styles.thumbActionText}>Change</Text>
+          </Pressable>
+          <Pressable
+            onPress={onRemove}
+            style={({ pressed }) => [styles.thumbAction, styles.thumbActionDanger, pressed && { opacity: 0.85 }]}
+          >
+            <Trash2 size={13} color={colors.white} strokeWidth={2.25} />
+            <Text style={styles.thumbActionText}>Remove</Text>
+          </Pressable>
+        </View>
+      ) : null}
+
+      {hasThumb ? (
+        <View style={styles.thumbBadge}>
+          <Star size={11} color={colors.white} fill={colors.white} strokeWidth={0} />
+          <Text style={styles.thumbBadgeText}>Cover set</Text>
+        </View>
+      ) : null}
+    </Pressable>
+  );
+}
+
+/* -------------------------------------------------------------------------- */
+/* Helpers                                                                     */
+/* -------------------------------------------------------------------------- */
 
 function extractYoutubeId(value: string) {
   const match = value.match(/(?:v=|youtu\.be\/|embed\/|shorts\/)([a-zA-Z0-9_-]{11})/);
@@ -511,118 +779,410 @@ function getMediaUrl(value: string) {
   return value.startsWith('/uploads/') ? `${API_ORIGIN}${value}` : value;
 }
 
-function getPreviewImageUrl(form: CoursePayload) {
-  if (form.thumbnailUrl) {
-    return getMediaUrl(form.thumbnailUrl);
-  }
-
-  if (form.contentType === 'VIDEO' && form.youtubeVideoId) {
-    const youtubeId = extractYoutubeId(form.youtubeVideoId.trim());
-    if (youtubeId) {
-      return `https://img.youtube.com/vi/${youtubeId}/hqdefault.jpg`;
-    }
-  }
-
-  return FALLBACK_COURSE_IMG;
-}
-
 function getRequestErrorMessage(error: any, fallback: string) {
   if (error?.code === 'ECONNABORTED') {
     return 'Request timed out. Check that backend is running and try again.';
   }
-
   return error?.response?.data?.message ||
     error?.response?.data?.error ||
     error?.message ||
     fallback;
 }
 
+function capitalize(s: string) {
+  if (!s) return s;
+  return s.charAt(0) + s.slice(1).toLowerCase();
+}
+
+/* -------------------------------------------------------------------------- */
+/* Styles                                                                      */
+/* -------------------------------------------------------------------------- */
+
 const styles = StyleSheet.create({
-  content: {
-    paddingHorizontal: spacing.xxl,
-    paddingBottom: spacing.huge,
-    gap: spacing.xl,
-  },
-  form: { gap: spacing.lg },
-  textArea: { height: 112, paddingTop: spacing.lg },
-  articleFields: { gap: spacing.md },
-  thumbnailBlock: { gap: spacing.sm },
-  thumbnailPreview: {
-    width: '100%',
-    aspectRatio: 16 / 9,
-    borderRadius: 12,
-    backgroundColor: colors.surfaceElevated,
-  },
-  removeThumbnailButton: {
-    minHeight: 36,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: spacing.sm,
-  },
-  removeThumbnailText: { color: colors.danger },
-  filePickerBlock: { gap: spacing.md },
-  previewImageWrap: {
-    width: '100%',
-    aspectRatio: 16 / 9,
-    backgroundColor: colors.surfaceElevated,
+  scroll: { paddingBottom: spacing.huge + 80, paddingTop: spacing.xs },
+  gutter: { paddingHorizontal: spacing.xxl },
+  center: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: spacing.xxl, gap: spacing.md },
+
+  // Hero
+  heroWrap: { paddingHorizontal: spacing.xxl },
+  hero: {
+    paddingHorizontal: spacing.xl,
+    paddingTop: spacing.xl,
+    paddingBottom: spacing.lg,
+    gap: spacing.md,
+    backgroundColor: colors.primary,
+    borderRadius: radii.xl,
+    overflow: 'hidden',
     position: 'relative',
   },
-  previewImage: { width: '100%', height: '100%' },
-  previewOverlay: {
-    ...StyleSheet.absoluteFill,
-    backgroundColor: 'rgba(0,0,0,0.18)',
-  },
-  previewTypePill: {
+  heroGlow: {
     position: 'absolute',
-    right: spacing.md,
-    bottom: spacing.md,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.xs,
-    borderRadius: 8,
-    backgroundColor: 'rgba(0,0,0,0.72)',
+    top: -70,
+    right: -50,
+    width: 180,
+    height: 180,
+    borderRadius: 90,
+    backgroundColor: colors.primaryDark,
+    opacity: 0.45,
   },
-  previewTypeText: { color: colors.white },
-  previewBody: { padding: spacing.lg, gap: spacing.sm },
-  previewDescription: { lineHeight: 18 },
-  fileSelectedRow: {
-    minHeight: 42,
-    borderRadius: 12,
-    backgroundColor: colors.surfaceElevated,
+  heroEyebrow: {
+    color: 'rgba(255,255,255,0.6)',
+    letterSpacing: 1.4,
+    fontSize: 10,
+  },
+  heroTitle: {
+    fontSize: 24,
+    lineHeight: 28,
+    letterSpacing: -0.5,
+    fontWeight: '800',
+    color: colors.white,
+  },
+  heroMetaRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.sm,
+    marginTop: spacing.xs,
+  },
+  heroChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 5,
+    borderRadius: radii.pill,
+    backgroundColor: 'rgba(255,255,255,0.14)',
+  },
+  heroChipAccent: {
+    backgroundColor: 'rgba(255,107,53,0.18)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,107,53,0.35)',
+  },
+  heroChipText: {
+    color: colors.white,
+    fontSize: 10,
+    fontWeight: '800',
+    letterSpacing: 0.4,
+  },
+
+  // Section header
+  sectionHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.sm,
-    paddingHorizontal: spacing.md,
+    paddingHorizontal: spacing.xxl,
+    paddingTop: spacing.xxl,
+    paddingBottom: spacing.md,
   },
-  fileSelectedText: { flex: 1 },
-  reviewToggle: {
-    minHeight: 58,
-    borderRadius: 12,
+  sectionBar: {
+    width: 3,
+    height: 14,
+    borderRadius: 2,
+    backgroundColor: colors.accent,
+  },
+  sectionLabel: {
+    fontSize: 11,
+    letterSpacing: 1.2,
+    color: colors.inkPrimary,
+  },
+
+  // Generic card
+  card: {
+    backgroundColor: colors.surface,
+    borderRadius: radii.lg,
+    borderWidth: 1,
+    borderColor: colors.line,
+    padding: spacing.lg,
+    gap: spacing.md,
+  },
+  cardDivider: { height: 1, backgroundColor: colors.line },
+
+  // Labeled field
+  field: { gap: spacing.sm },
+  fieldLabelRow: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between' },
+  fieldLabel: { fontSize: 10, letterSpacing: 0.8, color: colors.inkSecondary },
+  fieldHint: { flex: 1, marginLeft: spacing.md, textAlign: 'right' },
+
+  textInput: {
     borderWidth: 1,
     borderColor: colors.line,
     backgroundColor: colors.surface,
+    borderRadius: radii.md,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: 12,
+    color: colors.inkPrimary,
+    fontSize: 15,
+    fontWeight: '600',
+  },
+  textareaContainer: {},
+  textareaInput: {
+    backgroundColor: colors.surface,
+    borderRadius: radii.md,
+  },
+
+  iconInputRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: spacing.md,
+    gap: spacing.sm,
     paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.md,
+    borderWidth: 1,
+    borderColor: colors.line,
+    backgroundColor: colors.surface,
+    borderRadius: radii.md,
   },
-  reviewToggleActive: {
-    borderColor: colors.primaryBorder,
+  iconInput: {
+    flex: 1,
+    paddingVertical: 12,
+    color: colors.inkPrimary,
+    fontSize: 14,
+    fontWeight: '500',
+  },
+
+  // Chip field
+  chipField: { gap: spacing.md, marginBottom: spacing.lg },
+  chipFieldHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  chipFieldIcon: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: 'rgba(255,107,53,0.14)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  chipFieldLabel: { fontSize: 10, letterSpacing: 0.8, color: colors.inkSecondary },
+  chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
+
+  chip: {
+    minHeight: 36,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: 7,
+    borderRadius: radii.pill,
+    borderWidth: 1,
+    borderColor: colors.line,
+    backgroundColor: colors.surface,
+  },
+  chipActive: {
+    borderColor: colors.primary,
     backgroundColor: colors.primarySoft,
   },
-  reviewToggleText: { flex: 1, gap: 2 },
-  groupLabel: { marginBottom: spacing.md },
-  chips: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.md },
-  errorCard: { borderColor: colors.danger },
-  errorText: { color: colors.danger },
-  deleteButton: {
-    height: 44,
+  chipIcon: { alignItems: 'center', justifyContent: 'center' },
+  chipLabel: { color: colors.inkSecondary, letterSpacing: 0.1 },
+  chipLabelActive: { color: colors.primary },
+
+  // PDF selected row
+  pdfSelected: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    padding: spacing.md,
+    borderRadius: radii.md,
+    backgroundColor: colors.primarySoft,
+    borderWidth: 1,
+    borderColor: colors.primaryBorder,
+  },
+  pdfIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: colors.surface,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  pdfRemove: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: colors.surface,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(239,68,68,0.25)',
+  },
+
+  // Toggle (Reviews)
+  toggleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.lg,
+    borderRadius: radii.lg,
+    borderWidth: 1,
+    borderColor: colors.line,
+    backgroundColor: colors.surface,
+  },
+  toggleIcon: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: colors.primarySoft,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  toggleText: { flex: 1, gap: 2 },
+  switchTrack: {
+    width: 44,
+    height: 26,
+    borderRadius: 13,
+    backgroundColor: colors.line,
+    padding: 3,
+    justifyContent: 'center',
+  },
+  switchTrackOn: {
+    backgroundColor: colors.primary,
+  },
+  switchThumb: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: colors.white,
+    ...Platform.select({
+      ios: { shadowColor: '#000', shadowOpacity: 0.15, shadowOffset: { width: 0, height: 1 }, shadowRadius: 1.5 },
+      android: { elevation: 2 },
+    }),
+  },
+  switchThumbOn: {
+    transform: [{ translateX: 18 }],
+  },
+
+  // Thumbnail canvas
+  thumbCanvas: {
+    width: '100%',
+    aspectRatio: 16 / 9,
+    borderRadius: radii.lg,
+    overflow: 'hidden',
+    backgroundColor: colors.surfaceElevated,
+    borderWidth: 1,
+    borderColor: colors.line,
+    position: 'relative',
+  },
+  thumbCanvasEmpty: {
+    borderStyle: 'dashed',
+    borderColor: colors.primaryBorder,
+  },
+  thumbImage: { width: '100%', height: '100%' },
+  thumbDim: {
+    position: 'absolute',
+    top: 0, left: 0, right: 0, bottom: 0,
+    backgroundColor: 'rgba(46,91,159,0.55)',
+  },
+  thumbEmptyOverlay: {
+    position: 'absolute',
+    top: 0, left: 0, right: 0, bottom: 0,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+  },
+  thumbEmptyIcon: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: 'rgba(255,255,255,0.16)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1.5,
+    borderColor: 'rgba(255,255,255,0.3)',
+    marginBottom: 6,
+  },
+  thumbEmptyTitle: { color: colors.white, fontSize: 15, fontWeight: '800', letterSpacing: -0.1 },
+  thumbEmptyHint: { color: 'rgba(255,255,255,0.75)', fontSize: 11, fontWeight: '600' },
+  thumbLoading: {
+    position: 'absolute',
+    top: 0, left: 0, right: 0, bottom: 0,
+    backgroundColor: 'rgba(0,0,0,0.45)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  thumbActions: {
+    position: 'absolute',
+    right: spacing.md,
+    bottom: spacing.md,
+    flexDirection: 'row',
+    gap: spacing.sm,
+  },
+  thumbAction: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 6,
+    borderRadius: radii.pill,
+    backgroundColor: 'rgba(0,0,0,0.65)',
+  },
+  thumbActionDanger: {
+    backgroundColor: 'rgba(239,68,68,0.85)',
+  },
+  thumbActionText: { color: colors.white, fontSize: 11, fontWeight: '800', letterSpacing: 0.2 },
+  thumbBadge: {
+    position: 'absolute',
+    top: spacing.md,
+    left: spacing.md,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 4,
+    borderRadius: radii.pill,
+    backgroundColor: 'rgba(255,107,53,0.92)',
+  },
+  thumbBadgeText: { color: colors.white, fontSize: 10, fontWeight: '800', letterSpacing: 0.4 },
+
+  // Error
+  errorBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
+    backgroundColor: 'rgba(239,68,68,0.08)',
+    borderRadius: radii.md,
+    borderWidth: 1,
+    borderColor: 'rgba(239,68,68,0.3)',
+  },
+  errorText: { flex: 1 },
+
+  // Delete row
+  deleteRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: spacing.sm,
+    paddingVertical: spacing.lg,
+    borderRadius: radii.lg,
+    borderWidth: 1,
+    borderColor: 'rgba(239,68,68,0.25)',
+    backgroundColor: 'rgba(239,68,68,0.04)',
   },
-  deleteText: { color: colors.danger },
+
+  // Sticky CTA bar
+  ctaBar: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    paddingHorizontal: spacing.xxl,
+    paddingTop: spacing.lg,
+    paddingBottom: spacing.xxl,
+    backgroundColor: colors.surface,
+    borderTopWidth: 1,
+    borderTopColor: colors.line,
+  },
+  ctaInfo: { flex: 1, minWidth: 0, gap: 2 },
+  ctaInfoLabel: {
+    fontSize: 9,
+    letterSpacing: 1,
+    fontWeight: '800',
+    color: colors.inkMuted,
+  },
+  ctaInfoName: { letterSpacing: -0.1 },
+  ctaButton: { minWidth: 130 },
 });

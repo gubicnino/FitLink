@@ -1,10 +1,9 @@
 import React, { useCallback, useMemo, useState } from 'react';
-import { Image, Pressable, StyleSheet, TextInput, View } from 'react-native';
+import { Image, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import {
   BookOpen,
-  ChevronDown,
   Plus,
   Search,
   SlidersHorizontal,
@@ -29,22 +28,22 @@ import type { RootStackParamList } from '../../navigation/types';
 import { CourseDto, courseService } from '../../services/courseService';
 import { authService } from '../../services/authService';
 import type { User } from '../../types/types';
-import { ALL_VALUE, FilterPickerSheet } from '../../components/filters/FilterPickerSheet';
+import { ALL, CourseFilterSheet, CourseFilterValues } from '../../components/filters/CourseFilterSheet';
 import { API_ORIGIN } from '../../api/apiClient';
 import { getAvatarUrl } from '../../utils/avatar';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 
 const CATEGORIES = ['Strength', 'Hypertrophy', 'Mobility', 'Cardio', 'Nutrition'] as const;
-type Category = (typeof CATEGORIES)[number] | typeof ALL_VALUE;
 const COURSE_TYPES = ['VIDEO', 'ARTICLE', 'PDF'] as const;
-type CourseTypeFilter = (typeof COURSE_TYPES)[number] | typeof ALL_VALUE;
+
 const COURSE_VIEWS = [
   { label: 'All', value: 'ALL' },
   { label: 'Saved', value: 'SAVED' },
   { label: 'My courses', value: 'MINE' },
 ] as const;
 type CourseView = (typeof COURSE_VIEWS)[number]['value'];
+
 const SORT_OPTIONS = [
   { label: 'Newest', value: 'NEWEST' },
   { label: 'Best rated', value: 'RATED' },
@@ -56,22 +55,23 @@ type CourseSort = (typeof SORT_OPTIONS)[number]['value'];
 const FALLBACK_IMG =
   'https://images.unsplash.com/photo-1581009146145-b5ef050c2e1e?w=500&q=80&auto=format';
 
+const DEFAULT_SORT: CourseSort = 'NEWEST';
+
 export function CourseListScreen() {
   const navigation = useNavigation<Nav>();
-  const [category, setCategory] = useState<Category>(ALL_VALUE);
   const [courses, setCourses] = useState<CourseDto[]>([]);
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [pickerOpen, setPickerOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  const [contentType, setContentType] = useState<CourseTypeFilter>(ALL_VALUE);
   const [courseView, setCourseView] = useState<CourseView>('ALL');
-  const [sortBy, setSortBy] = useState<CourseSort>('NEWEST');
+  const [filterOpen, setFilterOpen] = useState(false);
+  const [category, setCategory] = useState<string>(ALL);
+  const [contentType, setContentType] = useState<string>(ALL);
+  const [sortBy, setSortBy] = useState<CourseSort>(DEFAULT_SORT);
 
   useFocusEffect(
     useCallback(() => {
       let active = true;
-
       const load = async () => {
         try {
           const [nextCourses, nextUser] = await Promise.all([
@@ -87,16 +87,14 @@ export function CourseListScreen() {
           if (active) setIsLoading(false);
         }
       };
-
       load();
-      return () => {
-        active = false;
-      };
+      return () => { active = false; };
     }, []),
   );
 
   const normalizedSearch = searchQuery.trim().toLowerCase();
   const savedCourseIds = user?.savedCourseIds ?? [];
+
   const visibleCourses = useMemo(
     () => {
       const filtered = courses.filter(course => {
@@ -108,11 +106,11 @@ export function CourseListScreen() {
               : true;
         if (!matchesView) return false;
 
-        const matchesCategory = category === ALL_VALUE || course.category === category;
+        const matchesCategory = category === ALL || course.category === category;
         if (!matchesCategory) return false;
 
         const courseTypeLabel = getCourseTypeLabel(course.contentType);
-        const matchesType = contentType === ALL_VALUE || courseTypeLabel === contentType;
+        const matchesType = contentType === ALL || courseTypeLabel === contentType;
         if (!matchesType) return false;
 
         if (!normalizedSearch) return true;
@@ -134,27 +132,42 @@ export function CourseListScreen() {
   );
 
   const categoryOptions = useMemo(
+    () => [{ value: ALL, label: 'All' }, ...CATEGORIES.map(c => ({ value: c, label: c }))],
+    [],
+  );
+  const contentTypeOptions = useMemo(
     () => [
-      { value: ALL_VALUE, label: 'All categories' },
-      ...CATEGORIES.map(c => ({ value: c, label: c })),
+      { value: ALL, label: 'All' },
+      ...COURSE_TYPES.map(t => ({
+        value: t,
+        label: t.charAt(0) + t.slice(1).toLowerCase(),
+      })),
     ],
     [],
   );
-  const categoryLabel =
-    category === ALL_VALUE
-      ? 'Category'
-      : (categoryOptions.find(o => o.value === category)?.label ?? 'Category');
+
+  const availableViews = useMemo(
+    () => COURSE_VIEWS.filter(v => v.value !== 'MINE' || user?.role === 'TRAINER'),
+    [user?.role],
+  );
+
+  const activeFilterCount =
+    (category === ALL ? 0 : 1) + (contentType === ALL ? 0 : 1) + (sortBy === DEFAULT_SORT ? 0 : 1);
+  const hasActiveFilters = activeFilterCount > 0;
+
   const hasSearch = normalizedSearch.length > 0;
-  const emptyTitle = getEmptyTitle(hasSearch, courseView, category, contentType);
-  const emptyHint = getEmptyHint(hasSearch, courseView, category, contentType);
   const cards = visibleCourses.map(toCourseCard);
   const featured = visibleCourses[0];
   const isEmpty = !isLoading && visibleCourses.length === 0;
+  const emptyTitle = getEmptyTitle(hasSearch, courseView, category, contentType);
+  const emptyHint = getEmptyHint(hasSearch, courseView, category, contentType);
 
   const pairs: Course[][] = [];
   for (let i = 0; i < cards.length; i += 2) {
     pairs.push(cards.slice(i, i + 2));
   }
+
+  const sortLabel = SORT_OPTIONS.find(o => o.value === sortBy)?.label ?? 'Newest';
 
   return (
     <Screen scroll edges={['top']}>
@@ -167,166 +180,127 @@ export function CourseListScreen() {
                 <Plus size={17} color={colors.inkPrimary} strokeWidth={2} />
               </IconButton>
             ) : null}
-            <IconButton variant="surface" withBorder>
-              <Search size={17} color={colors.inkPrimary} strokeWidth={2} />
-            </IconButton>
           </View>
         }
       />
 
       <View style={styles.filterBar}>
-        <View style={styles.searchBox}>
-          <Search size={17} color={colors.inkMuted} strokeWidth={2.25} />
-          <TextInput
-            value={searchQuery}
-            onChangeText={setSearchQuery}
-            placeholder="Search courses"
-            placeholderTextColor={colors.inkMuted}
-            autoCapitalize="none"
-            autoCorrect={false}
-            returnKeyType="search"
-            style={styles.searchInput}
-          />
-          {searchQuery.length > 0 ? (
-            <Pressable
-              onPress={() => setSearchQuery('')}
-              hitSlop={8}
-              accessibilityLabel="Clear search"
-              style={({ pressed }) => [styles.searchClear, pressed && { opacity: 0.55 }]}
-            >
-              <X size={16} color={colors.inkMuted} strokeWidth={2.5} />
-            </Pressable>
-          ) : null}
+        <View style={styles.searchRow}>
+          <View style={styles.searchBox}>
+            <Search size={17} color={colors.inkMuted} strokeWidth={2.25} />
+            <TextInput
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+              placeholder="Search courses"
+              placeholderTextColor={colors.inkMuted}
+              autoCapitalize="none"
+              autoCorrect={false}
+              returnKeyType="search"
+              style={styles.searchInput}
+            />
+            {searchQuery.length > 0 ? (
+              <Pressable
+                onPress={() => setSearchQuery('')}
+                hitSlop={8}
+                accessibilityLabel="Clear search"
+                style={({ pressed }) => [styles.searchClear, pressed && { opacity: 0.55 }]}
+              >
+                <X size={16} color={colors.inkMuted} strokeWidth={2.5} />
+              </Pressable>
+            ) : null}
+          </View>
+
+          <Pressable
+            onPress={() => setFilterOpen(true)}
+            style={({ pressed }) => [
+              styles.filterBtn,
+              hasActiveFilters && styles.filterBtnActive,
+              pressed && { opacity: 0.85 },
+            ]}
+            accessibilityRole="button"
+            accessibilityLabel="Open filters"
+          >
+            <SlidersHorizontal
+              size={17}
+              color={hasActiveFilters ? colors.primary : colors.inkSecondary}
+              strokeWidth={2.25}
+            />
+            {hasActiveFilters ? (
+              <View style={styles.filterBadge}>
+                <Text style={styles.filterBadgeText}>{activeFilterCount}</Text>
+              </View>
+            ) : null}
+          </Pressable>
         </View>
-        <View style={styles.viewTabs}>
-          {COURSE_VIEWS.filter(view => view.value !== 'MINE' || user?.role === 'TRAINER').map(view => {
+
+        <View style={styles.segment}>
+          {availableViews.map(view => {
             const selected = courseView === view.value;
             return (
               <Pressable
                 key={view.value}
                 onPress={() => setCourseView(view.value)}
-                style={({ pressed }) => [
-                  styles.viewTab,
-                  selected && styles.viewTabActive,
-                  pressed && { opacity: 0.75 },
-                ]}
+                style={[styles.segmentItem, selected && styles.segmentItemActive]}
+                accessibilityRole="button"
+                accessibilityState={{ selected }}
               >
-                <Text variant="micro" weight="700" style={{ color: selected ? colors.white : colors.inkSecondary }}>
+                <Text
+                  variant="bodySmall"
+                  weight={selected ? '800' : '600'}
+                  style={{ color: selected ? colors.inkPrimary : colors.inkMuted, letterSpacing: 0.1 }}
+                >
                   {view.label}
                 </Text>
               </Pressable>
             );
           })}
         </View>
-        <View style={styles.typeChipsRow}>
-          {[ALL_VALUE, ...COURSE_TYPES].map(type => {
-            const selected = contentType === type;
-            const label = type === ALL_VALUE ? 'All types' : type;
-            return (
-              <Pressable
-                key={type}
-                onPress={() => setContentType(type as CourseTypeFilter)}
-                style={({ pressed }) => [
-                  styles.typeChip,
-                  selected && styles.typeChipActive,
-                  pressed && { opacity: 0.75 },
-                ]}
-              >
-                <Text variant="micro" weight="700" style={{ color: selected ? colors.primary : colors.inkSecondary }}>
-                  {label}
-                </Text>
-              </Pressable>
-            );
-          })}
-        </View>
-        <View style={styles.sortRow}>
-          <Text variant="micro" color="muted" weight="700" style={styles.sortLabel}>
-            Sort
-          </Text>
-          <View style={styles.sortOptions}>
-            {SORT_OPTIONS.map(option => {
-              const selected = sortBy === option.value;
-              return (
-                <Pressable
-                  key={option.value}
-                  onPress={() => setSortBy(option.value)}
-                  style={({ pressed }) => [
-                    styles.sortChip,
-                    selected && styles.sortChipActive,
-                    pressed && { opacity: 0.75 },
-                  ]}
-                >
-                  <Text variant="micro" weight="700" style={{ color: selected ? colors.primary : colors.inkSecondary }}>
-                    {option.label}
-                  </Text>
-                </Pressable>
-              );
-            })}
-          </View>
-        </View>
-        <View style={styles.filterPillsRow}>
-          <Pressable
-            onPress={() => setPickerOpen(true)}
-            hitSlop={4}
-            accessibilityRole="button"
-            style={({ pressed }) => [
-              styles.pill,
-              category !== ALL_VALUE && styles.pillActive,
-              pressed && { opacity: 0.7 },
-            ]}
-          >
-            <SlidersHorizontal size={14} color={colors.inkSecondary} strokeWidth={2.25} />
-            <Text
-              variant="bodySmall"
-              weight="600"
-              numberOfLines={1}
-              style={[styles.pillLabel, category !== ALL_VALUE && { color: colors.primary }]}
-            >
-              {categoryLabel}
-            </Text>
-            <ChevronDown
-              size={14}
-              color={category !== ALL_VALUE ? colors.primary : colors.inkMuted}
-              strokeWidth={2.25}
-            />
-          </Pressable>
-          {category !== ALL_VALUE ? (
-            <Pressable
-              onPress={() => setCategory(ALL_VALUE)}
-              hitSlop={6}
-              style={({ pressed }) => [styles.clearAllBtn, pressed && { opacity: 0.5 }]}
-              accessibilityLabel="Clear filter"
-            >
-              <Text variant="micro" weight="700" color="secondary">
-                Clear
-              </Text>
-            </Pressable>
-          ) : null}
-        </View>
 
-        {category !== ALL_VALUE ? (
-          <View style={styles.activeChipsRow}>
+        {hasActiveFilters ? (
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.activeChipsRow}
+          >
+            {contentType !== ALL ? (
+              <ActiveChip
+                label={capitalize(contentType)}
+                onClear={() => setContentType(ALL)}
+              />
+            ) : null}
+            {category !== ALL ? (
+              <ActiveChip
+                label={category}
+                onClear={() => setCategory(ALL)}
+              />
+            ) : null}
+            {sortBy !== DEFAULT_SORT ? (
+              <ActiveChip
+                label={`Sort: ${sortLabel}`}
+                onClear={() => setSortBy(DEFAULT_SORT)}
+              />
+            ) : null}
             <Pressable
-              onPress={() => setCategory(ALL_VALUE)}
-              hitSlop={4}
-              accessibilityLabel={`Remove ${categoryLabel} filter`}
-              style={({ pressed }) => [styles.activeChip, pressed && { opacity: 0.7 }]}
+              onPress={() => {
+                setContentType(ALL);
+                setCategory(ALL);
+                setSortBy(DEFAULT_SORT);
+              }}
+              hitSlop={6}
+              style={({ pressed }) => [styles.clearAll, pressed && { opacity: 0.6 }]}
             >
-              <Text variant="micro" weight="700" style={{ color: colors.primary }}>
-                {categoryLabel}
+              <Text variant="micro" weight="700" color="muted">
+                Clear all
               </Text>
-              <X size={12} color={colors.primary} strokeWidth={2.5} />
             </Pressable>
-          </View>
+          </ScrollView>
         ) : null}
       </View>
 
       {isLoading ? (
         <View style={[styles.gutter, styles.section]}>
           <Card padding="md">
-            <Text variant="bodySmall" color="secondary">
-              Loading courses...
-            </Text>
+            <Text variant="bodySmall" color="secondary">Loading courses...</Text>
           </Card>
         </View>
       ) : null}
@@ -336,9 +310,7 @@ export function CourseListScreen() {
           <View style={styles.emptyIcon}>
             <BookOpen size={28} color={colors.primary} strokeWidth={2} />
           </View>
-          <Text variant="h3" weight="700" align="center">
-            {emptyTitle}
-          </Text>
+          <Text variant="h3" weight="800" align="center">{emptyTitle}</Text>
           <Text variant="bodySmall" color="secondary" align="center" style={styles.emptyHint}>
             {emptyHint}
           </Text>
@@ -357,9 +329,7 @@ export function CourseListScreen() {
 
       {!isLoading && !isEmpty ? (
         <View style={[styles.gutter, styles.section]}>
-          <Text variant="caption" color="muted" style={styles.label}>
-            Featured
-          </Text>
+          <SectionHeader label="FEATURED" />
           <Card padding="none" onPress={() => navigation.navigate('CourseDetail', { courseId: featured.id })}>
             <View style={styles.featuredImageWrap}>
               <Image source={{ uri: getImageUrl(featured) }} style={styles.featuredImage} />
@@ -369,18 +339,18 @@ export function CourseListScreen() {
               </View>
             </View>
             <View style={styles.featuredBody}>
-              <Text variant="bodyLarge" weight="700" style={styles.featuredTitle}>
+              <Text variant="bodyLarge" weight="800" style={styles.featuredTitle}>
                 {featured.title}
               </Text>
               <View style={styles.authorRow}>
                 <Avatar source={getAvatarUrl(featured.authorAvatarUrl)} size="xs" />
-                <Text variant="micro" weight="500">
-                  Coach
+                <Text variant="micro" weight="600">
+                  {featured.authorDisplayName ?? 'Coach'}
                 </Text>
                 <BadgeCheck size={13} />
               </View>
               <View style={styles.metaRow}>
-                <Text variant="micro" color="secondary">
+                <Text variant="micro" color="secondary" weight="600">
                   {getCourseTypeLabel(featured.contentType)}
                 </Text>
                 <Dot />
@@ -391,8 +361,7 @@ export function CourseListScreen() {
                 <View style={styles.ratingInline}>
                   <Star size={11} color={colors.warning} fill={colors.warning} strokeWidth={0} />
                   <Text variant="micro" color="secondary">
-                    {' '}
-                    {featured.stats?.avgRating?.toFixed(1) ?? '0.0'}
+                    {' '}{featured.stats?.avgRating?.toFixed(1) ?? '0.0'}
                   </Text>
                 </View>
               </View>
@@ -403,9 +372,7 @@ export function CourseListScreen() {
 
       {!isLoading && !isEmpty ? (
         <View style={[styles.gutter, styles.section]}>
-          <Text variant="caption" color="muted" style={styles.label}>
-            Latest
-          </Text>
+          <SectionHeader label="LATEST" count={cards.length} />
           <View style={styles.grid}>
             {pairs.map((pair, rowIdx) => (
               <View key={rowIdx} style={styles.gridRow}>
@@ -425,202 +392,59 @@ export function CourseListScreen() {
 
       <View style={styles.bottomSpacer} />
 
-      <FilterPickerSheet
-        visible={pickerOpen}
-        title="Category"
-        subtitle="Filter courses by topic"
-        options={categoryOptions}
-        value={category}
-        onSelect={next => {
-          setCategory(next as Category);
-          setPickerOpen(false);
+      <CourseFilterSheet
+        visible={filterOpen}
+        initial={{ category, contentType, sortBy }}
+        categories={categoryOptions}
+        contentTypes={contentTypeOptions}
+        sortOptions={[...SORT_OPTIONS]}
+        resultCount={visibleCourses.length}
+        onApply={(next: CourseFilterValues) => {
+          setCategory(next.category);
+          setContentType(next.contentType);
+          setSortBy(next.sortBy as CourseSort);
+          setFilterOpen(false);
         }}
-        onCancel={() => setPickerOpen(false)}
+        onClose={() => setFilterOpen(false)}
       />
     </Screen>
   );
 }
 
-const styles = StyleSheet.create({
-  filterBar: {
-    paddingHorizontal: spacing.xxl,
-    paddingBottom: spacing.lg,
-    gap: spacing.md,
-  },
-  searchBox: {
-    minHeight: 46,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-    paddingHorizontal: spacing.lg,
-    borderRadius: radii.lg,
-    borderWidth: 1,
-    borderColor: colors.line,
-    backgroundColor: colors.surface,
-  },
-  searchInput: {
-    flex: 1,
-    minWidth: 0,
-    color: colors.inkPrimary,
-    paddingVertical: 0,
-  },
-  searchClear: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  viewTabs: {
-    flexDirection: 'row',
-    gap: spacing.sm,
-  },
-  viewTab: {
-    minHeight: 34,
-    flex: 1,
-    borderRadius: radii.pill,
-    borderWidth: 1,
-    borderColor: colors.line,
-    backgroundColor: colors.surface,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: spacing.sm,
-  },
-  viewTabActive: {
-    borderColor: colors.inkPrimary,
-    backgroundColor: colors.inkPrimary,
-  },
-  typeChipsRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: spacing.sm,
-  },
-  typeChip: {
-    minHeight: 30,
-    borderRadius: radii.pill,
-    borderWidth: 1,
-    borderColor: colors.line,
-    backgroundColor: colors.surface,
-    justifyContent: 'center',
-    paddingHorizontal: spacing.lg,
-  },
-  typeChipActive: {
-    borderColor: colors.primaryBorder,
-    backgroundColor: colors.primarySoft,
-  },
-  sortRow: {
-    gap: spacing.sm,
-  },
-  sortLabel: {
-    paddingHorizontal: spacing.xs,
-  },
-  sortOptions: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: spacing.sm,
-  },
-  sortChip: {
-    minHeight: 30,
-    borderRadius: radii.pill,
-    borderWidth: 1,
-    borderColor: colors.line,
-    backgroundColor: colors.surface,
-    justifyContent: 'center',
-    paddingHorizontal: spacing.md,
-  },
-  sortChipActive: {
-    borderColor: colors.primaryBorder,
-    backgroundColor: colors.primarySoft,
-  },
-  filterPillsRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-  },
-  pill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: spacing.lg,
-    paddingVertical: 8,
-    borderRadius: radii.pill,
-    borderWidth: 1,
-    borderColor: colors.line,
-    backgroundColor: colors.surface,
-    maxWidth: 220,
-  },
-  pillActive: {
-    borderColor: colors.primaryBorder,
-    backgroundColor: colors.primarySoft,
-  },
-  pillLabel: { flexShrink: 1 },
-  clearAllBtn: {
-    marginLeft: 'auto',
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 6,
-  },
-  activeChipsRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flexWrap: 'wrap',
-    gap: spacing.sm,
-  },
-  activeChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingLeft: spacing.md,
-    paddingRight: spacing.sm,
-    paddingVertical: 4,
-    borderRadius: radii.pill,
-    backgroundColor: colors.primarySoftStrong,
-  },
-  gutter: { paddingHorizontal: spacing.xxl },
-  section: { marginTop: spacing.xl },
-  label: { marginBottom: spacing.md },
 
-  featuredImageWrap: { height: 170, position: 'relative' },
-  featuredImage: { width: '100%', height: '100%' },
-  featuredOverlay: {
-    ...StyleSheet.absoluteFill,
-    backgroundColor: 'rgba(0,0,0,0.3)',
-  },
-  featuredTag: { position: 'absolute', top: spacing.lg, left: spacing.lg },
-  featuredBody: { padding: spacing.xl, gap: spacing.md },
-  featuredTitle: { lineHeight: 20 },
-  authorRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
-  metaRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
-  ratingInline: { flexDirection: 'row', alignItems: 'center' },
+function SectionHeader({ label, count }: { label: string; count?: number }) {
+  return (
+    <View style={styles.sectionHeader}>
+      <View style={styles.sectionTitleLeft}>
+        <View style={styles.sectionBar} />
+        <Text variant="caption" weight="800" style={styles.sectionTitle}>
+          {label}
+        </Text>
+      </View>
+      {count != null ? (
+        <View style={styles.sectionCount}>
+          <Text variant="micro" weight="700" mono tabular style={styles.sectionCountText}>
+            {count}
+          </Text>
+        </View>
+      ) : null}
+    </View>
+  );
+}
 
-  grid: { gap: spacing.lg },
-  gridRow: { flexDirection: 'row', gap: spacing.lg },
-  gridFiller: { flex: 1 },
-
-  bottomSpacer: { height: spacing.huge },
-  headerActions: { flexDirection: 'row', gap: spacing.md },
-  empty: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: spacing.xl,
-    gap: spacing.md,
-  },
-  emptyIcon: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    backgroundColor: colors.primarySoft,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: spacing.sm,
-  },
-  emptyHint: { paddingHorizontal: spacing.xl, maxWidth: 320 },
-  emptyCta: { marginTop: spacing.lg },
-});
+function ActiveChip({ label, onClear }: { label: string; onClear: () => void }) {
+  return (
+    <Pressable
+      onPress={onClear}
+      hitSlop={4}
+      accessibilityLabel={`Remove ${label} filter`}
+      style={({ pressed }) => [styles.activeChip, pressed && { opacity: 0.75 }]}
+    >
+      <Text variant="micro" weight="800" style={styles.activeChipLabel}>{label}</Text>
+      <X size={11} color={colors.primary} strokeWidth={2.75} />
+    </Pressable>
+  );
+}
 
 function toCourseCard(course: CourseDto): Course {
   return {
@@ -651,16 +475,9 @@ function getCourseTypeLabel(contentType?: string | null) {
 }
 
 function compareCourses(a: CourseDto, b: CourseDto, sortBy: CourseSort) {
-  if (sortBy === 'RATED') {
-    return (b.stats?.avgRating ?? 0) - (a.stats?.avgRating ?? 0);
-  }
-  if (sortBy === 'REVIEWED') {
-    return (b.stats?.ratingsCount ?? 0) - (a.stats?.ratingsCount ?? 0);
-  }
-  if (sortBy === 'COMPLETED') {
-    return (b.stats?.completionsCount ?? 0) - (a.stats?.completionsCount ?? 0);
-  }
-
+  if (sortBy === 'RATED') return (b.stats?.avgRating ?? 0) - (a.stats?.avgRating ?? 0);
+  if (sortBy === 'REVIEWED') return (b.stats?.ratingsCount ?? 0) - (a.stats?.ratingsCount ?? 0);
+  if (sortBy === 'COMPLETED') return (b.stats?.completionsCount ?? 0) - (a.stats?.completionsCount ?? 0);
   return getTime(b.publishedAt) - getTime(a.publishedAt);
 }
 
@@ -670,31 +487,232 @@ function getTime(value?: string | null) {
   return Number.isNaN(time) ? 0 : time;
 }
 
+function capitalize(s: string) {
+  if (!s) return s;
+  return s.charAt(0) + s.slice(1).toLowerCase();
+}
+
 function getEmptyTitle(
   hasSearch: boolean,
   courseView: CourseView,
-  category: Category,
-  contentType: CourseTypeFilter,
+  category: string,
+  contentType: string,
 ) {
   if (hasSearch) return 'No courses found';
   if (courseView === 'SAVED') return 'No saved courses yet';
   if (courseView === 'MINE') return 'No courses created yet';
-  if (contentType !== ALL_VALUE) return `No ${contentType.toLowerCase()} courses yet`;
-  if (category !== ALL_VALUE) return `No ${category.toLowerCase()} courses yet`;
+  if (contentType !== ALL) return `No ${contentType.toLowerCase()} courses yet`;
+  if (category !== ALL) return `No ${category.toLowerCase()} courses yet`;
   return 'No courses yet';
 }
 
 function getEmptyHint(
   hasSearch: boolean,
   courseView: CourseView,
-  category: Category,
-  contentType: CourseTypeFilter,
+  category: string,
+  contentType: string,
 ) {
   if (hasSearch) return 'Try a different title, coach, category, level, or course type.';
   if (courseView === 'SAVED') return 'Tap the bookmark on a course to save it here.';
   if (courseView === 'MINE') return 'Courses you create as a trainer will appear here.';
-  if (contentType !== ALL_VALUE || category !== ALL_VALUE) {
+  if (contentType !== ALL || category !== ALL) {
     return 'Try another filter or check back when more courses are added.';
   }
   return 'Courses from trainers will appear here once they are published.';
 }
+
+
+const styles = StyleSheet.create({
+  filterBar: {
+    paddingHorizontal: spacing.xxl,
+    paddingBottom: spacing.lg,
+    gap: spacing.md,
+  },
+
+  searchRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+  },
+  searchBox: {
+    flex: 1,
+    minHeight: 46,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    paddingHorizontal: spacing.lg,
+    borderRadius: radii.lg,
+    borderWidth: 1,
+    borderColor: colors.line,
+    backgroundColor: colors.surface,
+  },
+  searchInput: {
+    flex: 1,
+    minWidth: 0,
+    color: colors.inkPrimary,
+    paddingVertical: 0,
+  },
+  searchClear: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  filterBtn: {
+    width: 46,
+    height: 46,
+    borderRadius: radii.lg,
+    borderWidth: 1,
+    borderColor: colors.line,
+    backgroundColor: colors.surface,
+    alignItems: 'center',
+    justifyContent: 'center',
+    position: 'relative',
+  },
+  filterBtnActive: {
+    borderColor: colors.primaryBorder,
+    backgroundColor: colors.primarySoft,
+  },
+  filterBadge: {
+    position: 'absolute',
+    top: -4,
+    right: -4,
+    minWidth: 18,
+    height: 18,
+    borderRadius: 9,
+    paddingHorizontal: 4,
+    backgroundColor: colors.accent,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: colors.bg,
+  },
+  filterBadgeText: {
+    color: colors.white,
+    fontSize: 10,
+    fontWeight: '800',
+    fontVariant: ['tabular-nums'],
+  },
+
+  // Segmented view tabs
+  segment: {
+    flexDirection: 'row',
+    backgroundColor: colors.surfaceElevated,
+    borderRadius: radii.lg,
+    padding: 4,
+    gap: 4,
+  },
+  segmentItem: {
+    flex: 1,
+    height: 38,
+    borderRadius: radii.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  segmentItemActive: {
+    backgroundColor: colors.surface,
+  },
+
+  // Active chips row
+  activeChipsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    paddingVertical: 2,
+  },
+  activeChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingLeft: spacing.md,
+    paddingRight: spacing.sm,
+    paddingVertical: 6,
+    borderRadius: radii.pill,
+    backgroundColor: colors.primarySoft,
+    borderWidth: 1,
+    borderColor: colors.primaryBorder,
+  },
+  activeChipLabel: { color: colors.primary, letterSpacing: 0.2 },
+  clearAll: {
+    paddingHorizontal: spacing.md,
+    paddingVertical: 6,
+  },
+
+  // Section header
+  sectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: spacing.md,
+  },
+  sectionTitleLeft: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+  sectionBar: {
+    width: 3,
+    height: 14,
+    borderRadius: 2,
+    backgroundColor: colors.accent,
+  },
+  sectionTitle: {
+    fontSize: 11,
+    letterSpacing: 1.2,
+    color: colors.inkPrimary,
+  },
+  sectionCount: {
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: radii.pill,
+    backgroundColor: colors.surfaceElevated,
+  },
+  sectionCountText: { color: colors.inkSecondary, fontSize: 10 },
+
+  // Layout
+  gutter: { paddingHorizontal: spacing.xxl },
+  section: { marginTop: spacing.xl },
+
+  // Featured
+  featuredImageWrap: { height: 170, position: 'relative' },
+  featuredImage: { width: '100%', height: '100%' },
+  featuredOverlay: {
+    ...StyleSheet.absoluteFill,
+    backgroundColor: 'rgba(0,0,0,0.3)',
+  },
+  featuredTag: { position: 'absolute', top: spacing.lg, left: spacing.lg },
+  featuredBody: { padding: spacing.xl, gap: spacing.md },
+  featuredTitle: { lineHeight: 22, letterSpacing: -0.2 },
+  authorRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+  metaRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
+  ratingInline: { flexDirection: 'row', alignItems: 'center' },
+
+  // Grid
+  grid: { gap: spacing.lg },
+  gridRow: { flexDirection: 'row', gap: spacing.lg },
+  gridFiller: { flex: 1 },
+
+  bottomSpacer: { height: spacing.huge },
+  headerActions: { flexDirection: 'row', gap: spacing.md },
+
+  // Empty
+  empty: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: spacing.xl,
+    gap: spacing.md,
+  },
+  emptyIcon: {
+    width: 68,
+    height: 68,
+    borderRadius: 34,
+    backgroundColor: colors.primarySoft,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: spacing.sm,
+  },
+  emptyHint: { paddingHorizontal: spacing.xl, maxWidth: 320 },
+  emptyCta: { marginTop: spacing.lg },
+});
