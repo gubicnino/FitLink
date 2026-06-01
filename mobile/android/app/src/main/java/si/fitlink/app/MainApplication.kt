@@ -1,4 +1,4 @@
-package com.mobile
+package si.fitlink.app
 
 import android.app.Application
 import android.app.NotificationChannel

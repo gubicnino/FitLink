@@ -5,13 +5,13 @@ import React, { useState } from 'react';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
 import apiClient from '../../api/apiClient';
 import {
-  BrandMark,
-  Button,
-  Divider,
-  GoogleIcon,
-  Input,
-  Screen,
-  Text,
+    BrandMark,
+    Button,
+    Divider,
+    GoogleIcon,
+    Input,
+    Screen,
+    Text,
 } from '../../components/ui';
 import type { AuthStackParamList, RootStackParamList } from '../../navigation/types';
 import { authService } from '../../services/authService';
@@ -33,6 +33,41 @@ export function LoginScreen({ navigation }: Props) {
     try {
       // 1. Login to Firebase
       await authService.login(email, password);
+      
+      try {
+        // 2. Verify user exists in backend
+        const response = await apiClient.post('/auth/login');
+        
+        if (!response.data || !response.data.id) {
+          await authService.logout();
+          throw new Error('User not found in database');
+        }
+        
+        // 3. Both succeed - navigate
+        const rootRoute = response.data.role === 'TRAINER' ? 'TrainerRoot' : 'TraineeRoot';
+        rootNav.dispatch(
+          CommonActions.reset({
+            index: 0,
+            routes: [{ name: rootRoute }],
+          }),
+        );
+      } catch (backendError) {
+        await authService.logout();
+        throw backendError;
+      }
+    } catch (err) {
+      setIsLoading(false);
+      const errorMessage = err instanceof Error ? err.message : 'Login failed. Please try again.';
+      setError(errorMessage);
+      console.error('Login failed:', err);
+    }
+  };
+  const handleGoogleLogin = async () => {
+    setError('');
+    setIsLoading(true);
+     try {
+      // 1. Login to Firebase
+      await authService.getGoogleUser();
       
       try {
         // 2. Verify user exists in backend
@@ -129,7 +164,7 @@ export function LoginScreen({ navigation }: Props) {
         variant="ghost"
         fullWidth
         leftIcon={<GoogleIcon size={18} />}
-        onPress={() => {}}
+        onPress={handleGoogleLogin}
       />
 
       <View style={styles.flex} />

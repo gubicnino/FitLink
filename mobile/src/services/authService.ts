@@ -1,13 +1,28 @@
 // src/services/authService.ts
-import { createUserWithEmailAndPassword, getAuth, signInWithEmailAndPassword, signOut } from '@react-native-firebase/auth';
+import { createUserWithEmailAndPassword, getAuth, GoogleAuthProvider, signInWithCredential, signInWithEmailAndPassword, signOut } from '@react-native-firebase/auth';
+import { GoogleSignin } from '@react-native-google-signin/google-signin';
 import apiClient from '../api/apiClient';
-import { liveSessionStorage } from '../utils/liveSessionStorage';
 import { User } from '../types/types';
+import { liveSessionStorage } from '../utils/liveSessionStorage';
 
 let registrationInProgress = false;
 
 const setRegistrationInProgress = (value: boolean) => {
   registrationInProgress = value;
+};
+
+type GoogleAuthResult = {
+  user: Awaited<ReturnType<typeof getAuth>>['currentUser'];
+  googleName: string | null;
+};
+
+const extractGoogleName = (signInResult: Awaited<ReturnType<typeof GoogleSignin.signIn>>) => {
+  if (signInResult.type !== 'success' || !signInResult.data) {
+    return null;
+  }
+
+  const googleUser = (signInResult.data as { user?: { name?: string | null } }).user;
+  return googleUser?.name?.trim() ?? null;
 };
 
 export const authService = {
@@ -34,9 +49,9 @@ export const authService = {
     // belonged to. Also wipe ALL user-scoped live sessions so a
     // shared device cannot leak previous accounts workouts na drugi racun (ce se loggamo in v drug account)
     if (uid) {
-      await liveSessionStorage.clear(uid).catch(() => {});
+      await liveSessionStorage.clear(uid).catch(() => { });
     }
-    await liveSessionStorage.clearAllUsers().catch(() => {});
+    await liveSessionStorage.clearAllUsers().catch(() => { });
     // Drop the FCM token on the backend so we stop pushing to a device
     // that may be picked up by the next account that logs in here.
 
@@ -70,6 +85,51 @@ export const authService = {
       console.error('authService.getUser error:', error);
       return null;
     }
+
+  },
+  getGoogleUser: async () => {
+    // Check Play services (Android) and start sign-in
+    await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
+    const signInResult = await GoogleSignin.signIn();
+
+    // Ensure sign-in succeeded
+    if (signInResult.type !== 'success' || !signInResult.data) {
+      throw new Error('Google sign-in cancelled');
+    }
+
+    // Extract ID token
+    const idToken = signInResult.data.idToken ?? (signInResult as any).idToken ?? null;
+    if (!idToken) {
+      throw new Error('No ID token found');
+    }
+
+    // Create a Google credential with the token and sign in to Firebase
+    const googleCredential = GoogleAuthProvider.credential(idToken);
+    const userCredential = await signInWithCredential(getAuth(), googleCredential);
+    return userCredential.user;
+  },
+
+  getGoogleAuth: async (): Promise<GoogleAuthResult> => {
+    await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
+    const signInResult = await GoogleSignin.signIn();
+
+    if (signInResult.type !== 'success' || !signInResult.data) {
+      throw new Error('Google sign-in cancelled');
+    }
+
+    const googleName = extractGoogleName(signInResult);
+    const idToken = signInResult.data.idToken ?? (signInResult as any).idToken ?? null;
+    if (!idToken) {
+      throw new Error('No ID token found');
+    }
+
+    const googleCredential = GoogleAuthProvider.credential(idToken);
+    const userCredential = await signInWithCredential(getAuth(), googleCredential);
+
+    return {
+      user: userCredential.user,
+      googleName,
+    };
   },
 
 };
