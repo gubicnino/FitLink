@@ -4,6 +4,7 @@ import {
   Dumbbell,
   Heart,
   Scale,
+  Video,
   X,
 } from 'lucide-react-native';
 import React, { useMemo, useState } from 'react';
@@ -23,6 +24,7 @@ const TYPE_COLOR: Record<CalendarEventType, string> = {
   hcExercise: colors.accent,
   weightLog: colors.warning,
   checkInDue: colors.danger,
+  videoCall: '#8B5CF6',
 };
 
 const TYPE_ICON: Record<
@@ -34,6 +36,7 @@ const TYPE_ICON: Record<
   hcExercise: Activity,
   weightLog: Scale,
   checkInDue: Heart,
+  videoCall: Video,
 };
 
 const TYPE_LABEL: Record<CalendarEventType, string> = {
@@ -42,6 +45,7 @@ const TYPE_LABEL: Record<CalendarEventType, string> = {
   hcExercise: 'Activity',
   weightLog: 'Weight',
   checkInDue: 'Reminders',
+  videoCall: 'Calls',
 };
 
 const DAY_NAME = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -190,7 +194,7 @@ function intensityStyle(intensity: number) {
 }
 
 function Legend() {
-  const items: CalendarEventType[] = ['workout', 'checkIn', 'hcExercise', 'weightLog'];
+  const items: CalendarEventType[] = ['workout', 'checkIn', 'hcExercise', 'weightLog', 'videoCall'];
   return (
     <View style={styles.legend}>
       {items.map(t => (

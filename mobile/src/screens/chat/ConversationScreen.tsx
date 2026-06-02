@@ -25,6 +25,7 @@ import {
   Image as ImageIcon,
   Paperclip,
   Send,
+  Video,
   X,
 } from 'lucide-react-native';
 import { launchImageLibrary } from 'react-native-image-picker';
@@ -34,7 +35,10 @@ import { IconButton, Screen, Text } from '../../components/ui';
 import { ScreenHeader } from '../../components/layout';
 import { API_ORIGIN } from '../../api/apiClient';
 import { chatApi } from '../../api/chatApi';
+import { videoCallApi } from '../../api/videoCallApi';
+import { useAuth } from '../../hooks/useAuth';
 import { useChatSocket } from '../../hooks/useChatSocket';
+import { CallScheduleSheet } from './CallScheduleSheet';
 import type {
   AttachmentDto,
   ConversationResponse,
@@ -69,6 +73,12 @@ export function ConversationScreen() {
   const [loadingOlder, setLoadingOlder] = useState(false);
   const [hasMore, setHasMore] = useState(true);
   const [attachSheetOpen, setAttachSheetOpen] = useState(false);
+  const [callSheetOpen, setCallSheetOpen] = useState(false);
+
+  // Only trainers see the "schedule a call" affordance -> trainees respond
+  // from the inline system message card instead.
+  const { user } = useAuth();
+  const isTrainer = user?.role === 'TRAINER';
 
   const typingLastSentRef = useRef<number>(0);
   const peerTypingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -361,6 +371,23 @@ export function ConversationScreen() {
     return null;
   }, [conversation, currentUid, messages]);
 
+
+  const displayMessages = useMemo(() => {
+    const seenCallIds = new Set<string>();
+    const out: typeof messages = [];
+    for (const m of messages) {
+      if (m.type === 'SYSTEM' && m.systemEvent?.startsWith('video_call:')) {
+        const callId = m.systemEvent.split(':')[1];
+        if (callId) {
+          if (seenCallIds.has(callId)) continue;
+          seenCallIds.add(callId);
+        }
+      }
+      out.push(m);
+    }
+    return out;
+  }, [messages]);
+
   if (loading) {
     return (
       <Screen edges={['top']}>
@@ -399,6 +426,11 @@ export function ConversationScreen() {
         left={<IconButton variant="surface" withBorder onPress={() => navigation.goBack()}>
           <ChevronLeft size={18} color={colors.inkPrimary} strokeWidth={2.25} />
         </IconButton>}
+        right={isTrainer && !conversation?.readOnly ? (
+          <IconButton variant="surface" withBorder onPress={() => setCallSheetOpen(true)}>
+            <Video size={18} color={colors.primary} strokeWidth={2.25} />
+          </IconButton>
+        ) : undefined}
       />
 
       <KeyboardAvoidingView
@@ -406,7 +438,7 @@ export function ConversationScreen() {
         style={styles.flex}
       >
         <FlatList
-          data={messages}
+          data={displayMessages}
           keyExtractor={m => m.id}
           inverted
           contentContainerStyle={styles.list}
@@ -480,6 +512,19 @@ export function ConversationScreen() {
         onClose={() => setAttachSheetOpen(false)}
         onPickImage={onSheetPickImage}
         onPickDocument={onSheetPickDocument}
+      />
+      <CallScheduleSheet
+        visible={callSheetOpen}
+        onClose={() => setCallSheetOpen(false)}
+        onInstant={async () => {
+          await videoCallApi.schedule(conversationId, { instant: true });
+        }}
+        onSchedule={async when => {
+          await videoCallApi.schedule(conversationId, {
+            scheduledFor: when.toISOString(),
+            instant: false,
+          });
+        }}
       />
     </Screen>
   );
@@ -583,6 +628,15 @@ function MessageBubble({
   const isFailed = message.status === 'failed';
   const hasAttachments = !isDeleted && message.attachments && message.attachments.length > 0;
   const showStatusIcon = isMine && !isDeleted && message.status !== 'sending' && !isFailed;
+
+  if (message.type === 'SYSTEM' && message.systemEvent?.startsWith('video_call:')) {
+    const parts = message.systemEvent.split(':');
+    const callId = parts[1];
+    if (callId) {
+      return <VideoCallCard callId={callId} />;
+    }
+  }
+
   return (
     <View style={[styles.bubbleRow, isMine ? styles.bubbleRowMine : styles.bubbleRowTheirs]}>
       <View
@@ -740,6 +794,217 @@ function extractMessage(err: unknown): string {
   if (err instanceof Error) return err.message;
   return 'Unknown error';
 }
+
+function VideoCallCard({ callId }: { callId: string }) {
+  const [call, setCall] = useState<import('../../types/videoCall').VideoCall | null>(null);
+  const [busy, setBusy] = useState<'accept' | 'decline' | 'cancel' | null>(null);
+  const currentUid = auth().currentUser?.uid ?? '';
+
+  const load = useCallback(async () => {
+    try {
+      const fresh = await videoCallApi.get(callId);
+      setCall(fresh);
+    } catch {
+    }
+  }, [callId]);
+
+  useEffect(() => { load(); }, [load]);
+
+  if (!call) {
+    return (
+      <View style={callStyles.outerWrap}>
+        <View style={callStyles.card}>
+          <ActivityIndicator color={colors.primary} />
+        </View>
+      </View>
+    );
+  }
+
+  const isTrainer = currentUid === call.trainerId;
+  const isTrainee = currentUid === call.traineeId;
+  const isPast =
+    call.status === 'DECLINED' ||
+    call.status === 'CANCELLED' ||
+    call.status === 'EXPIRED' ||
+    call.status === 'COMPLETED';
+
+  const onJoin = () => {
+    import('react-native').then(({ Linking }) => Linking.openURL(call.meetingUrl));
+  };
+
+  const wrap = async (action: 'accept' | 'decline' | 'cancel', fn: () => Promise<unknown>) => {
+    setBusy(action);
+    try {
+      await fn();
+      await load();
+    } catch (err) {
+      Alert.alert('Could not update call', extractMessage(err));
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  return (
+    <View style={callStyles.outerWrap}>
+      <View style={[callStyles.card, isPast && callStyles.cardMuted]}>
+        <View style={callStyles.header}>
+          <View style={[callStyles.iconBubble, isPast && { backgroundColor: colors.surfaceElevated }]}>
+            <Video size={18} color={isPast ? colors.inkMuted : colors.primary} strokeWidth={2.25} />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text variant="micro" weight="700" style={{ color: colors.inkSecondary, letterSpacing: 0.5 }}>
+              {statusLabel(call.status)}
+            </Text>
+            <Text variant="body" weight="700" style={{ color: isPast ? colors.inkSecondary : colors.inkPrimary, marginTop: 2 }}>
+              {formatCallTime(call)}
+            </Text>
+          </View>
+        </View>
+
+        {call.declineReason && call.status === 'DECLINED' ? (
+          <Text variant="bodySmall" style={{ color: colors.inkSecondary, marginTop: spacing.sm }}>
+            “{call.declineReason}”
+          </Text>
+        ) : null}
+
+        {!isPast ? (
+          <View style={callStyles.actions}>
+            {isTrainee && call.status === 'PENDING' ? (
+              <>
+                <Pressable
+                  onPress={() => wrap('decline', () => videoCallApi.decline(call.id))}
+                  disabled={busy != null}
+                  style={({ pressed }) => [callStyles.btn, callStyles.btnGhost, pressed && { opacity: 0.7 }]}
+                >
+                  {busy === 'decline' ? (
+                    <ActivityIndicator color={colors.danger} />
+                  ) : (
+                    <Text variant="bodySmall" weight="700" style={{ color: colors.danger }}>Decline</Text>
+                  )}
+                </Pressable>
+                <Pressable
+                  onPress={() => wrap('accept', () => videoCallApi.accept(call.id))}
+                  disabled={busy != null}
+                  style={({ pressed }) => [callStyles.btn, callStyles.btnPrimary, pressed && { opacity: 0.85 }]}
+                >
+                  {busy === 'accept' ? (
+                    <ActivityIndicator color={colors.white} />
+                  ) : (
+                    <Text variant="bodySmall" weight="700" style={{ color: colors.white }}>Accept</Text>
+                  )}
+                </Pressable>
+              </>
+            ) : null}
+
+            {(call.status === 'ACCEPTED' || call.status === 'LIVE') ? (
+              <Pressable
+                onPress={onJoin}
+                style={({ pressed }) => [callStyles.btn, callStyles.btnPrimary, pressed && { opacity: 0.85 }]}
+              >
+                <Video size={14} color={colors.white} strokeWidth={2.5} />
+                <Text variant="bodySmall" weight="700" style={{ color: colors.white }}>
+                  Join now
+                </Text>
+              </Pressable>
+            ) : null}
+
+            {isTrainer && (call.status === 'PENDING' || call.status === 'LIVE') ? (
+              <Pressable
+                onPress={() => wrap('cancel', () => videoCallApi.cancel(call.id))}
+                disabled={busy != null}
+                style={({ pressed }) => [callStyles.btn, callStyles.btnGhost, pressed && { opacity: 0.7 }]}
+              >
+                {busy === 'cancel' ? (
+                  <ActivityIndicator color={colors.inkSecondary} />
+                ) : (
+                  <Text variant="bodySmall" weight="700" style={{ color: colors.inkSecondary }}>Cancel</Text>
+                )}
+              </Pressable>
+            ) : null}
+          </View>
+        ) : null}
+      </View>
+    </View>
+  );
+}
+
+function statusLabel(status: import('../../types/videoCall').VideoCallStatus): string {
+  switch (status) {
+    case 'PENDING':    return 'VIDEO CALL · AWAITING REPLY';
+    case 'ACCEPTED':   return 'VIDEO CALL · CONFIRMED';
+    case 'LIVE':       return 'VIDEO CALL · LIVE NOW';
+    case 'DECLINED':   return 'VIDEO CALL · DECLINED';
+    case 'CANCELLED':  return 'VIDEO CALL · CANCELLED';
+    case 'EXPIRED':    return 'VIDEO CALL · EXPIRED';
+    case 'COMPLETED':  return 'VIDEO CALL · DONE';
+    default:           return 'VIDEO CALL';
+  }
+}
+
+function formatCallTime(call: import('../../types/videoCall').VideoCall): string {
+  if (call.status === 'LIVE') return 'Now';
+  const d = new Date(call.scheduledFor);
+  const now = new Date();
+  const sameDay = d.toDateString() === now.toDateString();
+  if (sameDay) {
+    return 'Today, ' + d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
+  }
+  return d.toLocaleString(undefined, { weekday: 'short', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+}
+
+const callStyles = StyleSheet.create({
+  outerWrap: {
+    alignItems: 'center',
+    paddingVertical: spacing.sm,
+  },
+  card: {
+    width: '94%',
+    backgroundColor: colors.primarySoft,
+    borderRadius: radii.lg,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
+    gap: spacing.sm,
+  },
+  cardMuted: {
+    backgroundColor: colors.surfaceElevated,
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+  },
+  iconBubble: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: 'rgba(46,91,159,0.18)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  actions: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+    marginTop: spacing.xs,
+  },
+  btn: {
+    flex: 1,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.md,
+    borderRadius: radii.pill,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexDirection: 'row',
+    gap: 6,
+  },
+  btnPrimary: {
+    backgroundColor: colors.primary,
+  },
+  btnGhost: {
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.line,
+  },
+});
 
 const styles = StyleSheet.create({
   flex: { flex: 1 },
