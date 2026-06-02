@@ -4,6 +4,7 @@ import {
   CalendarDays,
   CheckCircle2,
   Clock,
+  Video,
   X,
   XCircle,
 } from 'lucide-react-native';
@@ -14,10 +15,12 @@ import { colors, radii, shadows, spacing } from '../../theme';
 import { API_ORIGIN } from '../../api/apiClient';
 import { coachingApi } from '../../api/coachingApi';
 import { userApi } from '../../api/userApi';
+import { videoCallApi } from '../../api/videoCallApi';
 import { CHECK_IN_INTERVAL_DAYS } from '../../utils/clientCoaching';
 import type { Coaching } from '../../types/coaching';
 import type { User } from '../../types/types';
 import type { CheckIn } from '../../types/checkin';
+import type { VideoCall, VideoCallStatus } from '../../types/videoCall';
 
 const DAY_NAME = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const DAY_WIDTH = 64;
@@ -36,6 +39,13 @@ interface DueEntry {
   status: DueStatus;
 }
 
+interface VideoCallEntry {
+  id: string;
+  status: VideoCallStatus;
+  scheduledFor: string;
+  trainee: User | null;
+}
+
 interface CalendarDay {
   date: string;
   isToday: boolean;
@@ -45,12 +55,14 @@ interface CalendarDay {
   doneCount: number;
   missedCount: number;
   upcomingCount: number;
+  videoCalls: VideoCallEntry[];
 }
 
 
 export function TrainerCalendarCard() {
   const [coachings, setCoachings] = useState<Coaching[]>([]);
   const [clients, setClients] = useState<Map<string, User>>(new Map());
+  const [videoCalls, setVideoCalls] = useState<VideoCall[]>([]);
   const [openDay, setOpenDay] = useState<CalendarDay | null>(null);
   const scrollRef = useRef<ScrollView>(null);
 
@@ -65,8 +77,14 @@ export function TrainerCalendarCard() {
         } catch {
         }
       }
+      const now = new Date();
+      const windowFrom = new Date(now.getTime() - BACK_DAYS * 86_400_000);
+      const windowTo = new Date(now.getTime() + FORWARD_DAYS * 86_400_000);
+      const calls = await videoCallApi.window(windowFrom, windowTo).catch(() => [] as VideoCall[]);
+
       setCoachings(actives);
       setClients(clientMap);
+      setVideoCalls(calls);
     } catch {
     }
   }, []);
@@ -74,7 +92,10 @@ export function TrainerCalendarCard() {
   useEffect(() => { load(); }, [load]);
   useFocusEffect(useCallback(() => { load(); }, [load]));
 
-  const days = useMemo(() => buildCalendar(coachings, clients), [coachings, clients]);
+  const days = useMemo(
+    () => buildCalendar(coachings, clients, videoCalls),
+    [coachings, clients, videoCalls],
+  );
 
   useEffect(() => {
     if (!scrollRef.current || days.length === 0) return;
@@ -93,6 +114,11 @@ export function TrainerCalendarCard() {
 
   const totalDuesInWindow = useMemo(
     () => days.reduce((sum, d) => sum + d.dues.length, 0),
+    [days],
+  );
+
+  const totalCallsInWindow = useMemo(
+    () => days.reduce((sum, d) => sum + d.videoCalls.length, 0),
     [days],
   );
 
@@ -116,10 +142,20 @@ export function TrainerCalendarCard() {
               </Text>
             </View>
           ) : (
-            <View style={styles.summaryPill}>
-              <Text style={styles.summaryText}>
-                {totalDuesInWindow} {totalDuesInWindow === 1 ? 'due' : 'dues'}
-              </Text>
+            <View style={styles.summaryRow}>
+              <View style={styles.summaryPill}>
+                <Text style={styles.summaryText}>
+                  {totalDuesInWindow} {totalDuesInWindow === 1 ? 'due' : 'dues'}
+                </Text>
+              </View>
+              {totalCallsInWindow > 0 ? (
+                <View style={[styles.summaryPill, styles.summaryPillCalls]}>
+                  <Video size={10} color="#8B5CF6" strokeWidth={2.5} />
+                  <Text style={[styles.summaryText, { color: '#8B5CF6' }]}>
+                    {totalCallsInWindow}
+                  </Text>
+                </View>
+              ) : null}
             </View>
           )}
         </View>
@@ -146,6 +182,8 @@ export function TrainerCalendarCard() {
 function DayCell({ day, onPress }: { day: CalendarDay; onPress: () => void }) {
   const date = new Date(day.date + 'T00:00:00');
   const hasDues = day.dues.length > 0;
+  const hasCalls = day.videoCalls.length > 0;
+  const hasAny = hasDues || hasCalls;
 
   const dominantStatus: DueStatus | null = useMemo(() => {
     if (!hasDues) return null;
@@ -156,17 +194,17 @@ function DayCell({ day, onPress }: { day: CalendarDay; onPress: () => void }) {
   }, [day, hasDues]);
 
   if (day.isToday) {
-    return <TodayCell day={day} hasDues={hasDues} date={date} onPress={onPress} />;
+    return <TodayCell day={day} hasDues={hasDues} hasCalls={hasCalls} date={date} onPress={onPress} />;
   }
 
   return (
     <Pressable
       onPress={onPress}
-      disabled={!hasDues}
+      disabled={!hasAny}
       style={({ pressed }) => [
         styles.day,
-        hasDues && styles.dayActive,
-        pressed && hasDues && { opacity: 0.78 },
+        hasAny && styles.dayActive,
+        pressed && hasAny && { opacity: 0.78 },
       ]}
     >
       <Text style={styles.dayName}>
@@ -175,7 +213,7 @@ function DayCell({ day, onPress }: { day: CalendarDay; onPress: () => void }) {
       <Text
         style={[
           styles.dayNum,
-          day.isFuture && !hasDues && { color: colors.inkMuted },
+          day.isFuture && !hasAny && { color: colors.inkMuted },
         ]}
       >
         {date.getDate()}
@@ -204,9 +242,14 @@ function DayCell({ day, onPress }: { day: CalendarDay; onPress: () => void }) {
               {day.dues.length}
             </Text>
           </View>
-        ) : (
-          <View style={styles.activityPlaceholder} />
-        )}
+        ) : null}
+        {hasCalls ? (
+          <View style={styles.callBadge}>
+            <Video size={9} color="#8B5CF6" strokeWidth={2.5} />
+            <Text style={styles.callBadgeText}>{day.videoCalls.length}</Text>
+          </View>
+        ) : null}
+        {!hasAny ? <View style={styles.activityPlaceholder} /> : null}
       </View>
     </Pressable>
   );
@@ -215,11 +258,13 @@ function DayCell({ day, onPress }: { day: CalendarDay; onPress: () => void }) {
 function TodayCell({
   day,
   hasDues,
+  hasCalls,
   date,
   onPress,
 }: {
   day: CalendarDay;
   hasDues: boolean;
+  hasCalls: boolean;
   date: Date;
   onPress: () => void;
 }) {
@@ -266,11 +311,20 @@ function TodayCell({
             {day.dues.length} {day.dues.length === 1 ? 'due' : 'dues'}
           </Text>
         </View>
-      ) : (
+      ) : hasCalls ? null : (
         <View style={styles.todayChipEmpty}>
           <Text style={styles.todayChipEmptyText}>No dues</Text>
         </View>
       )}
+
+      {hasCalls ? (
+        <View style={styles.todayCallChip}>
+          <Video size={9} color={colors.white} strokeWidth={2.5} />
+          <Text style={styles.todayCallChipText}>
+            {day.videoCalls.length} {day.videoCalls.length === 1 ? 'call' : 'calls'}
+          </Text>
+        </View>
+      ) : null}
     </Pressable>
   );
 }
@@ -368,10 +422,15 @@ function DaySheet({ day, onClose }: { day: CalendarDay | null; onClose: () => vo
     ? 'TODAY'
     : date.toLocaleDateString('en-US', { weekday: 'long' }).toUpperCase();
 
-  const subSummary =
+  const dueLabel =
     day.dues.length === 0
-      ? 'No check-ins scheduled'
-      : `${day.dues.length} ${day.dues.length === 1 ? 'check-in' : 'check-ins'} scheduled`;
+      ? null
+      : `${day.dues.length} ${day.dues.length === 1 ? 'check-in' : 'check-ins'}`;
+  const callLabel =
+    day.videoCalls.length === 0
+      ? null
+      : `${day.videoCalls.length} ${day.videoCalls.length === 1 ? 'call' : 'calls'}`;
+  const subSummary = [dueLabel, callLabel].filter(Boolean).join(' · ') || 'Nothing scheduled';
 
   return (
     <Modal visible transparent animationType="fade" onRequestClose={onClose} statusBarTranslucent>
@@ -399,14 +458,25 @@ function DaySheet({ day, onClose }: { day: CalendarDay | null; onClose: () => vo
                   <DueRow key={`${due.coachingId}-${due.dueDate}`} due={due} />
                 ))}
               </View>
-            ) : (
+            ) : null}
+
+            {day.videoCalls.length > 0 ? (
+              <View style={[styles.dueList, day.dues.length > 0 && { marginTop: spacing.lg }]}>
+                <Text style={styles.sectionLabel}>VIDEO CALLS</Text>
+                {day.videoCalls.map(c => (
+                  <VideoCallRow key={c.id} call={c} />
+                ))}
+              </View>
+            ) : null}
+
+            {day.dues.length === 0 && day.videoCalls.length === 0 ? (
               <View style={styles.emptyDay}>
                 <View style={styles.emptyIcon}>
                   <CalendarDays size={20} color={colors.inkMuted} strokeWidth={2} />
                 </View>
-                <Text style={styles.emptyText}>No clients are due on this day.</Text>
+                <Text style={styles.emptyText}>Nothing scheduled on this day.</Text>
               </View>
-            )}
+            ) : null}
           </ScrollView>
         </Pressable>
       </Pressable>
@@ -435,6 +505,75 @@ function DueRow({ due }: { due: DueEntry }) {
       </View>
     </View>
   );
+}
+
+function VideoCallRow({ call }: { call: VideoCallEntry }) {
+  const tone = callStatusTone(call.status);
+  const time = new Date(call.scheduledFor).toLocaleTimeString(undefined, {
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+  const traineeName = call.trainee?.displayName || 'Client';
+  return (
+    <View style={styles.dueRow}>
+      <View style={styles.callIcon}>
+        <Video size={14} color="#8B5CF6" strokeWidth={2.25} />
+      </View>
+      <View style={{ flex: 1, minWidth: 0 }}>
+        <Text variant="bodySmall" weight="800" numberOfLines={1}>
+          {traineeName}
+        </Text>
+        <Text variant="micro" color="muted" numberOfLines={1} style={styles.dueRowSub}>
+          {time} · {callStatusHint(call.status)}
+        </Text>
+      </View>
+      <View style={[styles.dueStatusPill, { backgroundColor: tone.softBg, borderColor: tone.border }]}>
+        <Text style={[styles.dueStatusText, { color: tone.fg }]}>
+          {callStatusLabel(call.status).toUpperCase()}
+        </Text>
+      </View>
+    </View>
+  );
+}
+
+function callStatusTone(status: VideoCallStatus): { fg: string; softBg: string; border: string } {
+  switch (status) {
+    case 'PENDING':
+      return { fg: colors.accent, softBg: 'rgba(255,107,53,0.12)', border: 'rgba(255,107,53,0.32)' };
+    case 'ACCEPTED':
+    case 'LIVE':
+      return { fg: '#8B5CF6', softBg: 'rgba(139,92,246,0.10)', border: 'rgba(139,92,246,0.32)' };
+    case 'COMPLETED':
+      return { fg: colors.success, softBg: 'rgba(16,185,129,0.10)', border: 'rgba(16,185,129,0.32)' };
+    case 'EXPIRED':
+    case 'DECLINED':
+    case 'CANCELLED':
+      return { fg: colors.inkSecondary, softBg: colors.surfaceElevated, border: colors.line };
+  }
+}
+
+function callStatusLabel(status: VideoCallStatus): string {
+  switch (status) {
+    case 'PENDING': return 'Pending';
+    case 'ACCEPTED': return 'Confirmed';
+    case 'LIVE': return 'Live';
+    case 'COMPLETED': return 'Done';
+    case 'EXPIRED': return 'Missed';
+    case 'DECLINED': return 'Declined';
+    case 'CANCELLED': return 'Cancelled';
+  }
+}
+
+function callStatusHint(status: VideoCallStatus): string {
+  switch (status) {
+    case 'PENDING': return 'Awaiting client reply';
+    case 'ACCEPTED': return 'Confirmed by client';
+    case 'LIVE': return 'Started instantly';
+    case 'COMPLETED': return 'Call finished';
+    case 'EXPIRED': return 'No response in time';
+    case 'DECLINED': return 'Client declined';
+    case 'CANCELLED': return 'Cancelled by you';
+  }
 }
 
 function statusTone(status: DueStatus): { fg: string; softBg: string; border: string } {
@@ -512,7 +651,11 @@ function statusHint(due: DueEntry): string {
 }
 
 
-function buildCalendar(coachings: Coaching[], clients: Map<string, User>): CalendarDay[] {
+function buildCalendar(
+  coachings: Coaching[],
+  clients: Map<string, User>,
+  videoCalls: VideoCall[],
+): CalendarDay[] {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   const todayKey = formatDateKey(today);
@@ -531,6 +674,7 @@ function buildCalendar(coachings: Coaching[], clients: Map<string, User>): Calen
       doneCount: 0,
       missedCount: 0,
       upcomingCount: 0,
+      videoCalls: [],
     });
   }
   const dayByKey = new Map(days.map(d => [d.date, d]));
@@ -587,8 +731,24 @@ function buildCalendar(coachings: Coaching[], clients: Map<string, User>): Calen
     }
   }
 
+  for (const vc of videoCalls) {
+    if (!vc.scheduledFor) continue;
+    const at = new Date(vc.scheduledFor);
+    if (Number.isNaN(at.getTime())) continue;
+    const key = formatDateKey(at);
+    const bucket = dayByKey.get(key);
+    if (!bucket) continue;
+    bucket.videoCalls.push({
+      id: vc.id,
+      status: vc.status,
+      scheduledFor: vc.scheduledFor,
+      trainee: clients.get(vc.traineeId) ?? null,
+    });
+  }
+
   for (const day of days) {
     day.dues.sort((a, b) => statusOrder(a.status) - statusOrder(b.status));
+    day.videoCalls.sort((a, b) => a.scheduledFor.localeCompare(b.scheduledFor));
     void todayKey;
   }
 
@@ -745,6 +905,19 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: 'rgba(239,68,68,0.28)',
   },
+  summaryRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  summaryPillCalls: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: 'rgba(139,92,246,0.10)',
+    borderWidth: 1,
+    borderColor: 'rgba(139,92,246,0.28)',
+  },
   summaryText: {
     fontSize: 10,
     fontWeight: '800',
@@ -893,6 +1066,43 @@ const styles = StyleSheet.create({
     borderRadius: 2,
     backgroundColor: colors.line,
   },
+  callBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    paddingHorizontal: 5,
+    paddingVertical: 2,
+    borderRadius: radii.pill,
+    backgroundColor: 'rgba(139,92,246,0.10)',
+    borderWidth: 1,
+    borderColor: 'rgba(139,92,246,0.32)',
+    minHeight: 20,
+  },
+  callBadgeText: {
+    fontSize: 10,
+    lineHeight: 12,
+    fontWeight: '800',
+    color: '#8B5CF6',
+    includeFontPadding: false,
+  },
+  todayCallChip: {
+    marginTop: 4,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: radii.pill,
+    backgroundColor: 'rgba(255,255,255,0.22)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.36)',
+  },
+  todayCallChipText: {
+    fontSize: 9,
+    fontWeight: '800',
+    letterSpacing: 0.4,
+    color: colors.white,
+  },
 
   legend: {
     flexDirection: 'row',
@@ -977,6 +1187,24 @@ const styles = StyleSheet.create({
     borderColor: colors.line,
   },
   dueRowSub: { marginTop: 2 },
+  callIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: 'rgba(139,92,246,0.10)',
+    borderWidth: 1,
+    borderColor: 'rgba(139,92,246,0.22)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  sectionLabel: {
+    fontSize: 10,
+    fontWeight: '800',
+    letterSpacing: 1,
+    color: colors.inkMuted,
+    marginBottom: spacing.xs,
+    paddingLeft: 2,
+  },
   dueStatusPill: {
     flexDirection: 'row',
     alignItems: 'center',

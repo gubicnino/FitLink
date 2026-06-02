@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useState } from 'react';
 import { workoutApi } from '../api/workoutApi';
 import { coachingApi } from '../api/coachingApi';
+import { videoCallApi } from '../api/videoCallApi';
 import { useHealthConnect } from './useHealthConnect';
 import type { CheckIn } from '../types/checkin';
+import type { VideoCall, VideoCallStatus } from '../types/videoCall';
 
 
 export interface CalendarDay {
@@ -14,13 +16,20 @@ export interface CalendarDay {
   checkInDue: boolean;
 }
 
-export type CalendarEventType = 'workout' | 'checkIn' | 'hcExercise' | 'weightLog' | 'checkInDue';
+export type CalendarEventType =
+  | 'workout'
+  | 'checkIn'
+  | 'hcExercise'
+  | 'weightLog'
+  | 'checkInDue'
+  | 'videoCall';
 
 export interface CalendarEvent {
   type: CalendarEventType;
   at: string;
   title: string;
   subtitle?: string;
+  videoCallStatus?: VideoCallStatus;
 }
 
 const HORIZON_DAYS = 14;
@@ -35,9 +44,14 @@ export function useCalendarEvents() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const [sessions, coachings] = await Promise.all([
+      const now = new Date();
+      const windowStart = new Date(now.getTime() - 7 * 86400_000);
+      const windowEnd = new Date(now.getTime() + (HORIZON_DAYS - 7) * 86400_000);
+
+      const [sessions, coachings, videoCalls] = await Promise.all([
         workoutApi.listSessions().catch(() => []),
         coachingApi.getMyCoachings().catch(() => []),
+        videoCallApi.window(windowStart, windowEnd).catch(() => [] as VideoCall[]),
       ]);
 
       const allCheckIns: CheckIn[] = coachings.flatMap((c: { checkIns?: CheckIn[] }) => c.checkIns ?? []);
@@ -49,11 +63,12 @@ export function useCalendarEvents() {
         : null;
 
       setDays(buildWindow({
-        now: new Date(),
+        now,
         sessions: sessions ?? [],
         checkIns: allCheckIns,
         hcExercises: hcSnapshot.recentExercises,
         weightTrend: hcSnapshot.weightTrend,
+        videoCalls: videoCalls ?? [],
         nextCheckInDueIso: nextDueIso,
       }));
     } finally {
@@ -81,9 +96,10 @@ function buildWindow(input: {
   checkIns: CheckIn[];
   hcExercises: { startAt: string; durationMinutes: number; title: string | null; exerciseType: number | null }[];
   weightTrend: { at: string; kg: number }[];
+  videoCalls: VideoCall[];
   nextCheckInDueIso: string | null;
 }): CalendarDay[] {
-  const { now, sessions, checkIns, hcExercises, weightTrend, nextCheckInDueIso } = input;
+  const { now, sessions, checkIns, hcExercises, weightTrend, videoCalls, nextCheckInDueIso } = input;
 
   const start = startOfDay(new Date(now.getTime() - 7 * 86400_000));
   const todayKey = dateKey(now);
@@ -162,6 +178,21 @@ function buildWindow(input: {
     }, 'weightLog');
   }
 
+  for (const vc of videoCalls) {
+    if (!vc.scheduledFor) continue;
+    const key = dateKey(new Date(vc.scheduledFor));
+    if (!byDay.has(key)) continue;
+    const when = new Date(vc.scheduledFor);
+    const timeStr = when.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
+    pushEvent(key, {
+      type: 'videoCall',
+      at: vc.scheduledFor,
+      title: videoCallTitle(vc.status),
+      subtitle: `${timeStr} · Video call`,
+      videoCallStatus: vc.status,
+    }, 'videoCall');
+  }
+
   if (dueKey && byDay.has(dueKey)) {
     const day = byDay.get(dueKey)!;
     if (!day.dotTypes.includes('checkIn')) {
@@ -198,4 +229,17 @@ function dateKey(d: Date): string {
 
 function bestTime(ci: CheckIn): string {
   return (ci.start ?? ci.createdAt ?? new Date().toISOString()) as string;
+}
+
+function videoCallTitle(status: VideoCallStatus): string {
+  switch (status) {
+    case 'PENDING': return 'Video call (awaiting reply)';
+    case 'ACCEPTED': return 'Video call (confirmed)';
+    case 'LIVE': return 'Video call';
+    case 'COMPLETED': return 'Video call (finished)';
+    case 'DECLINED': return 'Video call (declined)';
+    case 'CANCELLED': return 'Video call (cancelled)';
+    case 'EXPIRED': return 'Video call (missed)';
+    default: return 'Video call';
+  }
 }
