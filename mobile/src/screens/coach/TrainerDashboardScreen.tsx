@@ -7,7 +7,7 @@ import {
   Clock,
   GraduationCap,
   UserPlus,
-  Users,
+Users,
   X,
 } from 'lucide-react-native';
 import React, { useCallback, useMemo, useState } from 'react';
@@ -538,6 +538,7 @@ function ClientRow({ info, onPress }: { info: ClientCoachingInfo; onPress: () =>
       ? 1
       : Math.min(1, Math.max(0, daysSince / CHECK_IN_INTERVAL_DAYS));
   const daysLeft = daysSince == null ? null : Math.max(0, CHECK_IN_INTERVAL_DAYS - daysSince);
+  const needsComment = info.coaching.checkIns.length > 0 && !info.coaching.checkIns.every(checkIn => checkIn.trainerComment?.text);
   const dueDate = info.latestCheckIn
     ? addDays(new Date(info.latestCheckIn.start), CHECK_IN_INTERVAL_DAYS)
     : null;
@@ -580,6 +581,14 @@ function ClientRow({ info, onPress }: { info: ClientCoachingInfo; onPress: () =>
             </>
           )}
         </View>
+        {needsComment ? (
+          <View style={styles.clientCommentRow}>
+            <AlertCircle size={11} color={colors.accent} strokeWidth={2.5} />
+            <Text variant="micro" weight="700" style={{ color: colors.accent }}>
+              Check-ins still need comments!
+            </Text>
+          </View>
+        ) : null}
       </View>
       <ChevronRight size={16} color={colors.inkMuted} strokeWidth={2} />
     </Pressable>
@@ -879,6 +888,7 @@ const styles = StyleSheet.create({
   },
   clientProgressRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginTop: 5 },
   clientHintRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 4 },
+  clientCommentRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 4 },
   viewAllRow: {
     flexDirection: 'row',
     alignItems: 'center',

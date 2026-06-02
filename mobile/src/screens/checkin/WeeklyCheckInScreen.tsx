@@ -1,31 +1,31 @@
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import {
-  AlertCircle,
-  Camera,
-  ChevronLeft,
-  ClipboardCheck,
-  ImagePlus,
-  Lock,
-  MessageSquare,
-  Scale,
-  Trash2,
-  X,
-  Zap,
+    AlertCircle,
+    Camera,
+    ChevronLeft,
+    ClipboardCheck,
+    ImagePlus,
+    Lock,
+    MessageSquare,
+    Scale,
+    Trash2,
+    X,
+    Zap,
 } from 'lucide-react-native';
 import React, { useMemo, useState } from 'react';
 import {
-  Alert,
-  Image,
-  KeyboardAvoidingView,
-  Modal,
-  PermissionsAndroid,
-  Platform,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  TextInput,
-  View,
+    Alert,
+    Image,
+    KeyboardAvoidingView,
+    Modal,
+    PermissionsAndroid,
+    Platform,
+    Pressable,
+    ScrollView,
+    StyleSheet,
+    TextInput,
+    View,
 } from 'react-native';
 import { launchCamera } from 'react-native-image-picker';
 import { API_ORIGIN } from '../../api/apiClient';
@@ -302,13 +302,13 @@ export function WeeklyCheckInScreen({ checkIn }: WeeklyCheckInScreenProps = {}) 
                 <Text variant="bodySmall" style={styles.notesText}>
                   {checkIn?.note?.trim() || 'No notes left this week.'}
                 </Text>
-                {checkIn?.trainerComment ? (
+                {checkIn?.trainerComment?.text ? (
                   <View style={styles.coachReply}>
                     <Text variant="micro" weight="800" style={styles.coachReplyLabel}>
                       COACH REPLY
                     </Text>
                     <Text variant="bodySmall" style={styles.coachReplyText}>
-                      {checkIn.trainerComment}
+                      {checkIn.trainerComment.text}
                     </Text>
                   </View>
                 ) : null}

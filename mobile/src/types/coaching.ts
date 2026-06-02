@@ -16,3 +16,4 @@ export interface Coaching {
   endedBy: string | null;
   checkIns: CheckIn[];
 }
+
