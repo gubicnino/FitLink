@@ -9,6 +9,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - name: Make Maven wrapper executable
+        run: chmod +x backend/mvnw
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
@@ -23,6 +25,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - name: Make Gradle wrapper executable
+        run: chmod +x mobile/android/gradlew
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
