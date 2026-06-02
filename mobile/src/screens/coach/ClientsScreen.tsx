@@ -434,10 +434,16 @@ function ClientCard({
             <Text variant="micro" weight="800" style={styles.statTileLabel}>ENERGY</Text>
           </View>
           <View style={styles.statTileValueRow}>
-            <Text mono tabular style={styles.statTileValue}>
-              {energy ?? '—'}
+            <Text mono tabular style={styles.statTileValue} numberOfLines={1}>
+              {energy != null ? (
+                <>
+                  {energy}
+                  <Text style={styles.statTileUnit}>/5</Text>
+                </>
+              ) : (
+                '—'
+              )}
             </Text>
-            {energy != null ? <Text style={styles.statTileUnit}>/ 5</Text> : null}
           </View>
         </View>
         <View style={styles.statTile}>
@@ -448,7 +454,7 @@ function ClientCard({
             <Text variant="micro" weight="800" style={styles.statTileLabel}>CHECK-INS</Text>
           </View>
           <View style={styles.statTileValueRow}>
-            <Text mono tabular style={styles.statTileValue}>{checkInsCount}</Text>
+            <Text mono tabular style={styles.statTileValue} numberOfLines={1}>{checkInsCount}</Text>
           </View>
         </View>
       </View>
@@ -495,10 +501,16 @@ function ClientWeightStat({
         <Text variant="micro" weight="800" style={styles.statTileLabel}>WEIGHT</Text>
       </View>
       <View style={styles.statTileValueRow}>
-        <Text mono tabular style={styles.statTileValue}>
-          {kg != null ? kg.toFixed(1) : '—'}
+        <Text mono tabular style={styles.statTileValue} numberOfLines={1}>
+          {kg != null ? (
+            <>
+              {kg.toFixed(1)}
+              <Text style={styles.statTileUnit}> kg</Text>
+            </>
+          ) : (
+            '—'
+          )}
         </Text>
-        {kg != null ? <Text style={styles.statTileUnit}>kg</Text> : null}
       </View>
       {hasDelta ? (
         <Text
@@ -777,7 +789,7 @@ const styles = StyleSheet.create({
     letterSpacing: 0.5,
     color: colors.inkSecondary,
   },
-  statTileValueRow: { flexDirection: 'row', alignItems: 'baseline' },
+  statTileValueRow: { flexDirection: 'row', alignItems: 'baseline', flexWrap: 'nowrap' },
   statTileValue: {
     fontSize: 18,
     lineHeight: 20,
@@ -786,8 +798,7 @@ const styles = StyleSheet.create({
     color: colors.inkPrimary,
   },
   statTileUnit: {
-    marginLeft: 2,
-    fontSize: 10,
+    fontSize: 11,
     fontWeight: '700',
     color: colors.inkSecondary,
   },

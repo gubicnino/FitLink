@@ -1,9 +1,21 @@
-import { Activity, CalendarDays, Dumbbell, Heart, Scale, X } from 'lucide-react-native';
+import {
+  Activity,
+  CalendarDays,
+  Dumbbell,
+  Heart,
+  Scale,
+  X,
+} from 'lucide-react-native';
 import React, { useMemo, useState } from 'react';
 import { Modal, Pressable, ScrollView, StyleSheet, View } from 'react-native';
-import { Card, Text } from '../ui';
-import { colors, radii, spacing } from '../../theme';
-import { useCalendarEvents, type CalendarDay, type CalendarEvent, type CalendarEventType } from '../../hooks/useCalendarEvents';
+import { IconButton, Text } from '../ui';
+import { colors, radii, shadows, spacing } from '../../theme';
+import {
+  useCalendarEvents,
+  type CalendarDay,
+  type CalendarEvent,
+  type CalendarEventType,
+} from '../../hooks/useCalendarEvents';
 
 const TYPE_COLOR: Record<CalendarEventType, string> = {
   workout: colors.primary,
@@ -13,7 +25,10 @@ const TYPE_COLOR: Record<CalendarEventType, string> = {
   checkInDue: colors.danger,
 };
 
-const TYPE_ICON: Record<CalendarEventType, React.ComponentType<{ size?: number; color?: string; strokeWidth?: number }>> = {
+const TYPE_ICON: Record<
+  CalendarEventType,
+  React.ComponentType<{ size?: number; color?: string; strokeWidth?: number }>
+> = {
   workout: Dumbbell,
   checkIn: CalendarDays,
   hcExercise: Activity,
@@ -24,34 +39,68 @@ const TYPE_ICON: Record<CalendarEventType, React.ComponentType<{ size?: number; 
 const TYPE_LABEL: Record<CalendarEventType, string> = {
   workout: 'Workouts',
   checkIn: 'Check-ins',
-  hcExercise: 'Tracked workouts',
-  weightLog: 'Weight logs',
-  checkInDue: 'Check-in reminders',
+  hcExercise: 'Activity',
+  weightLog: 'Weight',
+  checkInDue: 'Reminders',
 };
 
 const DAY_NAME = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
-
 export function TraineeCalendarCard() {
   const { days } = useCalendarEvents();
   const [openDay, setOpenDay] = useState<CalendarDay | null>(null);
+
   const rows = useMemo(() => {
     const out: CalendarDay[][] = [];
     for (let i = 0; i < days.length; i += 7) out.push(days.slice(i, i + 7));
     return out;
   }, [days]);
 
+  const summary = useMemo(() => {
+    let active = 0;
+    let total = 0;
+    let dueCount = 0;
+    for (const d of days) {
+      if (d.events.length > 0) active += 1;
+      total += d.events.length;
+      if (d.checkInDue) dueCount += 1;
+    }
+    return { active, total, dueCount };
+  }, [days]);
+
   if (days.length === 0) return null;
 
   return (
     <>
-      <Card style={styles.card}>
-        <View style={styles.header}>
-          <Text variant="caption" weight="700" style={{ color: colors.inkSecondary, letterSpacing: 0.5 }}>
-            ACTIVITY · LAST 14 DAYS
-          </Text>
+      <View style={[styles.card, shadows.card]}>
+        {/* Mini section header */}
+        <View style={styles.cardHeader}>
+          <View style={styles.cardTitleRow}>
+            <View style={styles.accentBar} />
+            <Text variant="caption" weight="800" style={styles.cardTitle}>
+              ACTIVITY · LAST 14 DAYS
+            </Text>
+          </View>
+          <View style={styles.cardSummaryPill}>
+            <Text style={styles.cardSummaryText}>
+              {summary.active}/14 active
+            </Text>
+          </View>
         </View>
 
+        {/* Day-of-week header strip */}
+        <View style={styles.dowRow}>
+          {rows[0]?.map(d => {
+            const name = DAY_NAME[new Date(d.date + 'T00:00:00').getDay()];
+            return (
+              <View key={`dow-${d.date}`} style={styles.dowCell}>
+                <Text style={styles.dowText}>{name.slice(0, 1)}</Text>
+              </View>
+            );
+          })}
+        </View>
+
+        {/* 14-day grid */}
         <View style={styles.grid}>
           {rows.map((row, ri) => (
             <View key={ri} style={styles.row}>
@@ -62,8 +111,9 @@ export function TraineeCalendarCard() {
           ))}
         </View>
 
+        {/* Legend */}
         <Legend />
-      </Card>
+      </View>
 
       <DaySheet day={openDay} onClose={() => setOpenDay(null)} />
     </>
@@ -72,10 +122,10 @@ export function TraineeCalendarCard() {
 
 function DayCell({ day, onPress }: { day: CalendarDay; onPress: () => void }) {
   const dayNum = Number(day.date.slice(-2));
-  const dayName = DAY_NAME[new Date(day.date + 'T00:00:00').getDay()];
-
   const hasEvents = day.events.length > 0;
   const disabled = !hasEvents && !day.checkInDue;
+  const eventCount = day.events.length;
+  const intensity = Math.min(1, eventCount / 4);
 
   return (
     <Pressable
@@ -83,33 +133,60 @@ function DayCell({ day, onPress }: { day: CalendarDay; onPress: () => void }) {
       disabled={disabled}
       style={({ pressed }) => [
         styles.cell,
+        hasEvents && !day.isToday && intensityStyle(intensity),
         day.isToday && styles.cellToday,
         day.checkInDue && !hasEvents && styles.cellDue,
-        pressed && hasEvents && { opacity: 0.7 },
+        day.isFuture && !day.isToday && styles.cellFuture,
+        pressed && hasEvents && { opacity: 0.75 },
       ]}
     >
-      <Text variant="micro" style={[styles.dayName, day.isToday && { color: colors.primary, fontWeight: '700' }]}>
-        {dayName}
-      </Text>
       <Text
-        variant="bodySmall"
-        weight={day.isToday ? '700' : '600'}
         style={[
           styles.dayNum,
-          day.isFuture && { color: colors.inkMuted },
-          day.isToday && { color: colors.primary },
+          day.isToday && { color: colors.white },
+          hasEvents && !day.isToday && { color: colors.inkPrimary },
+          day.isFuture && !day.isToday && !hasEvents && { color: colors.inkMuted },
         ]}
       >
         {dayNum}
       </Text>
-      <View style={styles.dotsRow}>
+
+      {/* Event chip-row spodaj v celici */}
+      <View style={styles.cellDots}>
         {day.dotTypes.slice(0, 3).map(t => (
-          <View key={t} style={[styles.dot, { backgroundColor: TYPE_COLOR[t] }]} />
+          <View
+            key={t}
+            style={[
+              styles.dot,
+              { backgroundColor: day.isToday ? colors.white : TYPE_COLOR[t] },
+              day.isToday && { opacity: 0.85 },
+            ]}
+          />
         ))}
-        {day.dotTypes.length > 3 ? <Text variant="micro" style={styles.moreDots}>+</Text> : null}
+        {day.dotTypes.length > 3 ? (
+          <Text style={[styles.moreDot, day.isToday && { color: 'rgba(255,255,255,0.85)' }]}>
+            +{day.dotTypes.length - 3}
+          </Text>
+        ) : null}
       </View>
     </Pressable>
   );
+}
+
+function intensityStyle(intensity: number) {
+  if (intensity >= 0.75) {
+    return { backgroundColor: colors.primarySoftStrong, borderColor: colors.primaryBorder };
+  }
+  if (intensity >= 0.4) {
+    return {
+      backgroundColor: colors.primarySoft,
+      borderColor: colors.primaryBorder,
+    };
+  }
+  return {
+    backgroundColor: 'rgba(46,91,159,0.06)',
+    borderColor: 'rgba(46,91,159,0.18)',
+  };
 }
 
 function Legend() {
@@ -119,9 +196,7 @@ function Legend() {
       {items.map(t => (
         <View key={t} style={styles.legendItem}>
           <View style={[styles.legendDot, { backgroundColor: TYPE_COLOR[t] }]} />
-          <Text variant="micro" style={{ color: colors.inkMuted }}>
-            {TYPE_LABEL[t]}
-          </Text>
+          <Text style={styles.legendText}>{TYPE_LABEL[t]}</Text>
         </View>
       ))}
     </View>
@@ -130,34 +205,64 @@ function Legend() {
 
 function DaySheet({ day, onClose }: { day: CalendarDay | null; onClose: () => void }) {
   const visible = day != null;
+  const eyebrow = day
+    ? day.isToday
+      ? 'TODAY'
+      : new Date(day.date + 'T00:00:00')
+          .toLocaleDateString('en-US', { weekday: 'long' })
+          .toUpperCase()
+    : '';
   const title = day ? formatDayLabel(day.date, day.isToday) : '';
 
   return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose} statusBarTranslucent>
+    <Modal
+      visible={visible}
+      transparent
+      animationType="fade"
+      onRequestClose={onClose}
+      statusBarTranslucent
+    >
       <Pressable style={styles.backdrop} onPress={onClose}>
-        <Pressable style={styles.sheet} onPress={() => {}}>
+        <Pressable
+          style={[styles.sheet, shadows.modal]}
+          onPress={() => undefined}
+          accessibilityRole="none"
+        >
           <View style={styles.grabber} />
+
           <View style={styles.sheetHeader}>
-            <Text variant="bodyLarge" weight="700" style={{ color: colors.inkPrimary }}>
-              {title}
-            </Text>
-            <Pressable
-              onPress={onClose}
-              hitSlop={10}
-              style={({ pressed }) => [styles.closeBtn, pressed && { opacity: 0.6 }]}
-            >
-              <X size={18} color={colors.inkSecondary} strokeWidth={2.25} />
-            </Pressable>
+            <View style={{ flex: 1, minWidth: 0 }}>
+              <Text style={styles.sheetEyebrow}>{eyebrow}</Text>
+              <Text style={styles.sheetTitle} numberOfLines={1}>
+                {title}
+              </Text>
+              {day ? (
+                <Text style={styles.sheetSub}>
+                  {day.events.length === 0
+                    ? day.checkInDue
+                      ? 'Check-in reminder'
+                      : 'No activity'
+                    : `${day.events.length} ${day.events.length === 1 ? 'event' : 'events'} recorded`}
+                </Text>
+              ) : null}
+            </View>
+            <IconButton variant="ghost" size="sm" withBorder onPress={onClose}>
+              <X size={16} color={colors.inkPrimary} strokeWidth={2.25} />
+            </IconButton>
           </View>
 
-          <ScrollView contentContainerStyle={{ paddingBottom: spacing.lg }}>
+          <ScrollView
+            contentContainerStyle={styles.sheetScroll}
+            showsVerticalScrollIndicator={false}
+          >
             {day && day.events.length > 0 ? (
               day.events.map((ev, i) => <EventRow key={i} event={ev} />)
             ) : (
               <View style={styles.emptyDay}>
-                <Text variant="bodySmall" style={{ color: colors.inkMuted, textAlign: 'center' }}>
-                  No recorded activity for this day.
-                </Text>
+                <View style={styles.emptyIcon}>
+                  <CalendarDays size={20} color={colors.inkMuted} strokeWidth={2} />
+                </View>
+                <Text style={styles.emptyText}>No recorded activity for this day.</Text>
               </View>
             )}
           </ScrollView>
@@ -172,21 +277,19 @@ function EventRow({ event }: { event: CalendarEvent }) {
   return (
     <View style={styles.eventRow}>
       <View style={[styles.eventIcon, { backgroundColor: hexToSoft(TYPE_COLOR[event.type]) }]}>
-        <Icon size={18} color={TYPE_COLOR[event.type]} strokeWidth={2.25} />
+        <Icon size={16} color={TYPE_COLOR[event.type]} strokeWidth={2.25} />
       </View>
-      <View style={{ flex: 1 }}>
-        <Text variant="body" weight="700" style={{ color: colors.inkPrimary }}>
+      <View style={{ flex: 1, minWidth: 0 }}>
+        <Text variant="bodySmall" weight="800" numberOfLines={1} style={styles.eventTitle}>
           {event.title}
         </Text>
         {event.subtitle ? (
-          <Text variant="bodySmall" style={{ color: colors.inkSecondary, marginTop: 2 }}>
+          <Text variant="micro" color="muted" numberOfLines={1} style={styles.eventSubtitle}>
             {event.subtitle}
           </Text>
         ) : null}
       </View>
-      <Text variant="micro" style={{ color: colors.inkMuted }}>
-        {formatTime(event.at)}
-      </Text>
+      <Text style={styles.eventTime}>{formatTime(event.at)}</Text>
     </View>
   );
 }
@@ -212,52 +315,94 @@ function hexToSoft(hex: string): string {
   return colors.surfaceElevated;
 }
 
+const CELL_BORDER = 1;
+
 const styles = StyleSheet.create({
   card: {
+    backgroundColor: colors.surface,
+    borderRadius: radii.xl,
+    borderWidth: 1,
+    borderColor: colors.line,
     padding: spacing.lg,
+    gap: spacing.md,
   },
-  header: {
-    marginBottom: spacing.md,
-  },
-  grid: {
-    gap: spacing.xs,
-  },
-  row: {
+  cardHeader: {
     flexDirection: 'row',
-    gap: spacing.xs,
+    justifyContent: 'space-between',
+    alignItems: 'center',
   },
+  cardTitleRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+  accentBar: {
+    width: 3,
+    height: 14,
+    borderRadius: 2,
+    backgroundColor: colors.accent,
+  },
+  cardTitle: {
+    fontSize: 11,
+    letterSpacing: 1.2,
+    color: colors.inkPrimary,
+  },
+  cardSummaryPill: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: radii.pill,
+    backgroundColor: colors.surfaceElevated,
+  },
+  cardSummaryText: {
+    fontSize: 10,
+    fontWeight: '800',
+    letterSpacing: 0.4,
+    color: colors.inkSecondary,
+  },
+
+  dowRow: { flexDirection: 'row', gap: spacing.xs, paddingHorizontal: 2 },
+  dowCell: {
+    flex: 1,
+    alignItems: 'center',
+    paddingVertical: 2,
+  },
+  dowText: {
+    fontSize: 10,
+    fontWeight: '800',
+    letterSpacing: 0.8,
+    color: colors.inkMuted,
+  },
+
+  grid: { gap: spacing.xs },
+  row: { flexDirection: 'row', gap: spacing.xs },
   cell: {
     flex: 1,
-    aspectRatio: 0.85,
+    aspectRatio: 0.92,
     borderRadius: radii.md,
     backgroundColor: colors.surfaceElevated,
+    borderWidth: CELL_BORDER,
+    borderColor: 'transparent',
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: spacing.xs,
     gap: 2,
   },
   cellToday: {
-    backgroundColor: colors.primarySoft,
-    borderWidth: 1.5,
+    backgroundColor: colors.primary,
     borderColor: colors.primary,
   },
   cellDue: {
-    borderWidth: 1.5,
     borderColor: colors.danger,
     borderStyle: 'dashed',
     backgroundColor: 'rgba(239,68,68,0.06)',
   },
-  dayName: {
-    color: colors.inkMuted,
-    fontSize: 9,
-    letterSpacing: 0.3,
+  cellFuture: {
+    backgroundColor: colors.bg,
   },
   dayNum: {
-    color: colors.inkPrimary,
+    color: colors.inkSecondary,
     fontSize: 14,
+    fontWeight: '800',
+    letterSpacing: -0.2,
     lineHeight: 16,
   },
-  dotsRow: {
+  cellDots: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 2,
@@ -265,46 +410,57 @@ const styles = StyleSheet.create({
     height: 6,
   },
   dot: {
-    width: 5,
-    height: 5,
-    borderRadius: 3,
+    width: 4,
+    height: 4,
+    borderRadius: 2,
   },
-  moreDots: {
+  moreDot: {
     fontSize: 8,
+    fontWeight: '800',
     color: colors.inkMuted,
+    lineHeight: 8,
   },
+
   legend: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: spacing.md,
-    marginTop: spacing.md,
-    paddingTop: spacing.sm,
-    borderTopWidth: StyleSheet.hairlineWidth,
+    marginTop: spacing.sm,
+    paddingTop: spacing.md,
+    borderTopWidth: 1,
     borderTopColor: colors.line,
   },
   legendItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
+    gap: 5,
   },
   legendDot: {
     width: 6,
     height: 6,
     borderRadius: 3,
   },
+  legendText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: colors.inkMuted,
+    letterSpacing: 0.1,
+  },
+
+  // Sheet
   backdrop: {
     flex: 1,
-    backgroundColor: 'rgba(15,23,42,0.45)',
+    backgroundColor: 'rgba(15,23,42,0.55)',
     justifyContent: 'flex-end',
   },
   sheet: {
     backgroundColor: colors.surface,
-    borderTopLeftRadius: radii.xl,
-    borderTopRightRadius: radii.xl,
-    paddingHorizontal: spacing.xl,
+    borderTopLeftRadius: radii.xxl,
+    borderTopRightRadius: radii.xxl,
+    paddingHorizontal: spacing.xxl,
     paddingTop: spacing.sm,
     paddingBottom: spacing.xxl,
-    maxHeight: '70%',
+    maxHeight: '75%',
   },
   grabber: {
     alignSelf: 'center',
@@ -316,35 +472,79 @@ const styles = StyleSheet.create({
   },
   sheetHeader: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     justifyContent: 'space-between',
-    marginBottom: spacing.lg,
+    gap: spacing.md,
+    paddingBottom: spacing.lg,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.line,
   },
-  closeBtn: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: colors.surfaceElevated,
-    alignItems: 'center',
-    justifyContent: 'center',
+  sheetEyebrow: {
+    fontSize: 10,
+    fontWeight: '800',
+    letterSpacing: 1.2,
+    color: colors.accent,
   },
+  sheetTitle: {
+    fontSize: 22,
+    lineHeight: 26,
+    letterSpacing: -0.4,
+    fontWeight: '800',
+    color: colors.inkPrimary,
+    marginTop: 2,
+  },
+  sheetSub: {
+    fontSize: 12,
+    color: colors.inkMuted,
+    marginTop: 2,
+    fontWeight: '500',
+  },
+  sheetScroll: {
+    paddingTop: spacing.md,
+    paddingBottom: spacing.lg,
+  },
+
   eventRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.md,
     paddingVertical: spacing.md,
-    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomWidth: 1,
     borderBottomColor: colors.line,
   },
   eventIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: radii.lg,
+    width: 34,
+    height: 34,
+    borderRadius: 17,
     alignItems: 'center',
     justifyContent: 'center',
   },
+  eventTitle: { letterSpacing: -0.1, color: colors.inkPrimary },
+  eventSubtitle: { marginTop: 2 },
+  eventTime: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: colors.inkMuted,
+    letterSpacing: 0.3,
+  },
+
   emptyDay: {
-    paddingVertical: spacing.xxl,
+    paddingVertical: spacing.huge,
     alignItems: 'center',
+    gap: spacing.md,
+  },
+  emptyIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: colors.surfaceElevated,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  emptyText: {
+    color: colors.inkMuted,
+    fontSize: 13,
+    fontWeight: '500',
+    textAlign: 'center',
   },
 });

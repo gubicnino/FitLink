@@ -7,7 +7,7 @@ import {
   Clock,
   GraduationCap,
   UserPlus,
-  Users,
+Users,
   X,
 } from 'lucide-react-native';
 import React, { useCallback, useMemo, useState } from 'react';
@@ -539,6 +539,9 @@ function ClientRow({ info, onPress }: { info: ClientCoachingInfo; onPress: () =>
       : Math.min(1, Math.max(0, daysSince / CHECK_IN_INTERVAL_DAYS));
   const daysLeft = daysSince == null ? null : Math.max(0, CHECK_IN_INTERVAL_DAYS - daysSince);
   const needsComment = info.coaching.checkIns.length > 0 && !info.coaching.checkIns.every(checkIn => checkIn.trainerComment?.text);
+  const dueDate = info.latestCheckIn
+    ? addDays(new Date(info.latestCheckIn.start), CHECK_IN_INTERVAL_DAYS)
+    : null;
 
   return (
     <Pressable
@@ -557,15 +560,23 @@ function ClientRow({ info, onPress }: { info: ClientCoachingInfo; onPress: () =>
           {overdue ? (
             <>
               <AlertCircle size={11} color={colors.accent} strokeWidth={2.5} />
-              <Text variant="micro" weight="700" style={{ color: colors.accent }}>
-                {daysSince == null ? 'No check-ins yet' : `Check-in overdue · ${daysSince}d`}
+              <Text variant="micro" weight="700" style={{ color: colors.accent }} numberOfLines={1}>
+                {daysSince == null
+                  ? 'No check-ins yet'
+                  : dueDate
+                    ? `Was due ${formatShortDate(dueDate)} · ${daysSince - CHECK_IN_INTERVAL_DAYS}d overdue`
+                    : `Check-in overdue · ${daysSince}d`}
               </Text>
             </>
           ) : (
             <>
               <Clock size={11} color={colors.inkMuted} strokeWidth={2.25} />
-              <Text variant="micro" color="muted" weight="600">
-                {daysLeft === 0 ? 'Due today' : `${daysLeft}d until check-in`}
+              <Text variant="micro" color="muted" weight="600" numberOfLines={1}>
+                {daysLeft === 0
+                  ? 'Due today'
+                  : dueDate
+                    ? `Due ${formatShortDate(dueDate)} · in ${daysLeft}d`
+                    : `${daysLeft}d until check-in`}
               </Text>
             </>
           )}
@@ -611,6 +622,16 @@ function formatTodayEyebrow() {
 function clientOverdueRank(c: ClientCoachingInfo): number {
   if (c.daysSinceLast == null) return 9999;
   return c.daysSinceLast;
+}
+
+function addDays(d: Date, days: number): Date {
+  const next = new Date(d);
+  next.setDate(next.getDate() + days);
+  return next;
+}
+
+function formatShortDate(d: Date): string {
+  return d.toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short' });
 }
 
 const styles = StyleSheet.create({
