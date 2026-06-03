@@ -13,6 +13,7 @@ export interface TrainerInfo {
 	verificationStatus: VerificationStatus | null;
 	licenseFileUrl: string | null;
 	bio: string | null;
+	location: string | null;
 	specializations: string[];
 	verifiedAt: string | null;
 	rejectionReason: string | null;

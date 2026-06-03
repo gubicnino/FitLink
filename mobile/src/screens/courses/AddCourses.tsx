@@ -2,12 +2,18 @@ import { errorCodes, isErrorWithCode, keepLocalCopy, pick, types } from '@react-
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import {
   AlertCircle,
+  Bold,
   ChevronLeft,
   FileText,
+  Heading2,
+  Heading3,
   Image as ImageIcon,
   ImagePlus,
+  Italic,
   Layers,
+  List,
   MessageSquare,
+  Quote,
   Save,
   Sparkles,
   Star,
@@ -37,6 +43,7 @@ import { colors, radii, shadows, spacing } from '../../theme';
 import { CoursePayload, courseService } from '../../services/courseService';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'AddCourses'>;
+type ArticleFormat = 'heading2' | 'heading3' | 'bold' | 'italic' | 'bullet' | 'quote';
 
 const FALLBACK_COURSE_IMG =
   'https://images.unsplash.com/photo-1581009146145-b5ef050c2e1e?w=500&q=80&auto=format';
@@ -76,6 +83,7 @@ export function AddCourses({ navigation, route }: Props) {
   const [pdfUploading, setPdfUploading] = useState(false);
   const [initialLoading, setInitialLoading] = useState(Boolean(courseId));
   const [error, setError] = useState<string | null>(null);
+  const [articleSelection, setArticleSelection] = useState({ start: 0, end: 0 });
 
   useEffect(() => {
     const loadCourse = async () => {
@@ -267,6 +275,13 @@ export function AddCourses({ navigation, route }: Props) {
 
   const removeThumbnail = () => updateField('thumbnailUrl', '');
 
+  const applyArticleFormat = (format: ArticleFormat) => {
+    const current = form.articleContent ?? '';
+    const selection = clampSelection(articleSelection, current.length);
+    const next = formatArticleContent(current, selection, format);
+    updateField('articleContent', next);
+  };
+
   const previewType =
     form.contentType === 'PDF' ? 'PDF' :
     form.contentType === 'ARTICLE' ? 'ARTICLE' : 'VIDEO';
@@ -451,9 +466,11 @@ export function AddCourses({ navigation, route }: Props) {
                   </LabeledField>
                   <View style={styles.cardDivider} />
                   <LabeledField label="Written article" hint="Optional - write the article inline">
+                    <ArticleFormattingToolbar onFormat={applyArticleFormat} />
                     <Textarea
                       value={form.articleContent ?? ''}
                       onChangeText={value => updateField('articleContent', value)}
+                      onSelectionChange={event => setArticleSelection(event.nativeEvent.selection)}
                       placeholder="Write your article here..."
                       rows={8}
                       style={styles.textareaInput}
@@ -687,6 +704,64 @@ function Switch({ on }: { on: boolean }) {
   );
 }
 
+function ArticleFormattingToolbar({ onFormat }: { onFormat: (format: ArticleFormat) => void }) {
+  return (
+    <View style={styles.articleToolbar}>
+      <FormatButton
+        label="Heading 2"
+        onPress={() => onFormat('heading2')}
+        icon={<Heading2 size={15} color={colors.inkPrimary} strokeWidth={2.4} />}
+      />
+      <FormatButton
+        label="Heading 3"
+        onPress={() => onFormat('heading3')}
+        icon={<Heading3 size={15} color={colors.inkPrimary} strokeWidth={2.4} />}
+      />
+      <FormatButton
+        label="Bold"
+        onPress={() => onFormat('bold')}
+        icon={<Bold size={15} color={colors.inkPrimary} strokeWidth={2.4} />}
+      />
+      <FormatButton
+        label="Italic"
+        onPress={() => onFormat('italic')}
+        icon={<Italic size={15} color={colors.inkPrimary} strokeWidth={2.4} />}
+      />
+      <FormatButton
+        label="List"
+        onPress={() => onFormat('bullet')}
+        icon={<List size={15} color={colors.inkPrimary} strokeWidth={2.4} />}
+      />
+      <FormatButton
+        label="Quote"
+        onPress={() => onFormat('quote')}
+        icon={<Quote size={15} color={colors.inkPrimary} strokeWidth={2.4} />}
+      />
+    </View>
+  );
+}
+
+function FormatButton({
+  label,
+  icon,
+  onPress,
+}: {
+  label: string;
+  icon: React.ReactNode;
+  onPress: () => void;
+}) {
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      onPress={onPress}
+      style={({ pressed }) => [styles.formatButton, pressed && { opacity: 0.72 }]}
+    >
+      {icon}
+    </Pressable>
+  );
+}
+
 function ThumbnailCanvas({
   url,
   uploading,
@@ -777,6 +852,56 @@ function normalizeContentType(value?: string | null) {
 
 function getMediaUrl(value: string) {
   return value.startsWith('/uploads/') ? `${API_ORIGIN}${value}` : value;
+}
+
+function clampSelection(selection: { start: number; end: number }, max: number) {
+  const start = Math.max(0, Math.min(selection.start, max));
+  const end = Math.max(start, Math.min(selection.end, max));
+  return { start, end };
+}
+
+function formatArticleContent(
+  value: string,
+  selection: { start: number; end: number },
+  format: ArticleFormat,
+) {
+  const selected = value.slice(selection.start, selection.end);
+  const before = value.slice(0, selection.start);
+  const after = value.slice(selection.end);
+
+  const replacement = (() => {
+    if (format === 'bold') {
+      return wrapInline(selected, '**', 'bold text');
+    }
+    if (format === 'italic') {
+      return wrapInline(selected, '*', 'italic text');
+    }
+    if (format === 'heading2') {
+      return prefixBlock(selected, '## ', 'Section title');
+    }
+    if (format === 'heading3') {
+      return prefixBlock(selected, '### ', 'Subsection title');
+    }
+    if (format === 'bullet') {
+      return prefixBlock(selected, '- ', 'List item');
+    }
+    return prefixBlock(selected, '> ', 'Important note');
+  })();
+
+  return `${before}${replacement}${after}`;
+}
+
+function wrapInline(selected: string, mark: string, fallback: string) {
+  const text = selected || fallback;
+  return `${mark}${text}${mark}`;
+}
+
+function prefixBlock(selected: string, prefix: string, fallback: string) {
+  const text = selected || fallback;
+  return text
+    .split('\n')
+    .map(line => `${prefix}${line.replace(/^#{2,3}\s|^[->]\s/, '')}`)
+    .join('\n');
 }
 
 function getRequestErrorMessage(error: any, fallback: string) {
@@ -917,6 +1042,26 @@ const styles = StyleSheet.create({
   textareaInput: {
     backgroundColor: colors.surface,
     borderRadius: radii.md,
+  },
+  articleToolbar: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.sm,
+    padding: spacing.sm,
+    borderRadius: radii.md,
+    borderWidth: 1,
+    borderColor: colors.line,
+    backgroundColor: colors.surfaceElevated,
+  },
+  formatButton: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.line,
   },
 
   iconInputRow: {

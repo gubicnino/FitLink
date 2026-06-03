@@ -117,6 +117,22 @@ public class CourseController {
         return courseService.deleteReview(id, reviewId, principal);
     }
 
+    @PostMapping("/{id}/reviews/{reviewId}/pin")
+    @PreAuthorize("hasRole('TRAINER')")
+    public CourseResponse pinReview(@PathVariable String id,
+                                    @PathVariable String reviewId,
+                                    @AuthenticationPrincipal AuthPrincipal principal) {
+        return courseService.setReviewPinned(id, reviewId, true, principal);
+    }
+
+    @DeleteMapping("/{id}/reviews/{reviewId}/pin")
+    @PreAuthorize("hasRole('TRAINER')")
+    public CourseResponse unpinReview(@PathVariable String id,
+                                      @PathVariable String reviewId,
+                                      @AuthenticationPrincipal AuthPrincipal principal) {
+        return courseService.setReviewPinned(id, reviewId, false, principal);
+    }
+
     @GetMapping
     public List<CourseResponse> getAllCourses(@AuthenticationPrincipal AuthPrincipal principal) {
         return courseService.getAllResponses(principal);

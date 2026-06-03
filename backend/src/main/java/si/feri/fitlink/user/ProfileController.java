@@ -94,6 +94,7 @@ public class ProfileController {
 
         if (dto != null) {
             trainer.setBio(dto.getBio() != null ? dto.getBio().trim() : null);
+            trainer.setLocation(dto.getLocation() != null ? dto.getLocation().trim() : null);
             List<String> specializations = dto.getSpecializations() != null
                     ? dto.getSpecializations().stream()
                             .map(String::trim)

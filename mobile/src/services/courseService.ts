@@ -38,6 +38,7 @@ export interface CourseReviewDto {
   userAvatarUrl?: string | null;
   rating: number;
   comment: string;
+  pinned?: boolean | null;
   originalRating?: number | null;
   originalComment?: string | null;
   createdAt?: string;
@@ -147,6 +148,16 @@ export const courseService = {
 
   deleteReview: async (id: string, reviewId: string) => {
     const response = await apiClient.delete<CourseDto>(`/courses/${id}/reviews/${reviewId}`);
+    return response.data;
+  },
+
+  pinReview: async (id: string, reviewId: string) => {
+    const response = await apiClient.post<CourseDto>(`/courses/${id}/reviews/${reviewId}/pin`);
+    return response.data;
+  },
+
+  unpinReview: async (id: string, reviewId: string) => {
+    const response = await apiClient.delete<CourseDto>(`/courses/${id}/reviews/${reviewId}/pin`);
     return response.data;
   },
 };

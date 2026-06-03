@@ -1,21 +1,24 @@
 import { useNavigation } from '@react-navigation/native';
-import { ChevronDown, ChevronLeft, SlidersHorizontal } from 'lucide-react-native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { ChevronLeft, MapPin, Search, SlidersHorizontal } from 'lucide-react-native';
 import React, { useEffect, useState } from 'react';
-import { ScrollView, StyleSheet, View } from 'react-native';
+import { StyleSheet, TextInput, View } from 'react-native';
 import apiClient from '../../api/apiClient';
 import { coachingApi } from '../../api/coachingApi';
 import { ScreenHeader } from '../../components/layout';
-import { Chip, IconButton, Screen, Text } from '../../components/ui';
-import { colors, spacing } from '../../theme';
+import { IconButton, Screen, Text } from '../../components/ui';
+import type { RootStackParamList } from '../../navigation/types';
+import { colors, radii, spacing } from '../../theme';
 import { User } from '../../types/types';
 import { Trainer, TrainerListCard } from './TrainerListCard';
 
-
-const FILTERS = ['Specialty', 'Price', 'Language'];
+type Navigation = NativeStackNavigationProp<RootStackParamList>;
 
 export function FindTrainerScreen() {
   const [trainers, setTrainers] = useState<Trainer[]>([]);
   const [requestedTrainerIdentifiers, setRequestedTrainerIdentifiers] = useState<string[]>([]);
+  const [interestQuery, setInterestQuery] = useState('');
+  const [locationQuery, setLocationQuery] = useState('');
 
   const fetchTrainers = async () => {
     try {
@@ -48,9 +51,27 @@ export function FindTrainerScreen() {
     reviews: 0,
     priceFrom: null,
     bio: user.trainer?.bio ?? '',
+    location: user.trainer?.location ?? null,
     avatar: user.avatarUrl ?? null,
   });
-  const navigation = useNavigation();
+  const navigation = useNavigation<Navigation>();
+
+  const normalizedInterest = interestQuery.trim().toLowerCase();
+  const normalizedLocation = locationQuery.trim().toLowerCase();
+  const filteredTrainers = trainers.filter(trainer => {
+    const interestText = [
+      trainer.name,
+      trainer.specialty,
+      trainer.bio,
+    ].join(' ').toLowerCase();
+    const locationText = (trainer.location ?? '').toLowerCase();
+
+    return (
+      (!normalizedInterest || interestText.includes(normalizedInterest)) &&
+      (!normalizedLocation || locationText.includes(normalizedLocation))
+    );
+  });
+
   return (
     <Screen edges={['top']} contentStyle={styles.screen}>
       <ScreenHeader
@@ -63,27 +84,39 @@ export function FindTrainerScreen() {
       />
 
       <View style={styles.body}>
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.filtersRow}
-        >
-          <IconButton variant="surface" withBorder>
+        <View style={[styles.gutter, styles.searchPanel]}>
+          <View style={styles.searchHeader}>
             <SlidersHorizontal size={15} color={colors.inkPrimary} strokeWidth={2} />
-          </IconButton>
-          {FILTERS.map(f => (
-            <Chip
-              key={f}
-              label={f}
-              rightIcon={<ChevronDown size={12} color={colors.inkMuted} strokeWidth={2} />}
+            <Text variant="caption" color="muted" weight="700">
+              Filters
+            </Text>
+          </View>
+          <View style={styles.searchField}>
+            <Search size={16} color={colors.inkMuted} strokeWidth={2} />
+            <TextInput
+              value={interestQuery}
+              onChangeText={setInterestQuery}
+              placeholder="Interest or specialization"
+              placeholderTextColor={colors.inkMuted}
+              style={styles.searchInput}
             />
-          ))}
-        </ScrollView>
+          </View>
+          <View style={styles.searchField}>
+            <MapPin size={16} color={colors.inkMuted} strokeWidth={2} />
+            <TextInput
+              value={locationQuery}
+              onChangeText={setLocationQuery}
+              placeholder="Location"
+              placeholderTextColor={colors.inkMuted}
+              style={styles.searchInput}
+            />
+          </View>
+        </View>
 
         <View style={[styles.gutter, styles.summaryRow]}>
           <Text variant="bodySmall" color="secondary">
             <Text variant="bodySmall" weight="600">
-              {trainers.length}
+              {filteredTrainers.length}
             </Text>{' '}
             coaches available
           </Text>
@@ -93,17 +126,29 @@ export function FindTrainerScreen() {
         </View>
 
         <View style={[styles.gutter, styles.list]}>
-          {trainers.map(t => (
-            <TrainerListCard
-              key={t.id}
-              trainer={t}
-              onRequestSent={fetchTrainers}
-              requestDisabled={
-                requestedTrainerIdentifiers.includes(t.firebaseUid) ||
-                requestedTrainerIdentifiers.includes(t.id)
-              }
-            />
-          ))}
+          {filteredTrainers.length > 0 ? (
+            filteredTrainers.map(t => (
+              <TrainerListCard
+                key={t.id}
+                trainer={t}
+                onPress={() => navigation.navigate('TrainerProfile', { trainerId: t.firebaseUid || t.id })}
+                onRequestSent={fetchTrainers}
+                requestDisabled={
+                  requestedTrainerIdentifiers.includes(t.firebaseUid) ||
+                  requestedTrainerIdentifiers.includes(t.id)
+                }
+              />
+            ))
+          ) : (
+            <View style={styles.emptyState}>
+              <Text variant="body" weight="700">
+                No coaches found
+              </Text>
+              <Text variant="bodySmall" color="secondary" style={styles.emptyText}>
+                Try another specialization or location.
+              </Text>
+            </View>
+          )}
         </View>
       </View>
 
@@ -118,13 +163,32 @@ const styles = StyleSheet.create({
   body: {
     flexDirection: 'column',
   },
-  filtersRow: {
-    paddingHorizontal: spacing.xxl,
-    paddingBottom: spacing.lg,
-    gap: spacing.md,
-    alignItems: 'center',
-  },
   gutter: { paddingHorizontal: spacing.xxl },
+  searchPanel: {
+    gap: spacing.md,
+    paddingBottom: spacing.lg,
+  },
+  searchHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  searchField: {
+    minHeight: 46,
+    borderWidth: 1,
+    borderColor: colors.line,
+    borderRadius: radii.lg,
+    backgroundColor: colors.surface,
+    paddingHorizontal: spacing.lg,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+  },
+  searchInput: {
+    flex: 1,
+    color: colors.inkPrimary,
+    paddingVertical: spacing.md,
+  },
   summaryRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -132,4 +196,13 @@ const styles = StyleSheet.create({
     marginBottom: spacing.md,
   },
   list: { gap: spacing.lg },
+  emptyState: {
+    borderWidth: 1,
+    borderColor: colors.line,
+    borderRadius: radii.lg,
+    backgroundColor: colors.surface,
+    padding: spacing.xl,
+    gap: spacing.sm,
+  },
+  emptyText: { lineHeight: 18 },
 });

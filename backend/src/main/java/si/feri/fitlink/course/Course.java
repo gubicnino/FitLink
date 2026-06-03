@@ -48,6 +48,7 @@ public class Course {
         private String userAvatarUrl;
         private int rating;
         private String comment;
+        private Boolean pinned;
         private Integer originalRating;
         private String originalComment;
         private Instant createdAt;

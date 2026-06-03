@@ -7,5 +7,6 @@ import lombok.Data;
 @Data
 public class TrainerProfileDTO {
     private String bio;
+    private String location;
     private List<String> specializations;
 }

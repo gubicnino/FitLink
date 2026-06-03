@@ -364,6 +364,14 @@ export function CourseListScreen() {
                     {' '}{featured.stats?.avgRating?.toFixed(1) ?? '0.0'}
                   </Text>
                 </View>
+                {featured.publishedAt ? (
+                  <>
+                    <Dot />
+                    <Text variant="micro" color="secondary">
+                      {formatCourseDate(featured.publishedAt)}
+                    </Text>
+                  </>
+                ) : null}
               </View>
             </View>
           </Card>
@@ -456,6 +464,7 @@ function toCourseCard(course: CourseDto): Course {
     imageUrl: getImageUrl(course),
     category: course.category,
     level: course.level,
+    publishedAt: course.publishedAt,
   };
 }
 
@@ -485,6 +494,16 @@ function getTime(value?: string | null) {
   if (!value) return 0;
   const time = new Date(value).getTime();
   return Number.isNaN(time) ? 0 : time;
+}
+
+function formatCourseDate(value: string) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '';
+  return date.toLocaleDateString(undefined, {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+  });
 }
 
 function capitalize(s: string) {

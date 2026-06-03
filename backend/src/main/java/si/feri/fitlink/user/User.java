@@ -47,6 +47,7 @@ public class User {
         private String verificationStatus;
         private String licenseFileUrl;
         private String bio;
+        private String location;
         private List<String> specializations;
         private Instant verifiedAt;
         private String rejectionReason;

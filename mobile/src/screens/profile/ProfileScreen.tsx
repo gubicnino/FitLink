@@ -79,6 +79,7 @@ export function ProfileScreen() {
   const [savedCourses, setSavedCourses] = useState<CourseDto[]>([]);
   const [completedCourses, setCompletedCourses] = useState<CourseDto[]>([]);
   const [trainerBio, setTrainerBio] = useState('');
+  const [trainerLocation, setTrainerLocation] = useState('');
   const [trainerSpecializations, setTrainerSpecializations] = useState('');
   const [isSavingTrainerProfile, setIsSavingTrainerProfile] = useState(false);
   const displayNameInputRef = useRef<TextInput>(null);
@@ -98,6 +99,7 @@ export function ProfileScreen() {
       setCurrentWeightKg(currentUser?.profile?.currentWeightKg?.toString() ?? '');
       setDisplayName(currentUser?.displayName ?? '');
       setTrainerBio(currentUser?.trainer?.bio ?? '');
+      setTrainerLocation(currentUser?.trainer?.location ?? '');
       setTrainerSpecializations(currentUser?.trainer?.specializations?.join(', ') ?? '');
       setUser(currentUser);
       if (currentUser) {
@@ -353,6 +355,7 @@ export function ProfileScreen() {
 
       const response = await apiClient.put('/profile/trainer', {
         bio: trainerBio.trim(),
+        location: trainerLocation.trim(),
         specializations,
       });
 
@@ -360,6 +363,7 @@ export function ProfileScreen() {
         currentUser ? { ...currentUser, trainer: response.data } : currentUser,
       );
       setTrainerBio(response.data?.bio ?? '');
+      setTrainerLocation(response.data?.location ?? '');
       setTrainerSpecializations(response.data?.specializations?.join(', ') ?? '');
       Alert.alert('Saved', 'Trainer profile updated.');
     } catch (err: any) {
@@ -605,6 +609,21 @@ export function ProfileScreen() {
                       setError(null);
                     }}
                     placeholder="Nutrition, Strength, Hypertrophy, Mobility"
+                    placeholderTextColor={colors.inkMuted}
+                    style={styles.textField}
+                  />
+                </View>
+                <View style={styles.fieldBlock}>
+                  <Text variant="micro" color="muted" weight="700" style={styles.fieldLabel}>
+                    LOCATION
+                  </Text>
+                  <TextInput
+                    value={trainerLocation}
+                    onChangeText={value => {
+                      setTrainerLocation(value);
+                      setError(null);
+                    }}
+                    placeholder="Maribor, Ljubljana, Murska Sobota..."
                     placeholderTextColor={colors.inkMuted}
                     style={styles.textField}
                   />

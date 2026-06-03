@@ -50,6 +50,7 @@ export function CourseDetailScreen({ navigation, route }: Props) {
   const [editingReviewRating, setEditingReviewRating] = useState(5);
   const [editingReviewComment, setEditingReviewComment] = useState('');
   const [reviewDeletingId, setReviewDeletingId] = useState<string | null>(null);
+  const [reviewPinningId, setReviewPinningId] = useState<string | null>(null);
   const [savingCourse, setSavingCourse] = useState(false);
   const [completingCourse, setCompletingCourse] = useState(false);
 
@@ -85,8 +86,7 @@ export function CourseDetailScreen({ navigation, route }: Props) {
   const hasMediaHeader = Boolean((isVideo && course?.youtubeVideoId) || course?.thumbnailUrl);
   const reviews = course?.reviews ?? [];
   const reviewsEnabled = course?.reviewsEnabled !== false;
-  const currentUserReview = reviews.find(review => review.userId === user?.firebaseUid);
-  const canReview = Boolean(reviewsEnabled && user && course && user.firebaseUid !== course.authorId && !currentUserReview);
+  const canReview = Boolean(reviewsEnabled && user && course && user.firebaseUid !== course.authorId);
 
   const handleOpenSource = async () => {
     const sourceUrl = isPdf ? course?.pdfUrl : course?.articleUrl;
@@ -260,6 +260,25 @@ export function CourseDetailScreen({ navigation, route }: Props) {
     ]);
   };
 
+  const handleTogglePinnedReview = async (review: CourseReviewDto) => {
+    if (!course || !user || user.firebaseUid !== course.authorId) return;
+
+    try {
+      setReviewPinningId(review.id);
+      const nextCourse = review.pinned
+        ? await courseService.unpinReview(course.id, review.id)
+        : await courseService.pinReview(course.id, review.id);
+      setCourse(nextCourse);
+    } catch (error: any) {
+      Alert.alert(
+        review.pinned ? 'Unpin failed' : 'Pin failed',
+        error?.response?.data?.message || error?.message || 'Could not update pinned review.',
+      );
+    } finally {
+      setReviewPinningId(null);
+    }
+  };
+
   return (
     <Screen background="surface" scroll edges={['top']}>
       {hasMediaHeader ? (
@@ -371,6 +390,9 @@ export function CourseDetailScreen({ navigation, route }: Props) {
           <StatItem icon={<Star size={13} color={colors.warning} fill={colors.warning} strokeWidth={0} />} value={course?.stats?.avgRating?.toFixed(1) ?? '0.0'} label="Rating" />
           <StatItem value={String(course?.stats?.ratingsCount ?? 0)} label="Ratings" />
           <StatItem value={String(course?.stats?.completionsCount ?? 0)} label="Done" />
+          {course?.publishedAt ? (
+            <StatItem value={formatCourseDate(course.publishedAt)} label="Created" />
+          ) : null}
         </View>
 
         <View style={styles.tabs}>
@@ -408,9 +430,7 @@ export function CourseDetailScreen({ navigation, route }: Props) {
                 <Text variant="caption" color="muted" style={styles.articleContentLabel}>
                   Article
                 </Text>
-                <Text variant="bodySmall" color="secondary" style={styles.articleContentText}>
-                  {course?.articleContent}
-                </Text>
+                <ArticleMarkdown content={course?.articleContent ?? ''} />
               </View>
             ) : null}
 
@@ -454,6 +474,7 @@ export function CourseDetailScreen({ navigation, route }: Props) {
               editingRating={editingReviewRating}
               editingComment={editingReviewComment}
               deletingReviewId={reviewDeletingId}
+              pinningReviewId={reviewPinningId}
               onRatingChange={setReviewRating}
               onCommentChange={setReviewComment}
               onSubmit={handleSubmitReview}
@@ -463,6 +484,7 @@ export function CourseDetailScreen({ navigation, route }: Props) {
               onEditingCommentChange={setEditingReviewComment}
               onSubmitEdit={handleSubmitEditReview}
               onDelete={handleDeleteReview}
+              onTogglePinned={handleTogglePinnedReview}
             />
           </>
         ) : (
@@ -479,6 +501,7 @@ export function CourseDetailScreen({ navigation, route }: Props) {
             editingRating={editingReviewRating}
             editingComment={editingReviewComment}
             deletingReviewId={reviewDeletingId}
+            pinningReviewId={reviewPinningId}
             onRatingChange={setReviewRating}
             onCommentChange={setReviewComment}
             onSubmit={handleSubmitReview}
@@ -488,6 +511,7 @@ export function CourseDetailScreen({ navigation, route }: Props) {
             onEditingCommentChange={setEditingReviewComment}
             onSubmitEdit={handleSubmitEditReview}
             onDelete={handleDeleteReview}
+            onTogglePinned={handleTogglePinnedReview}
           />
         )}
       </View>
@@ -528,6 +552,102 @@ function StatItem({
   );
 }
 
+function ArticleMarkdown({ content }: { content: string }) {
+  const lines = content.split('\n');
+
+  return (
+    <View style={styles.articleMarkdown}>
+      {lines.map((rawLine, index) => {
+        const line = rawLine.trimEnd();
+        const trimmed = line.trimStart();
+
+        if (!trimmed) {
+          return <View key={`blank-${index}`} style={styles.articleSpacer} />;
+        }
+
+        if (trimmed.startsWith('### ')) {
+          return (
+            <Text key={index} style={styles.articleHeading3}>
+              {renderInlineMarkdown(trimmed.slice(4))}
+            </Text>
+          );
+        }
+
+        if (trimmed.startsWith('## ')) {
+          return (
+            <Text key={index} style={styles.articleHeading2}>
+              {renderInlineMarkdown(trimmed.slice(3))}
+            </Text>
+          );
+        }
+
+        if (trimmed.startsWith('- ') || trimmed.startsWith('* ')) {
+          return (
+            <View key={index} style={styles.articleBulletRow}>
+              <Text style={styles.articleBullet}>•</Text>
+              <Text variant="bodySmall" color="secondary" style={styles.articleParagraph}>
+                {renderInlineMarkdown(trimmed.slice(2))}
+              </Text>
+            </View>
+          );
+        }
+
+        if (trimmed.startsWith('> ')) {
+          return (
+            <View key={index} style={styles.articleQuote}>
+              <Text variant="bodySmall" color="secondary" style={styles.articleQuoteText}>
+                {renderInlineMarkdown(trimmed.slice(2))}
+              </Text>
+            </View>
+          );
+        }
+
+        return (
+          <Text key={index} variant="bodySmall" color="secondary" style={styles.articleParagraph}>
+            {renderInlineMarkdown(line)}
+          </Text>
+        );
+      })}
+    </View>
+  );
+}
+
+function renderInlineMarkdown(value: string) {
+  const parts: React.ReactNode[] = [];
+  const pattern = /(\*\*[^*]+\*\*|\*[^*\n]+\*)/g;
+  let lastIndex = 0;
+  let match: RegExpExecArray | null;
+
+  while ((match = pattern.exec(value))) {
+    if (match.index > lastIndex) {
+      parts.push(value.slice(lastIndex, match.index));
+    }
+
+    const token = match[0];
+    if (token.startsWith('**')) {
+      parts.push(
+        <Text key={`bold-${match.index}`} style={styles.articleBold}>
+          {token.slice(2, -2)}
+        </Text>,
+      );
+    } else {
+      parts.push(
+        <Text key={`italic-${match.index}`} style={styles.articleItalic}>
+          {token.slice(1, -1)}
+        </Text>,
+      );
+    }
+
+    lastIndex = match.index + token.length;
+  }
+
+  if (lastIndex < value.length) {
+    parts.push(value.slice(lastIndex));
+  }
+
+  return parts;
+}
+
 function ReviewsSection({
   reviews,
   reviewsEnabled,
@@ -541,6 +661,7 @@ function ReviewsSection({
   editingRating,
   editingComment,
   deletingReviewId,
+  pinningReviewId,
   onRatingChange,
   onCommentChange,
   onSubmit,
@@ -550,6 +671,7 @@ function ReviewsSection({
   onEditingCommentChange,
   onSubmitEdit,
   onDelete,
+  onTogglePinned,
 }: {
   reviews: CourseReviewDto[];
   reviewsEnabled: boolean;
@@ -563,6 +685,7 @@ function ReviewsSection({
   editingRating: number;
   editingComment: string;
   deletingReviewId: string | null;
+  pinningReviewId: string | null;
   onRatingChange: (value: number) => void;
   onCommentChange: (value: string) => void;
   onSubmit: () => void;
@@ -572,17 +695,20 @@ function ReviewsSection({
   onEditingCommentChange: (value: string) => void;
   onSubmitEdit: () => void;
   onDelete: (review: CourseReviewDto) => void;
+  onTogglePinned: (review: CourseReviewDto) => void;
 }) {
+  if (!reviewsEnabled) {
+    return (
+      <View style={styles.reviewsDisabled}>
+        <Text variant="bodySmall" color="secondary">
+          Reviews and comments are disabled for this course.
+        </Text>
+      </View>
+    );
+  }
+
   return (
     <>
-      {!reviewsEnabled ? (
-        <View style={styles.reviewsDisabled}>
-          <Text variant="bodySmall" color="secondary">
-            Reviews and comments are disabled for this course.
-          </Text>
-        </View>
-      ) : null}
-
       {canReview ? (
         <View style={styles.reviewForm}>
           <Text variant="caption" color="muted">
@@ -623,6 +749,7 @@ function ReviewsSection({
             const canEditReview = review.userId === currentUserId;
             const canEditEnabledReview = reviewsEnabled && canEditReview;
             const canDeleteReview = canEditReview || courseAuthorId === currentUserId;
+            const canPinReview = courseAuthorId === currentUserId && pinningReviewId !== review.id;
             const isEditing = editingReviewId === review.id;
 
             return (
@@ -637,11 +764,14 @@ function ReviewsSection({
                     edited: Boolean(review.editedAt),
                     originalStars: review.originalRating,
                     originalComment: review.originalComment,
+                    pinned: review.pinned,
                   }}
                   canEdit={canEditEnabledReview}
                   canDelete={canDeleteReview && deletingReviewId !== review.id}
+                  canPin={canPinReview}
                   onEdit={() => onStartEdit(review)}
                   onDelete={() => onDelete(review)}
+                  onTogglePin={() => onTogglePinned(review)}
                 />
                 {isEditing ? (
                   <View style={styles.reviewEditForm}>
@@ -774,7 +904,44 @@ const styles = StyleSheet.create({
     borderBottomColor: colors.line,
   },
   articleContentLabel: { marginBottom: spacing.sm },
-  articleContentText: { lineHeight: 19 },
+  articleMarkdown: { gap: spacing.sm },
+  articleHeading2: {
+    color: colors.inkPrimary,
+    fontSize: 18,
+    lineHeight: 23,
+    fontWeight: '800',
+    marginTop: spacing.sm,
+  },
+  articleHeading3: {
+    color: colors.inkPrimary,
+    fontSize: 15,
+    lineHeight: 21,
+    fontWeight: '800',
+    marginTop: spacing.xs,
+  },
+  articleParagraph: { lineHeight: 19 },
+  articleBold: { fontWeight: '800', color: colors.inkPrimary },
+  articleItalic: { fontStyle: 'italic' },
+  articleBulletRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: spacing.sm,
+  },
+  articleBullet: {
+    color: colors.inkSecondary,
+    lineHeight: 19,
+    fontSize: 14,
+  },
+  articleQuote: {
+    borderLeftWidth: 3,
+    borderLeftColor: colors.primary,
+    paddingLeft: spacing.md,
+    paddingVertical: spacing.xs,
+    backgroundColor: colors.primarySoft,
+    borderRadius: radii.md,
+  },
+  articleQuoteText: { lineHeight: 19 },
+  articleSpacer: { height: spacing.xs },
   sourceCta: { marginBottom: spacing.md },
   cta: { marginBottom: spacing.xxl },
 
@@ -815,6 +982,16 @@ function normalizeContentType(value?: string | null) {
   if (value === 'PDF') return 'PDF';
   if (value === 'ARTICLE' || value === 'ARTICLE_LINK') return 'ARTICLE';
   return 'VIDEO';
+}
+
+function formatCourseDate(value: string) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '';
+  return date.toLocaleDateString(undefined, {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+  });
 }
 
 function getMediaUrl(value?: string | null) {

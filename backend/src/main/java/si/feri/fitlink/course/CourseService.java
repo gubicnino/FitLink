@@ -239,34 +239,31 @@ public class CourseService {
                 ? new ArrayList<>(course.getReviews())
                 : new ArrayList<>();
 
-        boolean[] createdReview = {false};
-        Course.CourseReview review = reviews.stream()
-                .filter(existing -> principal.uid().equals(existing.getUserId()))
-                .findFirst()
-                .orElseGet(() -> {
-                    Course.CourseReview nextReview = new Course.CourseReview();
-                    nextReview.setId(UUID.randomUUID().toString());
-                    nextReview.setUserId(principal.uid());
-                    nextReview.setCreatedAt(Instant.now());
-                    createdReview[0] = true;
-                    reviews.add(nextReview);
-                    return nextReview;
-                });
-
+        Course.CourseReview review = new Course.CourseReview();
+        review.setId(UUID.randomUUID().toString());
+        review.setUserId(principal.uid());
+        review.setCreatedAt(Instant.now());
+        review.setPinned(false);
         review.setUserDisplayName(user.getDisplayName());
         review.setUserAvatarUrl(user.getAvatarUrl());
-        if (!createdReview[0] && review.getOriginalComment() == null && review.getOriginalRating() == null) {
-            review.setOriginalRating(review.getRating());
-            review.setOriginalComment(review.getComment());
-        }
         review.setRating(request.getRating());
         review.setComment(request.getComment().trim());
-        if (!createdReview[0]) {
-            review.setEditedAt(Instant.now());
-        }
+        reviews.add(review);
 
         course.setReviews(reviews);
         updateReviewStats(course);
+        return toResponse(courseRepo.save(course), principal);
+    }
+
+    public CourseResponse setReviewPinned(String id, String reviewId, boolean pinned, AuthPrincipal principal) {
+        Course course = getById(id);
+        if (!principal.uid().equals(course.getAuthorId())) {
+            throw new AccessDeniedException("Only the course owner can pin reviews");
+        }
+
+        Course.CourseReview review = findReview(course, reviewId);
+        review.setPinned(pinned);
+
         return toResponse(courseRepo.save(course), principal);
     }
 
@@ -440,6 +437,7 @@ public class CourseService {
         boolean completedByCurrentUser = principal != null &&
                 course.getCompletedUserIds() != null &&
                 course.getCompletedUserIds().contains(principal.uid());
+        boolean reviewsEnabled = course.getReviewsEnabled() == null || course.getReviewsEnabled();
 
         return CourseResponse.builder()
                 .id(course.getId())
@@ -459,12 +457,31 @@ public class CourseService {
                 .articleContent(course.getArticleContent())
                 .pdfUrl(course.getPdfUrl())
                 .thumbnailUrl(course.getThumbnailUrl())
-                .reviewsEnabled(course.getReviewsEnabled() == null || course.getReviewsEnabled())
+                .reviewsEnabled(reviewsEnabled)
                 .completedByCurrentUser(completedByCurrentUser)
                 .publishedAt(course.getPublishedAt())
                 .stats(course.getStats())
-                .reviews(course.getReviews() != null ? course.getReviews() : List.of())
+                .reviews(reviewsEnabled && course.getReviews() != null ? sortedReviews(course.getReviews()) : List.of())
                 .build();
+    }
+
+    private List<Course.CourseReview> sortedReviews(List<Course.CourseReview> reviews) {
+        return reviews.stream()
+                .sorted((left, right) -> {
+                    boolean leftPinned = Boolean.TRUE.equals(left.getPinned());
+                    boolean rightPinned = Boolean.TRUE.equals(right.getPinned());
+                    if (leftPinned != rightPinned) {
+                        return leftPinned ? -1 : 1;
+                    }
+
+                    Instant leftCreated = left.getCreatedAt();
+                    Instant rightCreated = right.getCreatedAt();
+                    if (leftCreated == null && rightCreated == null) return 0;
+                    if (leftCreated == null) return 1;
+                    if (rightCreated == null) return -1;
+                    return rightCreated.compareTo(leftCreated);
+                })
+                .toList();
     }
 
     private String normalizeStoredContentType(String contentType) {

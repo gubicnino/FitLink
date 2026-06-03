@@ -1,4 +1,4 @@
-import { Star } from 'lucide-react-native';
+import { MapPin, Star } from 'lucide-react-native';
 import React, { useState } from 'react';
 import { Alert, Modal, Pressable, StyleSheet, View } from 'react-native';
 import { API_ORIGIN } from '../../api/apiClient';
@@ -15,6 +15,7 @@ export interface Trainer {
   reviews: number;
   priceFrom: string | null;
   bio: string;
+  location: string | null;
   avatar: string | null;
 }
 
@@ -105,6 +106,14 @@ export function TrainerListCard({ trainer, onPress, onRequestSent, requestDisabl
           <Text variant="bodySmall" color="secondary" style={styles.specialty}>
             {trainer.specialty}
           </Text>
+          {trainer.location ? (
+            <View style={styles.locationRow}>
+              <MapPin size={12} color={colors.inkMuted} strokeWidth={2} />
+              <Text variant="micro" color="secondary" numberOfLines={1}>
+                {trainer.location}
+              </Text>
+            </View>
+          ) : null}
           <View style={styles.metaRow}>
             <View style={styles.ratingInline}>
               <Star size={12} color={colors.warning} fill={colors.warning} strokeWidth={0} />
@@ -194,6 +203,12 @@ const styles = StyleSheet.create({
   info: { flex: 1, minWidth: 0 },
   nameRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginBottom: 2 },
   specialty: { marginBottom: 6 },
+  locationRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    marginBottom: 6,
+  },
   metaRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
   ratingInline: { flexDirection: 'row', alignItems: 'center' },
   bio: { lineHeight: 18, marginBottom: spacing.lg },

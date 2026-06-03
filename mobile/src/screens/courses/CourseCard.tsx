@@ -12,6 +12,7 @@ export interface Course {
   imageUrl: string;
   category?: string;
   level?: string;
+  publishedAt?: string | null;
 }
 
 interface CourseCardProps {
@@ -43,9 +44,24 @@ export function CourseCard({ course, onPress }: CourseCardProps) {
         <Text variant="micro" color="secondary">
           {course.author}
         </Text>
+        {course.publishedAt ? (
+          <Text variant="micro" color="muted" style={styles.date}>
+            {formatCourseDate(course.publishedAt)}
+          </Text>
+        ) : null}
       </View>
     </Pressable>
   );
+}
+
+function formatCourseDate(value: string) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '';
+  return `Created ${date.toLocaleDateString(undefined, {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+  })}`;
 }
 
 const styles = StyleSheet.create({
@@ -76,4 +92,5 @@ const styles = StyleSheet.create({
   body: { padding: spacing.md + 2 },
   title: { marginBottom: spacing.xs, lineHeight: 16 },
   description: { marginBottom: spacing.xs, lineHeight: 14 },
+  date: { marginTop: spacing.xs },
 });
