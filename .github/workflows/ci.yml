@@ -2,6 +2,8 @@ name: CI
 
 on:
   pull_request:
+  push:
+    branches: [main]
   workflow_dispatch:
 
 jobs:
@@ -20,6 +22,13 @@ jobs:
       - name: Test backend
         working-directory: backend
         run: ./mvnw test
+      - name: Upload JaCoCo coverage report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: jacoco-coverage-report
+          path: backend/target/site/jacoco/
+          retention-days: 30
 
   mobile:
     runs-on: ubuntu-latest
