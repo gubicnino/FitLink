@@ -1,56 +1,29 @@
-import { createUserWithEmailAndPassword, getAuth, signInWithEmailAndPassword, signOut } from 'firebase/auth';
+import { GoogleAuthProvider, signInWithEmailAndPassword, signInWithPopup, signOut } from 'firebase/auth';
 import apiClient from '../api/apiClient';
 import type { User } from '../types/types';
+import { auth } from './firebaseConfig';
 
-let registrationInProgress = false;
-
-const setRegistrationInProgress = (value: boolean) => {
-  registrationInProgress = value;
-};
 
 export const authService = {
-  beginRegistration: () => setRegistrationInProgress(true),
-  endRegistration: () => setRegistrationInProgress(false),
-  isRegistrationInProgress: () => registrationInProgress,
-
-  register: async (email: string, password: string) => {
-    const auth = getAuth();
-    const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-    return userCredential.user;
-  },
 
   login: async (email: string, password: string) => {
-    const auth = getAuth();
     const userCredential = await signInWithEmailAndPassword(auth, email, password);
     return userCredential.user;
   },
 
   logout: async () => {
-    const auth = getAuth();
-    const uid = auth.currentUser?.uid;
-
-    try {
-      const apiClient = (await import('../api/apiClient')).default;
-      await apiClient.delete('/user/me/fcm-token');
-    } catch (err) {
-      console.warn('[authService] FCM token clear failed', err);
-    }
     await signOut(auth);
   },
 
   getToken: async (): Promise<string | null> => {
-    const auth = getAuth();
     const user = auth.currentUser;
     if (!user) return null;
     return await user.getIdToken();
   },
   getUser: async (): Promise<User | null> => {
     try {
-      const auth = getAuth();
       const firebaseUser = auth.currentUser;
       if (!firebaseUser) return null;
-
-      const token = await firebaseUser.getIdToken();
 
       const res = await apiClient.get('/auth/me')
 
@@ -60,6 +33,18 @@ export const authService = {
       return null;
     }
 
-  }
+  },
+  googleSignin: async () => {
+    // Sign in with Google using Firebase Authentication
+    try {
+      const provider = new GoogleAuthProvider();
 
+      const result = await signInWithPopup(auth, provider);
+
+      return result.user;
+    } catch (error) {
+      console.error('Google sign-in error:', error);
+      throw error;
+    }
+  }
 };

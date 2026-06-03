@@ -1,5 +1,8 @@
 import { Link, Navigate, Route, Routes } from 'react-router-dom';
 import './App.css';
+import ProtectedRoute from './components/ProtectedRoute';
+import Home from './pages/Home';
+import LoginPage from './pages/LoginPage';
 
 function App() {
   return (
@@ -18,7 +21,14 @@ function App() {
       <main className="content">
         <Routes>
           <Route path="/login" element={<LoginPage />} />
-          <Route path="/" element={<HomePage />} />
+          <Route
+            path="/"
+            element={
+              <ProtectedRoute>
+                <Home />
+              </ProtectedRoute>
+            }
+          />
           <Route path="*" element={<Navigate to="/login" replace />} />
         </Routes>
       </main>
@@ -26,27 +36,5 @@ function App() {
   );
 }
 
-function LoginPage() {
-  return (
-    <section className="card">
-      <p className="eyebrow">Welcome back</p>
-      <h2>Login</h2>
-      <p className="muted">This is a basic login screen placeholder.</p>
-      <button type="button" className="primary-button">
-        Sign in
-      </button>
-    </section>
-  );
-}
-
-function HomePage() {
-  return (
-    <section className="card">
-      <p className="eyebrow">Main view</p>
-      <h2>Homepage</h2>
-      <p className="muted">Nothing special for now.</p>
-    </section>
-  );
-}
 
 export default App;
