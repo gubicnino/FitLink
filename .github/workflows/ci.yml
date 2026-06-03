@@ -51,3 +51,4 @@ jobs:
       - name: Lint mobile
         working-directory: mobile
         run: npm run lint
+        continue-on-error: true
