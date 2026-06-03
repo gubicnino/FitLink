@@ -1,4 +1,4 @@
-import { Coaching, CoachingRequest } from '../types/coaching';
+import type { Coaching, CoachingRequest } from '../types/coaching';
 import apiClient from "./apiClient";
 
 export const coachingApi = {
@@ -19,6 +19,9 @@ export const coachingApi = {
   },
   rejectCoachingRequest: async (coachingId: string): Promise<void> => {
     await apiClient.post('/coaching/reject', { coachingId });
+  },
+  endCoaching: async (coachingId: string): Promise<void> => {
+    await apiClient.post('/coaching/end', { coachingId });
   },
   getActiveCoachingsForTrainer: async (): Promise<Coaching[]> => {
     const res = await apiClient.get<Coaching[]>('/coaching/active');

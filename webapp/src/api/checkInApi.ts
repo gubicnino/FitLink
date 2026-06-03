@@ -1,4 +1,4 @@
-import { CheckIn, CheckInData } from '../types/checkin';
+import type { CheckIn, CheckInData } from '../types/checkin';
 import apiClient from './apiClient';
 
 export const checkInApi = {

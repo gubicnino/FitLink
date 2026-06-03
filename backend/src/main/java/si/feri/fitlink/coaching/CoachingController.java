@@ -64,4 +64,12 @@ public class CoachingController {
                 Coaching rejected = coachingService.rejectCoaching(dto.getCoachingId(), principal.uid());
                 return ResponseEntity.ok(rejected);
             }
+
+    @PostMapping("/end")
+    public ResponseEntity<Coaching> endCoaching(
+            @AuthenticationPrincipal AuthPrincipal principal,
+            @Valid @RequestBody CoachingActionDTO dto) {
+        Coaching ended = coachingService.endCoaching(dto.getCoachingId(), principal.uid());
+        return ResponseEntity.ok(ended);
+    }
 }

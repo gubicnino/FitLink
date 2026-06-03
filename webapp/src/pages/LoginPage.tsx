@@ -6,7 +6,7 @@ import Button from '../components/ui/Button';
 import Divider from '../components/ui/Divider';
 import Input from '../components/ui/Input';
 import { authService } from '../services/authService';
-import { colors, fontFamily, radii, shadows, spacing, typography } from '../theme';
+import { colors, fontFamily, radii, spacing, typography } from '../theme';
 
 function GoogleIcon({ size = 20 }: { size?: number }) {
   return (
@@ -114,118 +114,248 @@ export default function LoginPage({
         .link-text { cursor: pointer; transition: opacity 0.15s; }
         .link-text:hover { opacity: 0.65; }
         @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* On narrow viewports the brand pane is hidden so the auth card centers cleanly. */
+        @media (max-width: 880px) {
+          .login-hero { display: none !important; }
+          .login-split { grid-template-columns: 1fr !important; }
+        }
       `}</style>
 
-      {/* Full-page wrapper */}
-      <div style={{
+      {/* Split-screen wrapper: hero pane + auth pane */}
+      <div className="login-split" style={{
         minHeight: '100vh',
         background: colors.bg,
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-        padding: `${spacing.section}px ${spacing.xxl}px`,
+        display: 'grid',
+        gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1fr)',
         fontFamily: fontFamily.sans,
       }}>
 
-        {/* Card */}
-        <div className="login-card" style={{
-          width: '100%',
-          background: colors.surface,
-          borderRadius: radii.xxl,
-          border: `1px solid ${colors.line}`,
-          boxShadow: shadows.modal,
-          padding: `${spacing.section}px ${spacing.section}px`,
-          position: 'relative', zIndex: 1,
+        {/* LEFT — Brand / hero panel */}
+        <aside className="login-hero" style={{
+          display: 'flex',
+          flexDirection: 'column',
+          justifyContent: 'space-between',
+          padding: `${spacing.huge}px ${spacing.section}px`,
+          background: `linear-gradient(135deg, ${colors.primary} 0%, ${colors.primaryDark} 100%)`,
+          color: colors.white,
+          position: 'relative',
+          overflow: 'hidden',
         }}>
+          {/* Decorative orbs */}
+          <div style={{
+            position: 'absolute',
+            top: -120, right: -120,
+            width: 360, height: 360,
+            borderRadius: '50%',
+            background: 'rgba(255,255,255,0.08)',
+            filter: 'blur(40px)',
+            pointerEvents: 'none',
+          }} />
+          <div style={{
+            position: 'absolute',
+            bottom: -160, left: -100,
+            width: 320, height: 320,
+            borderRadius: '50%',
+            background: 'rgba(255,107,53,0.18)',
+            filter: 'blur(60px)',
+            pointerEvents: 'none',
+          }} />
 
-          <div className="login-item-1" style={{ marginBottom: spacing.xxxl }}>
-            <BrandMark size="md" />
+          <div className="login-item-1" style={{ position: 'relative', zIndex: 1 }}>
+            <BrandMark size="sm" />
           </div>
 
-          <div className="login-item-2" style={{ marginBottom: spacing.xxxl }}>
-            <h1 style={{
+          <div style={{ position: 'relative', zIndex: 1, maxWidth: 460 }}>
+            <span
+              className="login-item-2"
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 6,
+                padding: '4px 10px',
+                borderRadius: 999,
+                background: 'rgba(255,107,53,0.18)',
+                border: '1px solid rgba(255,107,53,0.45)',
+                color: '#FFB28C',
+                fontSize: 10,
+                fontWeight: 800,
+                letterSpacing: '1.2px',
+                marginBottom: spacing.md,
+              }}
+            >
+              TRAINER DASHBOARD
+            </span>
+            <h1 className="login-item-2" style={{
               ...typography.display,
-              color: colors.inkPrimary,
-              marginBottom: spacing.sm,
-            }}>
-              Welcome back
-            </h1>
-            <p style={{
-              ...typography.bodyLarge,
-              color: colors.inkSecondary,
-            }}>
-              Train smarter with your coach
-            </p>
-          </div>
-
-          <div className="login-item-3" style={{
-            display: 'flex', flexDirection: 'column',
-            gap: spacing.lg, marginBottom: spacing.md,
-          }}>
-            <Input
-              label="Email"
-              value={email}
-              onChange={v => { setEmail(v); setError(''); }}
-              type="email"
-              autoComplete="email"
-            />
-            <Input
-              label="Password"
-              value={password}
-              onChange={v => { setPassword(v); setError(''); }}
-              type="password"
-              autoComplete="current-password"
-            />
-          </div>
-
-          {error && (
-            <div style={{
-              background: 'rgba(239,68,68,0.08)',
-              borderLeft: `3px solid ${colors.danger}`,
-              borderRadius: radii.md,
-              padding: `${spacing.sm}px ${spacing.md}px`,
+              color: colors.white,
+              fontSize: 44,
+              lineHeight: '52px',
+              fontWeight: 800,
+              letterSpacing: '-0.6px',
               marginBottom: spacing.md,
             }}>
-              <span style={{ ...typography.bodySmall, fontWeight: 600, color: colors.danger }}>
-                {error}
+              Coach smarter.<br />Train together.
+            </h1>
+            <p className="login-item-3" style={{
+              ...typography.bodyLarge,
+              color: 'rgba(255,255,255,0.82)',
+              marginBottom: spacing.xxl,
+            }}>
+              Manage your clients, review their workouts, and respond to weekly check-ins — all in one place.
+            </p>
+            <div className="login-item-4" style={{
+              display: 'flex',
+              gap: spacing.sm,
+              marginTop: spacing.xxl,
+              flexWrap: 'wrap',
+            }}>
+              <HeroFeature label="Real-time health sync" />
+              <HeroFeature label="Weekly check-ins" />
+              <HeroFeature label="Live calls" />
+            </div>
+          </div>
+
+          <p style={{
+            ...typography.bodySmall,
+            color: 'rgba(255,255,255,0.55)',
+            position: 'relative',
+            zIndex: 1,
+          }}>
+            © FitLink · 2026
+          </p>
+        </aside>
+
+        {/* RIGHT — Auth card pane */}
+        <section style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: `${spacing.huge}px ${spacing.xxl}px`,
+        }}>
+          <div className="login-card" style={{
+            width: '100%',
+            maxWidth: 420,
+            display: 'flex',
+            flexDirection: 'column',
+          }}>
+            <div className="login-item-2" style={{ marginBottom: spacing.xxl }}>
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 8,
+                  marginBottom: spacing.md,
+                }}
+              >
+                <div
+                  aria-hidden
+                  style={{
+                    width: 3,
+                    height: 14,
+                    borderRadius: 2,
+                    background: colors.accent,
+                  }}
+                />
+                <span
+                  style={{
+                    fontSize: 11,
+                    fontWeight: 800,
+                    letterSpacing: '1.2px',
+                    color: colors.inkSecondary,
+                    textTransform: 'uppercase',
+                  }}
+                >
+                  SIGN IN
+                </span>
+              </div>
+              <h1 style={{
+                ...typography.h1,
+                color: colors.inkPrimary,
+                marginBottom: spacing.xs,
+                fontWeight: 800,
+                letterSpacing: '-0.4px',
+              }}>
+                Welcome back
+              </h1>
+              <p style={{
+                ...typography.body,
+                color: colors.inkSecondary,
+              }}>
+                Continue to your FitLink trainer account.
+              </p>
+            </div>
+
+            <div className="login-item-3" style={{
+              display: 'flex', flexDirection: 'column',
+              gap: spacing.md, marginBottom: spacing.md,
+            }}>
+              <Input
+                label="Email"
+                value={email}
+                onChange={v => { setEmail(v); setError(''); }}
+                type="email"
+                autoComplete="email"
+              />
+              <Input
+                label="Password"
+                value={password}
+                onChange={v => { setPassword(v); setError(''); }}
+                type="password"
+                autoComplete="current-password"
+              />
+            </div>
+
+            {error && (
+              <div style={{
+                background: 'rgba(239,68,68,0.08)',
+                borderLeft: `3px solid ${colors.danger}`,
+                borderRadius: radii.md,
+                padding: `${spacing.sm}px ${spacing.md}px`,
+                marginBottom: spacing.md,
+              }}>
+                <span style={{ ...typography.bodySmall, fontWeight: 600, color: colors.danger }}>
+                  {error}
+                </span>
+              </div>
+            )}
+
+            <div className="login-item-4" style={{
+              display: 'flex', justifyContent: 'flex-end',
+              marginBottom: spacing.lg,
+            }}>
+              <span
+                className="link-text"
+                onClick={onForgotPassword}
+                style={{ ...typography.bodySmall, fontWeight: 600, color: colors.primary }}
+              >
+                Forgot password?
               </span>
             </div>
-          )}
+            <div className="login-item-5">
+              <Button
+                label="Log in"
+                variant="primary"
+                fullWidth
+                disabled={isLoading}
+                onClick={handleLogin}
+              />
+            </div>
 
-          <div className="login-item-4" style={{
-            display: 'flex', justifyContent: 'flex-end',
-            marginBottom: spacing.xxl,
-          }}>
-            <span
-              className="link-text"
-              onClick={onForgotPassword}
-              style={{ ...typography.bodySmall, fontWeight: 600, color: colors.primary }}
-            >
-              Forgot password?
-            </span>
-          </div>
-          <div className="login-item-5">
-            <Button
-              label="Log in"
-              variant="primary"
-              fullWidth
-              disabled={isLoading}
-              onClick={handleLogin}
-            />
-          </div>
+            <Divider label="or" />
 
-          <Divider label="or" />
-
-          {/* Google */}
-          <div className="login-item-6">
-            <Button
-              label="Sign in with Google"
-              variant="ghost"
-              fullWidth
-              disabled={isLoading}
-              leftIcon={<GoogleIcon size={20} />}
-              onClick={handleGoogleLogin}
-            />
+            <div className="login-item-6">
+              <Button
+                label="Sign in with Google"
+                variant="ghost"
+                fullWidth
+                disabled={isLoading}
+                leftIcon={<GoogleIcon size={20} />}
+                onClick={handleGoogleLogin}
+              />
+            </div>
           </div>
-        </div>
+        </section>
       </div>
 
       {/* Loading overlay */}
@@ -244,5 +374,29 @@ export default function LoginPage({
         </div>
       )}
     </>
+  );
+}
+
+function HeroFeature({ label }: { label: string }) {
+  return (
+    <div style={{
+      display: 'flex',
+      alignItems: 'center',
+      gap: 8,
+      padding: '6px 12px',
+      background: 'rgba(255,255,255,0.10)',
+      border: '1px solid rgba(255,255,255,0.18)',
+      borderRadius: 999,
+      fontSize: 13,
+      fontWeight: 600,
+      color: 'rgba(255,255,255,0.95)',
+      backdropFilter: 'blur(10px)',
+    }}>
+      <span style={{
+        width: 6, height: 6, borderRadius: '50%',
+        background: '#FF6B35',
+      }} />
+      {label}
+    </div>
   );
 }
