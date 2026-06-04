@@ -15,6 +15,7 @@ Thumbs.db
 **/firebase-adminsdk*.json
 **/application-local.yml
 **/.env
+**/.env.*
 **/.env.local
 
 # Claude Code session context (per-developer)
