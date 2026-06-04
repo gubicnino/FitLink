@@ -1,49 +1,49 @@
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import {
-  Activity,
-  Calculator,
-  ChevronRight,
-  ClipboardCheck,
-  Clock,
-  Dumbbell,
-  Flame,
-  Play,
-  Plus,
-  Scale,
-  Search,
-  Sparkles,
-  TrendingDown,
-  TrendingUp,
+    Activity,
+    Calculator,
+    ChevronRight,
+    ClipboardCheck,
+    Clock,
+    Dumbbell,
+    Flame,
+    Play,
+    Plus,
+    Scale,
+    Search,
+    Sparkles,
+    TrendingDown,
+    TrendingUp,
 } from 'lucide-react-native';
 import React, { useCallback, useMemo, useState } from 'react';
 import {
-  ActivityIndicator,
-  Pressable,
-  RefreshControl,
-  ScrollView,
-  StyleSheet,
-  View,
+    ActivityIndicator,
+    Pressable,
+    RefreshControl,
+    ScrollView,
+    StyleSheet,
+    View,
 } from 'react-native';
 import { API_ORIGIN } from '../../api/apiClient';
 import { coachingApi } from '../../api/coachingApi';
 import { userApi } from '../../api/userApi';
 import { workoutApi } from '../../api/workoutApi';
+import { TraineeCalendarCard } from '../../components/calendar/TraineeCalendarCard';
+import { HealthHomeCards } from '../../components/health/HealthHomeCards';
 import { ScreenHeader } from '../../components/layout';
 import { Avatar, BadgeCheck, Screen, Text } from '../../components/ui';
-import { HealthHomeCards } from '../../components/health/HealthHomeCards';
-import { TraineeCalendarCard } from '../../components/calendar/TraineeCalendarCard';
 import type { RootStackParamList } from '../../navigation/types';
 import { authService } from '../../services/authService';
 import { colors, radii, shadows, spacing } from '../../theme';
-import { Coaching } from '../../types/coaching';
 import type { CheckIn } from '../../types/checkin';
+import { Coaching } from '../../types/coaching';
 import { User } from '../../types/types';
 import type { WorkoutSession, WorkoutTemplate } from '../../types/workout';
 import {
-  CHECK_IN_INTERVAL_DAYS,
-  getEarliestCheckIn,
-  getLatestCheckIn,
+    CHECK_IN_INTERVAL_DAYS,
+    getEarliestCheckIn,
+    getLatestCheckIn,
 } from '../../utils/clientCoaching';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
@@ -226,7 +226,7 @@ export function TraineeDashboardScreen() {
               <CoachStrip
                 trainer={trainer}
                 checkInsCount={activeCoaching.checkIns?.length ?? 0}
-                onPress={() => navigation.navigate('FindTrainer')}
+                onPress={()=>{}}
               />
             ) : (
               <EmptyCta
@@ -432,7 +432,6 @@ function CoachStrip({
           </Text>
         </View>
       </View>
-      <ChevronRight size={18} color={colors.inkMuted} strokeWidth={2.25} />
     </Pressable>
   );
 }
@@ -538,7 +537,11 @@ function CheckInSection({
     <View style={{ gap: spacing.md }}>
       {/* Next check-in CTA card */}
       <Pressable
-        onPress={onCreate}
+        onPress={() => {
+          if (available) {
+            onCreate();
+          }
+        }}
         style={({ pressed }) => [
           styles.checkInHero,
           available ? styles.checkInHeroAvailable : styles.checkInHeroScheduled,
