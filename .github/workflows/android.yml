@@ -54,3 +54,18 @@ jobs:
         with:
           name: fitlink-release
           path: mobile/android/app/build/outputs/apk/release/*.apk
+          
+      - name: Get current date
+        id: date
+        run: echo "date=$(date +'%Y-%m-%d %H:%M')" >> $GITHUB_OUTPUT
+
+      - name: Create or update release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: latest
+          name: "Latest Build (${{ steps.date.outputs.date }})"
+          files: mobile/android/app/build/outputs/apk/release/*.apk
+          prerelease: true
+          make_latest: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
