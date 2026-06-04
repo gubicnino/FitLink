@@ -42,7 +42,8 @@ jobs:
 
 
       - name: Create .env.production
-        run: echo "API_URL=${{ secrets.API_URL }}" > mobile/.env.production
+        working-directory: mobile
+        run: echo "API_URL=${{ secrets.API_URL }}" > .env.production
 
       - name: Build release APK
         working-directory: mobile/android
