@@ -2,17 +2,14 @@
 
 > Mobilna platforma za izmenjavo veščin in znanj na področju fitnesa, kjer trenerji delijo svoje strokovno znanje s treniranci, treniranci pa nudijo realne podatke o napredku in povratno informacijo.
 
-Projekt nastaja v sklopu predmeta **Praktikum II** na FERI (Univerza v Mariboru).
-
 ---
 
 ## Vsebina
 
 - [Pregled](#pregled)
-- [Model izmenjave veščin](#model-izmenjave-veščin)
 - [Funkcionalnosti](#funkcionalnosti)
 - [Arhitektura](#arhitektura)
-- [Design mockup](#design-mockup)
+- [Screenshots](#screenshots)
 - [Tehnologije](#tehnologije)
 - [Struktura repozitorija](#struktura-repozitorija)
 - [Začetek razvoja](#začetek-razvoja)
@@ -20,72 +17,35 @@ Projekt nastaja v sklopu predmeta **Praktikum II** na FERI (Univerza v Mariboru)
 - [Build & deploy](#build--deploy)
 - [API dokumentacija](#api-dokumentacija)
 - [Razvoj](#razvoj)
-- [Skladnost s temo predmeta](#skladnost-s-temo-predmeta)
 
 ---
 
 ## Pregled
 
-FitLink je Android aplikacija, ki uporabnikom omogoča sledenje treningov, pridobivanje zdravstvenih podatkov iz nosljivih naprav (Garmin, Apple Watch preko Health Connect) in povezavo z verificiranim trenerjem. Trenerji lahko poleg vodenja trenirancev objavljajo brezplačne izobraževalne tečaje na poljubne fitness in nutricionistične teme. Na ta način pride do izmenjave znanj in veščin.
-
-### Kontekst izmenjave veščin
-
-FitLink je **specializirana platforma za izmenjavo veščin** s področja fitnesa, prehrane in zdravja. Zasnovana je tako, da omogoča dvosmerno izmenjavo znanj:
-
-- **Trenerji** delijo svoje strokovno znanje preko personaliziranih trening načrtov, izobraževalnih tečajev in povratne informacije o izvedbi vaj. Njihova kredibilnost je zagotovljena z **obveznim postopkom verifikacije licence**.
-- **Treniranci** v zameno nudijo trenerjem realne podatke o izvedbi treningov, tedenske check-ine s sliko in podatke iz nosljivih naprav. S svojimi ocenami in komentarji na tečaje pomagajo skupnosti razlikovati kakovostno vsebino.
-- **Skupnostni element** omogoča, da trenerji medsebojno ocenjujejo in komentirajo tečaje, kar dvigne kakovost izmenjane vsebine.
-
-Sistem deluje na principu **strokovne izmenjave**: trener nudi mentorstvo in znanje, treniranec nudi zavezanost, podatke o napredku in povratno informacijo. Brezplačni javni tečaji omogočajo izmenjavo znanja tudi izven 1-na-1 odnosa.
-
-**Ključne značilnosti:**
-
-- Sledenje treningov v živo z beleženjem serij, ponovitev in tež (po vzoru Strong/Hevy).
-- Trener-treniranec povezava s skupnim načrtovanjem treningov.
-- Tedenski check-in s sliko, težo in povratno informacijo trenerja.
-- Brezplačni javni tečaji (YouTube embed) z ocenami in komentarji.
-- Avtomatsko pridobivanje zdravstvenih podatkov iz Garmin Connect in Health Connect.
-
----
-
----
-
-## Model izmenjave veščin
-
-| Komponenta FitLink teme | Implementacija v FitLink |
-|---|---|
-| **Iskanje uporabnikov po interesih** | treniranci iščejo verificirane trenerje po specializaciji (Strength, Hypertrophy, Mobility, ...) |
-| **Izmenjava učnih storitev** | Trener nudi: trening načrte, komentarje na izvedbo, tečaje. Treniranec nudi: podatke o izvajanju, tedenske check-ine, feedback |
-| **Sistem zagotavljanja kakovosti** | Verifikacija licence trenerja s strani administratorja, ocene tečajev (1–5 zvezdic), peer review med trenerji |
-| **Koledar srečanj** | Načrtovanje video klicev (Zoom) z usklajevanjem terminov med trenerjem in treniraneem |
-| **Ocenjevanje izkušenj** | Ocene in komentarji tečajev, povratna informacija trenerja na trening session in tedenski check-in |
-| **Javna izmenjava znanja** | Brezplačni tečaji z YouTube videi, dostopni vsem prijavljenim uporabnikom |
+FitLink je mobilna aplikacija, ki trenerjem omogoča celovit management trenirancev — treningi, zdravstveni podatki iz nosljivih naprav in tedenski check-ini vse na enem mestu. Ta centraliziran vpogled v napredek vsake stranke v realnem času trenerjem omogoča personalizirano vodenje, kar je glavna prednost FitLink od stalih fitnes aplikacij. Treniranci z aplikacijo beležijo treninge, spremljajo napredek in ostajajo v stiku s svojim trenerjem. Poleg tega lahko trenerji objavljajo brezplačne izobraževalne tečaje s področja fitnessa in prehrane, kar spodbuja izmenjavo znanja in veščin znotraj skupnosti.
 
 ---
 
 ## Funkcionalnosti
 
-Funkcionalnosti so razvrščene po vlogah znotraj sistema izmenjave veščin: **treniranec** (prejemnik mentorstva), **trener** (ponudnik znanja in mentorstva), **administrator** (skrbnik kakovosti).
+Funkcionalnosti so razvrščene po vlogah: **treniranec** (prejemnik mentorstva), **trener** (ponudnik znanja in mentorstva), **administrator** (skrbnik kakovosti).
 
 ### Treniranec
 
-- Registracija, prijava, urejanje profila
-- Ustvarjanje lastnih treningov ali sprejemanje od trenerja
+- Ustvarjanje in urejanje predlog treningov
 - Live tracking treninga s shranjevanjem zgodovine
-- Tedenski check-in (slika, teža, opomba)
+- Tedenski check-in
 - Pregled in opravljanje brezplačnih tečajev
-- Sinhronizacija zdravstvenih podatkov iz Garmin/Health Connect
+- Sinhronizacija zdravstvenih podatkov iz Health Connect
 - Iskanje in povezovanje s trenerjem
 
 ### Trener
 
-- Verifikacija licence ob registraciji
-- Vodenje več treniraneev hkrati
-- Ustvarjanje in urejanje treningov za posameznega treniranca
+- Vodenje več trenirancev hkrati
+- Ustvarjanje in urejanje predlog treningov za posameznega treniranca
+- Pregled zgodovine treningov in zdravstvenih podatkov vsakega treniranca
 - Pregled tedenskih check-inov in komentiranje
-- Objavljanje brezplačnih tečajev (YouTube embed)
-- Ocenjevanje in komentiranje tečajev drugih trenerjev
-- Načrtovanje video klicev s treniranci
+- Objavljanje brezplačnih tečajev
 
 ### Administrator
 
@@ -100,81 +60,14 @@ Funkcionalnosti so razvrščene po vlogah znotraj sistema izmenjave veščin: **
 
 ---
 
-## Design mockup
+## Screenshots
 
 <img width="1899" height="767" alt="image" src="https://github.com/user-attachments/assets/017d8bd0-88f1-4c55-ba71-661cef1e305c" />
 <img width="1910" height="765" alt="image" src="https://github.com/user-attachments/assets/708ca99e-d070-4f8b-97c3-abcb2686b948" />
 
 ---
 
-## Tehnologije
-
-| Plast         | Tehnologija                                                           |
-| ------------- | --------------------------------------------------------------------- |
-| Mobile        | React Native (bare), TypeScript, React Navigation                     |
-| Backend       | Java 21, Spring Boot 4.x, Maven, Spring Security, Spring Data MongoDB |
-| Database      | MongoDB 7.x                                                           |
-| Auth          | Firebase Authentication (email/password)                              |
-| Push          | Firebase Cloud Messaging (FCM)                                        |
-| Health data   | Garmin Connect API, Android Health Connect                            |
-| Video calls   | Zoom link (MVP)                                                       |
-| CI/CD         | GitHub Actions                                                        |
-| Verzioniranje | Git + GitHub (Pull Request workflow)                                  |
-
----
-
-## Struktura repozitorija
-
-```
-fitlink/
-├── backend/                # Spring Boot REST API
-│   ├── src/main/java/si/feri/fitlink/
-│   │   ├── auth/           # Firebase token validacija, vloge
-│   │   ├── user/           # Profil, nastavitve
-│   │   ├── trainer/        # Verifikacija licenc
-│   │   ├── coaching/       # Trener-treniranec povezave
-│   │   ├── exercise/       # Knjižnica vaj
-│   │   ├── workout/        # Templates + dokončani treningi
-│   │   ├── checkin/        # Tedenski check-ini
-│   │   ├── course/         # Tečaji, ocene, komentarji
-│   │   ├── health/         # Garmin/Health Connect sync
-│   │   ├── call/           # Video klici (scheduling)
-│   │   ├── chat/           # WebSocket sporočila (optional)
-│   │   ├── notification/   # FCM, in-app notifikacije
-│   │   ├── config/         # Spring konfiguracije (Security, Mongo, Firebase)
-│   │   └── common/         # Skupne DTO, exception handler
-│   ├── src/main/resources/
-│   │   ├── application.properties
-│   │   └── seed/exercises.json    # ~80 osnovnih vaj (kasneje)
-│   ├── src/test/java/
-│   └── pom.xml
-├── mobile/                 # React Native (bare)
-│   ├── android/
-│   ├── src/
-│   │   ├── api/            # axios klient, interceptors
-│   │   ├── navigation/     # React Navigation stack-i
-│   │   ├── screens/        # vse strani aplikacije
-│   │   ├── components/     # skupne UI komponente
-│   │   ├── store/          # state management
-│   │   ├── hooks/
-│   │   ├── utils/
-│   │   ├── types/          # TypeScript interface-i
-│   │   ├── theme/          # barve, spacing, typography
-│   │   └── constants/
-│   ├── App.tsx
-│   └── package.json
-├── docs/
-│   ├── FitLink_PRD.docx     # Produktni načrt
-│   ├── api/                 # OpenAPI spec (kasneje)
-│   └── architecture/        # diagrami
-├── .github/workflows/       # GitHub Actions (kasneje)
-├── docker-compose.yml       # MongoDB za lokalni razvoj
-└── README.md
-```
-
----
-
-## Začetek razvoja
+## Navodila za razvoj
 
 ### Predpogoji
 
@@ -182,7 +75,7 @@ fitlink/
 - **Maven 3.9+** – `mvn --version`
 - **Node.js 22 LTS** + **npm 10+** – `node --version`
 - **Android Studio** s Platform SDK 34 (API level 34, Android 14)
-- **Docker** in **Docker Compose** (za lokalni MongoDB)
+- **Docker** in **Docker Compose**
 - **Firebase projekt** + `google-services.json` (za mobile) in `firebase-adminsdk.json` (za backend)
 
 ### 1. Klon repozitorija
@@ -192,16 +85,17 @@ git clone https://github.com/gubicnino/FitLink.git
 cd FitLink
 ```
 
-### 2. Povezava z MongoDB
-
-v .env dodaj MONGODB_URI z connection stringom
+### 2. Ustvari svoj firebase projekt
+- Pojdi na console.firebase.google.com
+- Ustvari nov projekt (npr. fitlink-dev-ime)
+- Dodaj Android app z package name si.fitlink.app
+- Prenesi google-services.json in ga naloži v mobile/android/app/
+- Pojdi v Settings - Service accounts - Generate new private key - prenesi firebase-adminsdk.json in ga naloži v backend/src/main/resources/
+- Omogoči Authentication - Sign-in methods - Email/Password in Google
 
 ### 3. Backend
 
-```bash
-docker compose up --build
-```
-za razvoj na dockerju zazeni samo mongodb in backend v konzoli 
+za razvoj je lažje na dockerju zagnati samo mongodb in backend v konzoli 
 ```bash
 docker compose up mongodb
 cd backend
@@ -210,107 +104,71 @@ mvn spring-boot:run
 
 Backend bo dosegljiv na `http://localhost:8080`.
 
+
 ### 4. Mobile (Android)
+
+#### Priprava Android emulatorja
+
+1. Odpri **Android Studio**
+2. Pojdi na **Tools - Device Manager**
+3. Klikni **Create Device**
+4. Izberi poljubno napravo 
+5. Prenesi in izberi sistemsko sliko **Android 14 (API 34)** ali novejšo
+6. Zaključi ustvarjanje naprave in zaženi emulator
+
+Preveri, da ADB pravilno zazna emulator:
+
+```bash
+adb devices
+```
+
+Izpis mora vsebovati napravo podobno:
+
+```bash
+List of devices attached
+emulator-5554   device
+```
+
+Če ukaz `adb` ni prepoznan, dodaj Android SDK Platform Tools v sistemski PATH
+
+#### Zagon aplikacije
+
+Ustvari `.env` datoteko v mapi `mobile/`:
+
+```env
+API_BASE_URL=http://10.0.2.2:8080
+```
+
+> **Opomba:** `10.0.2.2` je poseben naslov, ki Android emulatorju omogoča dostop do `localhost` gostiteljskega računalnika, kjer teče Spring Boot backend.
+
 
 ```bash
 cd mobile
 npm install
-# kopiraj google-services.json v mobile/android/app/
-npm run android
+
+# zaženi Metro bundler
+npm start
+
+# v novem terminalu zaženi aplikacijo
+npx react-native run-android --no-packager
 ```
+
 
 ---
 
-## Konfiguracija okolja
 
-### Backend (application-local.yml)
+## Navodila za namestitev
+1. Prenesi najnovejšo APK datoteko iz Releases sekcije repozitorija.
+2. Prenesi APK na Android napravo.
+3. Omogoči "Install unknown apps" za izbran brskalnik ali upravljalnik datotek.
+4. Namesti APK.
+5. Zaženi aplikacijo in se registriraj/prijavi.
 
-```yaml
-
-firebase:
-  service-account-path: classpath:firebase-adminsdk.json
-
-storage:
-  local-path: ./uploads     # lokalna pot za slike/videe (MVP)
-
-garmin:
-  client-id: ${GARMIN_CLIENT_ID:}
-  client-secret: ${GARMIN_CLIENT_SECRET:}
-  redirect-uri: ${GARMIN_REDIRECT_URI:fitlink://garmin/callback}
-
-server:
-  port: 8080
-```
-
-### Mobile (.env)
-
-```env
-API_BASE_URL=http://10.0.2.2:8080   # za Android emulator
-FIREBASE_PROJECT_ID=fitlink-dev
-```
-
-> **Opomba:** `10.0.2.2` je naslov, ki ga Android emulator uporablja za dostop do localhost gostiteljskega računalnika.
+Aplikacija uporablja produkcijski backend, zato dodatna konfiguracija ni potrebna.
 
 ---
 
-## Build & deploy
 
-### Backend (JAR)
-
-```bash
-cd backend
-mvn clean package -DskipTests
-java -jar target/fitlink-0.1.0.jar
-```
-
-### Mobile (APK)
-
-```bash
-cd mobile/android
-./gradlew assembleRelease
-# APK: mobile/android/app/build/outputs/apk/release/app-release.apk
-```
-
-### CI/CD
-
-GitHub Actions workflows v `.github/workflows/`:
-
-- `backend-build.yml` – Maven build, unit testi
-- `mobile-build.yml` – Gradle assembleDebug, lint
-- `ci.yml` – orchestrator, sproži se na PR
-
----
-
-## API dokumentacija
-
-Po zagonu backend-a:
-
-- **Swagger UI:** `http://localhost:8080/swagger-ui.html`
-- **OpenAPI JSON:** `http://localhost:8080/v3/api-docs`
-
-Vsi endpoint-i (razen `/auth/*`) zahtevajo `Authorization: Bearer <firebase_id_token>` header.
-
-### Primeri ključnih endpoint-ov
-
-```
-POST   /users/me                  # provisioning po prvi prijavi
-GET    /coachings/me              # trenutna aktivna povezava
-POST   /coachings/requests        # zahteva za coaching
-PATCH  /coachings/requests/:id    # accept/reject
-
-GET    /exercises                 # knjižnica vaj
-POST   /workouts/templates        # ustvari template
-POST   /workouts/sessions         # shrani dokončan trening
-
-POST   /checkins                  # nov tedenski check-in
-GET    /checkins/trainee/:id      # za trenerja
-
-GET    /courses                   # seznam tečajev
-POST   /courses                   # objava (samo trenerji)
-POST   /courses/:id/reviews       # ocena/komentar
-```
-
----
 
 ## Razvoj
 
@@ -318,20 +176,5 @@ POST   /courses/:id/reviews       # ocena/komentar
 
 - **Commits:** [Conventional Commits](https://www.conventionalcommits.org/) (`feat:`, `fix:`, `chore:`, `docs:`, `refactor:`).
 - **Code style:** backend – Google Java Style; mobile – ESLint + Prettier (config v repozitoriju).
-
----
-
----
-
-## Skladnost s temo predmeta
-
-| Zahteva teme "Izmenjava veščin" | Naša implementacija |
-|---|---|
-| Spletna/mobilna platforma za izmenjavo znanj | ✅ Android mobilna aplikacija |
-| Sistem matching-a med ponudnikom in iskalcem | ✅ Treniranec išče trenerja, trener sprejme/zavrne zahtevo |
-| Mehanizem zagotavljanja kakovosti | ✅ Verifikacija licenc + ocene tečajev + peer review |
-| Komunikacija med uporabniki | ✅ Komentarji na treninge, check-ine, tečaje; Zoom video klici; (opcijsko) WebSocket chat |
-| Sledenje napredka uporabnikov | ✅ Tedenski check-ini, zgodovina treningov, zdravstveni podatki |
-| Javna izmenjava znanja (skupnost) | ✅ Brezplačni tečaji z YouTube videi, dostopni vsem |
 
 ---
