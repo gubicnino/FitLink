@@ -10,13 +10,8 @@
 - [Funkcionalnosti](#funkcionalnosti)
 - [Arhitektura](#arhitektura)
 - [Screenshots](#screenshots)
-- [Tehnologije](#tehnologije)
-- [Struktura repozitorija](#struktura-repozitorija)
-- [Začetek razvoja](#začetek-razvoja)
-- [Konfiguracija okolja](#konfiguracija-okolja)
-- [Build & deploy](#build--deploy)
-- [API dokumentacija](#api-dokumentacija)
-- [Razvoj](#razvoj)
+- [Navodila za razvoj](#navodila-za-razvoj)
+- [Navodila za namestitev](#navodila-za-namestitev)
 
 ---
 
@@ -72,11 +67,9 @@ Funkcionalnosti so razvrščene po vlogah: **treniranec** (prejemnik mentorstva)
 ### Predpogoji
 
 - **Java 21** – `java --version`
-- **Maven 3.9+** – `mvn --version`
 - **Node.js 22 LTS** + **npm 10+** – `node --version`
 - **Android Studio** s Platform SDK 34 (API level 34, Android 14)
 - **Docker** in **Docker Compose**
-- **Firebase projekt** + `google-services.json` (za mobile) in `firebase-adminsdk.json` (za backend)
 
 ### 1. Klon repozitorija
 
@@ -153,6 +146,10 @@ npm start
 npx react-native run-android --no-packager
 ```
 
+### Konvencije
+
+- **Commits:** [Conventional Commits](https://www.conventionalcommits.org/) (`feat:`, `fix:`, `chore:`, `docs:`, `refactor:`).
+- **Code style:** backend – Google Java Style; mobile – ESLint + Prettier (config v repozitoriju).
 
 ---
 
@@ -168,13 +165,3 @@ Aplikacija uporablja produkcijski backend, zato dodatna konfiguracija ni potrebn
 
 ---
 
-
-
-## Razvoj
-
-### Konvencije
-
-- **Commits:** [Conventional Commits](https://www.conventionalcommits.org/) (`feat:`, `fix:`, `chore:`, `docs:`, `refactor:`).
-- **Code style:** backend – Google Java Style; mobile – ESLint + Prettier (config v repozitoriju).
-
----
