@@ -423,7 +423,14 @@ export default function TrainerClientDetailPage() {
       {activeTab === 'health' ? (
         <HealthTab snapshot={snapshot} syncing={syncing} onRequestSync={handleRequestSync} />
       ) : null}
-      {activeTab === 'workouts' ? <WorkoutsTab sessions={sessions} templates={templates} /> : null}
+      {activeTab === 'workouts' && traineeId ? (
+        <WorkoutsTab
+          sessions={sessions}
+          templates={templates}
+          traineeId={traineeId}
+          onTemplatesChanged={loadAll}
+        />
+      ) : null}
       {activeTab === 'checkins' ? <CheckInsTab checkIns={checkIns} /> : null}
     </div>
   );
