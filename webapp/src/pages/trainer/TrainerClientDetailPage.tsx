@@ -1,26 +1,25 @@
 import {
-  Activity,
-  AlertTriangle,
-  ArrowLeft,
-  CalendarDays,
-  Clock,
-  Droplets,
-  Dumbbell,
-  Flame,
-  Footprints,
-  Heart,
-  MessageSquareText,
-  Moon,
-  RefreshCw,
-  Scale,
-  XCircle,
-  Zap,
+    Activity,
+    AlertTriangle,
+    ArrowLeft,
+    CalendarDays,
+    Droplets,
+    Dumbbell,
+    Flame,
+    Footprints,
+    Heart,
+    MessageSquareText,
+    Moon,
+    RefreshCw,
+    Scale,
+    XCircle,
+    Zap
 } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
+import { API_ORIGIN } from '../../api/apiClient';
 import { coachingApi } from '../../api/coachingApi';
 import { healthApi, type HealthSnapshotResponse } from '../../api/healthApi';
-import { API_ORIGIN } from '../../api/apiClient';
 import { userApi } from '../../api/userApi';
 import { workoutApi } from '../../api/workoutApi';
 import Avatar from '../../components/ui/Avatar';
@@ -31,13 +30,15 @@ import LoadingSpinner from '../../components/ui/LoadingSpinner';
 import Modal from '../../components/ui/Modal';
 import SectionHeader from '../../components/ui/SectionHeader';
 import StatTile from '../../components/ui/StatTile';
+import TabButton from '../../components/ui/TabButton';
 import Tag from '../../components/ui/Tag';
 import { useToast } from '../../components/ui/Toast';
 import { colors, radii, shadows, spacing, typography } from '../../theme';
 import type { CheckIn } from '../../types/checkin';
 import type { Coaching } from '../../types/coaching';
 import type { User } from '../../types/types';
-import type { WorkoutSession } from '../../types/workout';
+import type { WorkoutSession, WorkoutTemplate } from '../../types/workout';
+import WorkoutsTab from './tabs/WorkoutsTab';
 
 type Tab = 'health' | 'workouts' | 'checkins';
 
@@ -53,9 +54,10 @@ export default function TrainerClientDetailPage() {
   const [coaching, setCoaching] = useState<Coaching | null>(null);
   const [client, setClient] = useState<User | null>(null);
   const [snapshot, setSnapshot] = useState<HealthSnapshotResponse | null>(null);
+  const [templates, setTemplates] = useState<WorkoutTemplate[] | null>(null);
   const [sessions, setSessions] = useState<WorkoutSession[] | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<Tab>('health');
+  const [activeTab, setActiveTab] = useState<Tab>('workouts');
 
   const [syncing, setSyncing] = useState(false);
   const syncStartedAt = useRef<number | null>(null);
@@ -67,11 +69,12 @@ export default function TrainerClientDetailPage() {
   const loadAll = useCallback(async () => {
     if (!traineeId) return;
     try {
-      const [coachings, user, snap, sess] = await Promise.all([
+      const [coachings, user, snap, sess, templates] = await Promise.all([
         coachingApi.getActiveCoachingsForTrainer(),
         userApi.getUserByFirebaseUid(traineeId).catch(() => null),
         healthApi.getForClient(traineeId).catch(() => null),
         workoutApi.listSessionsForTraineeOfTrainer(traineeId).catch(() => [] as WorkoutSession[]),
+        workoutApi.listTemplatesForTraineeOfTrainer(traineeId).catch(() => [] as WorkoutTemplate[]),
       ]);
       const c = coachings.find((x) => x.traineeId === traineeId) ?? null;
       if (!c) {
@@ -82,6 +85,7 @@ export default function TrainerClientDetailPage() {
       setClient(user);
       setSnapshot(snap);
       setSessions(sess);
+      setTemplates(templates);
     } catch (err) {
       console.error(err);
       setLoadError('Failed to load client data.');
@@ -90,6 +94,7 @@ export default function TrainerClientDetailPage() {
 
   useEffect(() => {
     loadAll();
+    console.log(templates)
   }, [loadAll]);
 
   useEffect(() => {
@@ -396,16 +401,16 @@ export default function TrainerClientDetailPage() {
         }}
       >
         <TabButton
-          active={activeTab === 'health'}
-          onClick={() => setActiveTab('health')}
-          label="Health"
-          icon={<Heart size={14} />}
-        />
-        <TabButton
           active={activeTab === 'workouts'}
           onClick={() => setActiveTab('workouts')}
           label={`Workouts${sessions ? ` · ${sessions.length}` : ''}`}
           icon={<Dumbbell size={14} />}
+        />
+        <TabButton
+          active={activeTab === 'health'}
+          onClick={() => setActiveTab('health')}
+          label="Health"
+          icon={<Heart size={14} />}
         />
         <TabButton
           active={activeTab === 'checkins'}
@@ -418,48 +423,9 @@ export default function TrainerClientDetailPage() {
       {activeTab === 'health' ? (
         <HealthTab snapshot={snapshot} syncing={syncing} onRequestSync={handleRequestSync} />
       ) : null}
-      {activeTab === 'workouts' ? <WorkoutsTab sessions={sessions} /> : null}
+      {activeTab === 'workouts' ? <WorkoutsTab sessions={sessions} templates={templates} /> : null}
       {activeTab === 'checkins' ? <CheckInsTab checkIns={checkIns} /> : null}
     </div>
-  );
-}
-
-
-function TabButton({
-  active,
-  onClick,
-  label,
-  icon,
-}: {
-  active: boolean;
-  onClick: () => void;
-  label: string;
-  icon: React.ReactNode;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      style={{
-        display: 'inline-flex',
-        alignItems: 'center',
-        gap: 6,
-        padding: `8px 16px`,
-        borderRadius: radii.md,
-        background: active ? colors.primary : 'transparent',
-        color: active ? colors.white : colors.inkSecondary,
-        border: 'none',
-        cursor: 'pointer',
-        fontFamily: "'DM Sans', system-ui, sans-serif",
-        fontSize: 13,
-        fontWeight: active ? 800 : 600,
-        letterSpacing: '0.1px',
-        transition: 'all 0.12s ease',
-      }}
-    >
-      {icon}
-      {label}
-    </button>
   );
 }
 
@@ -789,101 +755,9 @@ function WeightSparkline({ points }: { points: { at: string; kg: number }[] }) {
 }
 
 
-function WorkoutsTab({ sessions }: { sessions: WorkoutSession[] | null }) {
-  if (sessions === null) {
-    return (
-      <Card>
-        <div style={{ display: 'flex', justifyContent: 'center', padding: spacing.huge }}>
-          <LoadingSpinner size={28} />
-        </div>
-      </Card>
-    );
-  }
-  if (sessions.length === 0) {
-    return (
-      <Card>
-        <EmptyState
-          icon={<Dumbbell size={26} />}
-          title="No workouts logged yet"
-          description="When your client completes a session in the mobile app, it will appear here."
-        />
-      </Card>
-    );
-  }
-  const sorted = [...sessions].sort((a, b) => {
-    const at = a.finishedAt ?? a.startedAt ?? '';
-    const bt = b.finishedAt ?? b.startedAt ?? '';
-    return bt.localeCompare(at);
-  });
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: spacing.sm }}>
-      {sorted.map((s) => (
-        <WorkoutRow key={s.id} session={s} />
-      ))}
-    </div>
-  );
-}
 
-function WorkoutRow({ session }: { session: WorkoutSession }) {
-  const when = session.finishedAt ?? session.startedAt;
-  const totalSets = session.exercises.reduce((sum, ex) => sum + ex.sets.length, 0);
-  return (
-    <Card padding="md">
-      <div style={{ display: 'flex', alignItems: 'center', gap: spacing.md }}>
-        <div
-          style={{
-            width: 40,
-            height: 40,
-            borderRadius: radii.lg,
-            background: colors.primarySoft,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            color: colors.primary,
-          }}
-        >
-          <Dumbbell size={18} />
-        </div>
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: spacing.sm, flexWrap: 'wrap' }}>
-            <div
-              style={{
-                ...typography.body,
-                color: colors.inkPrimary,
-                fontWeight: 800,
-                letterSpacing: '-0.1px',
-              }}
-            >
-              {session.name}
-            </div>
-            {session.trainerComment ? (
-              <Tag label="Commented" tone="primary" size="sm" icon={<MessageSquareText size={10} />} />
-            ) : null}
-          </div>
-          <div style={{ ...typography.bodySmall, color: colors.inkMuted, marginTop: 2 }}>
-            {when ? new Date(when).toLocaleString() : 'No date'} ·{' '}
-            {session.exercises.length} exercises · {totalSets} sets
-          </div>
-        </div>
-        {session.durationMinutes > 0 ? (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-            <Clock size={14} color={colors.inkMuted} />
-            <span
-              style={{
-                ...typography.body,
-                color: colors.inkPrimary,
-                fontWeight: 700,
-                fontVariantNumeric: 'tabular-nums',
-              }}
-            >
-              {session.durationMinutes} min
-            </span>
-          </div>
-        ) : null}
-      </div>
-    </Card>
-  );
-}
+
+
 
 
 function CheckInsTab({ checkIns }: { checkIns: CheckIn[] }) {

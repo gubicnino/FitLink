@@ -20,6 +20,7 @@ export interface WorkoutTemplate {
   ownerId: string;
   createdBy: string;
   name: string;
+  excerciseCount: number;
   exercises: TemplateExercise[];
   lastEditedBy: string | null;
   lastEditedAt: string | null;

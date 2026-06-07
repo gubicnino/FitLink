@@ -3,7 +3,6 @@ import './App.css';
 import AppLayout from './components/layout/AppLayout';
 import RoleRoute from './components/RoleRoute';
 import { ToastProvider } from './components/ui/Toast';
-import { useAuth } from './context/AuthContext';
 import AdminApplicationDetailPage from './pages/admin/AdminApplicationDetailPage';
 import AdminApplicationsPage from './pages/admin/AdminApplicationsPage';
 import LoginPage from './pages/LoginPage';
@@ -12,22 +11,12 @@ import TrainerClientDetailPage from './pages/trainer/TrainerClientDetailPage';
 import TrainerDashboardPage from './pages/trainer/TrainerDashboardPage';
 
 
-function RootRedirect() {
-  const { user, loading } = useAuth();
-  if (loading) return null;
-  if (!user) return <Navigate to="/login" replace />;
-  if (user.role === 'ADMIN') return <Navigate to="/admin" replace />;
-  if (user.role === 'TRAINER') return <Navigate to="/trainer" replace />;
-  return <Navigate to="/no-access" replace />;
-}
 
 export default function App() {
   return (
     <ToastProvider>
       <Routes>
-        <Route path="/" element={<RootRedirect />} />
-        {/* Alias used by sosolec's LoginPage on email-login success */}
-        <Route path="/home" element={<RootRedirect />} />
+        <Route path="/" element={<LoginPage />} />
         <Route path="/login" element={<LoginPage />} />
         <Route path="/no-access" element={<NoAccessPage />} />
 
