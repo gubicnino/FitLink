@@ -674,7 +674,7 @@ function CheckInRow({ checkIn, onPress }: { checkIn: CheckIn; onPress: () => voi
         <Text variant="micro" color="muted" numberOfLines={1}>
           {[
             checkIn.weightKg != null ? `${checkIn.weightKg.toFixed(1)} kg` : null,
-            `Energy ${checkIn.overallEnergyLevel}/10`,
+            `Energy ${checkIn.overallEnergyLevel}/5`,
             checkIn.trainerComment ? 'Coach replied' : null,
           ]
             .filter(Boolean)

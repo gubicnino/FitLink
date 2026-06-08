@@ -163,5 +163,19 @@ npx react-native run-android --no-packager
 
 Aplikacija uporablja produkcijski backend, zato dodatna konfiguracija ni potrebna.
 
+### Sample uporabniki
+Uporabniki za namen pregleda in testiranja aplikacije
+
+#### Trenerji
+James Carter: jamescarter@gmail.com | jamescarter1
+Sarah Mills: sarahmills@gmail.com | sarahmills1
+
+#### Treniranci
+Tom Evans: tomevans@gmail.com | tomevans1
+Emma Walsh: emmawalsh@gmail.com| emmawalsh1
+Luke Harris: lukeharris@gmail.com | lukeharris1
+Mia Chen: miachen@gmail.com| miachen1
+Dan Ford: danford@gmail.com| danford1
+
 ---
 
