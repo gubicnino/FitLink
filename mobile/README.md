@@ -21,18 +21,21 @@ Android mobilna aplikacija zgrajena z **React Native**, ki je del FitLink platfo
 
 ---
 ## Struktura projekta
+
+```text
 mobile/
-├── android/          # Android native projekt
+├── android/             # Android native projekt
 ├── src/
-│   ├── api/          # API klienti
-│   ├── components/   # Deljene UI komponente
-│   ├── hooks/        # Custom React hooks
-│   ├── navigation/   # React Navigation konfiguracija
-│   ├── screens/      # Ekrani po vlogah (admin, trainer, trainee)
-│   ├── services/     # Business logika (auth, coaching...)
-│   ├── theme/        # Barve, spacing, tipografija
-│   └── types/        # TypeScript tipi
+│   ├── api/             # API klienti
+│   ├── components/      # Deljene UI komponente
+│   ├── hooks/           # Custom React hooks
+│   ├── navigation/      # React Navigation konfiguracija
+│   ├── screens/         # Ekrani po vlogah (admin, trainer, trainee)
+│   ├── services/        # Business logika (auth, coaching...)
+│   ├── theme/           # Barve, spacing, tipografija
+│   └── types/           # TypeScript tipi
 └── package.json
+```
 
 ---
 
