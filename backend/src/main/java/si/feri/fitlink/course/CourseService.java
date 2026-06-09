@@ -248,6 +248,7 @@ public class CourseService {
         review.setUserAvatarUrl(user.getAvatarUrl());
         review.setRating(request.getRating());
         review.setComment(request.getComment().trim());
+        review.setReplies(new ArrayList<>());
         reviews.add(review);
 
         course.setReviews(reviews);
@@ -307,6 +308,52 @@ public class CourseService {
         course.setReviews(reviews);
 
         updateReviewStats(course);
+        return toResponse(courseRepo.save(course), principal);
+    }
+
+    public CourseResponse addReviewReply(String id, String reviewId, CourseReviewReplyRequest request, AuthPrincipal principal) {
+        Course course = getById(id);
+        if (Boolean.FALSE.equals(course.getReviewsEnabled())) {
+            throw new IllegalArgumentException("Reviews are disabled for this course");
+        }
+
+        User user = userRepository.findByFirebaseUid(principal.uid())
+                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+        Course.CourseReview review = findReview(course, reviewId);
+        List<Course.CourseReviewReply> replies = review.getReplies() != null
+                ? new ArrayList<>(review.getReplies())
+                : new ArrayList<>();
+
+        Course.CourseReviewReply reply = new Course.CourseReviewReply();
+        reply.setId(UUID.randomUUID().toString());
+        reply.setUserId(principal.uid());
+        reply.setUserDisplayName(user.getDisplayName());
+        reply.setUserAvatarUrl(user.getAvatarUrl());
+        reply.setComment(request.getComment().trim());
+        reply.setCreatedAt(Instant.now());
+        replies.add(reply);
+
+        review.setReplies(replies);
+        return toResponse(courseRepo.save(course), principal);
+    }
+
+    public CourseResponse deleteReviewReply(String id, String reviewId, String replyId, AuthPrincipal principal) {
+        Course course = getById(id);
+        Course.CourseReview review = findReview(course, reviewId);
+        Course.CourseReviewReply reply = findReviewReply(review, replyId);
+
+        boolean isReplyOwner = principal.uid().equals(reply.getUserId());
+        boolean isCourseOwner = principal.uid().equals(course.getAuthorId());
+        if (!isReplyOwner && !isCourseOwner) {
+            throw new AccessDeniedException("You can only delete your own reply");
+        }
+
+        List<Course.CourseReviewReply> replies = review.getReplies() != null
+                ? new ArrayList<>(review.getReplies())
+                : new ArrayList<>();
+        replies.removeIf(existing -> replyId.equals(existing.getId()));
+        review.setReplies(replies);
+
         return toResponse(courseRepo.save(course), principal);
     }
 
@@ -413,6 +460,17 @@ public class CourseService {
                 .filter(review -> reviewId.equals(review.getId()))
                 .findFirst()
                 .orElseThrow(() -> new ResourceNotFoundException("Review not found"));
+    }
+
+    private Course.CourseReviewReply findReviewReply(Course.CourseReview review, String replyId) {
+        if (review.getReplies() == null) {
+            throw new ResourceNotFoundException("Reply not found");
+        }
+
+        return review.getReplies().stream()
+                .filter(reply -> replyId.equals(reply.getId()))
+                .findFirst()
+                .orElseThrow(() -> new ResourceNotFoundException("Reply not found"));
     }
 
     private String extensionFor(String contentType, String originalName) {

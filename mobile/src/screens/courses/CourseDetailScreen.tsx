@@ -24,7 +24,7 @@ import {
 } from '../../components/ui';
 import { ReviewCard } from './ReviewCard';
 import type { RootStackParamList } from '../../navigation/types';
-import { CourseDto, CourseReviewDto, courseService } from '../../services/courseService';
+import { CourseDto, CourseReviewDto, CourseReviewReplyDto, courseService } from '../../services/courseService';
 import { authService } from '../../services/authService';
 import type { User } from '../../types/types';
 import { API_ORIGIN } from '../../api/apiClient';
@@ -51,6 +51,10 @@ export function CourseDetailScreen({ navigation, route }: Props) {
   const [editingReviewComment, setEditingReviewComment] = useState('');
   const [reviewDeletingId, setReviewDeletingId] = useState<string | null>(null);
   const [reviewPinningId, setReviewPinningId] = useState<string | null>(null);
+  const [replyingReviewId, setReplyingReviewId] = useState<string | null>(null);
+  const [replyText, setReplyText] = useState('');
+  const [replySubmittingId, setReplySubmittingId] = useState<string | null>(null);
+  const [replyDeletingId, setReplyDeletingId] = useState<string | null>(null);
   const [savingCourse, setSavingCourse] = useState(false);
   const [completingCourse, setCompletingCourse] = useState(false);
 
@@ -279,6 +283,67 @@ export function CourseDetailScreen({ navigation, route }: Props) {
     }
   };
 
+  const handleStartReply = (review: CourseReviewDto) => {
+    if (!user) return;
+    setReplyingReviewId(review.id);
+    setReplyText('');
+  };
+
+  const handleCancelReply = () => {
+    setReplyingReviewId(null);
+    setReplyText('');
+  };
+
+  const handleSubmitReply = async () => {
+    if (!course || !replyingReviewId || !replyText.trim()) return;
+
+    try {
+      setReplySubmittingId(replyingReviewId);
+      const nextCourse = await courseService.addReviewReply(course.id, replyingReviewId, {
+        comment: replyText.trim(),
+      });
+      setCourse(nextCourse);
+      handleCancelReply();
+      setTab('Reviews');
+    } catch (error: any) {
+      Alert.alert(
+        'Reply failed',
+        error?.response?.data?.message || error?.message || 'Could not save reply.',
+      );
+    } finally {
+      setReplySubmittingId(null);
+    }
+  };
+
+  const handleDeleteReply = (review: CourseReviewDto, reply: CourseReviewReplyDto) => {
+    if (!course || !user) return;
+
+    const canDeleteReply = reply.userId === user.firebaseUid || course.authorId === user.firebaseUid;
+    if (!canDeleteReply) return;
+
+    Alert.alert('Delete reply', 'Are you sure you want to delete this reply?', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Delete',
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            setReplyDeletingId(reply.id);
+            const nextCourse = await courseService.deleteReviewReply(course.id, review.id, reply.id);
+            setCourse(nextCourse);
+          } catch (error: any) {
+            Alert.alert(
+              'Reply delete failed',
+              error?.response?.data?.message || error?.message || 'Could not delete reply.',
+            );
+          } finally {
+            setReplyDeletingId(null);
+          }
+        },
+      },
+    ]);
+  };
+
   return (
     <Screen background="surface" scroll edges={['top']}>
       {hasMediaHeader ? (
@@ -475,6 +540,10 @@ export function CourseDetailScreen({ navigation, route }: Props) {
               editingComment={editingReviewComment}
               deletingReviewId={reviewDeletingId}
               pinningReviewId={reviewPinningId}
+              replyingReviewId={replyingReviewId}
+              replyText={replyText}
+              replySubmittingId={replySubmittingId}
+              replyDeletingId={replyDeletingId}
               onRatingChange={setReviewRating}
               onCommentChange={setReviewComment}
               onSubmit={handleSubmitReview}
@@ -485,6 +554,11 @@ export function CourseDetailScreen({ navigation, route }: Props) {
               onSubmitEdit={handleSubmitEditReview}
               onDelete={handleDeleteReview}
               onTogglePinned={handleTogglePinnedReview}
+              onStartReply={handleStartReply}
+              onCancelReply={handleCancelReply}
+              onReplyTextChange={setReplyText}
+              onSubmitReply={handleSubmitReply}
+              onDeleteReply={handleDeleteReply}
             />
           </>
         ) : (
@@ -502,6 +576,10 @@ export function CourseDetailScreen({ navigation, route }: Props) {
             editingComment={editingReviewComment}
             deletingReviewId={reviewDeletingId}
             pinningReviewId={reviewPinningId}
+            replyingReviewId={replyingReviewId}
+            replyText={replyText}
+            replySubmittingId={replySubmittingId}
+            replyDeletingId={replyDeletingId}
             onRatingChange={setReviewRating}
             onCommentChange={setReviewComment}
             onSubmit={handleSubmitReview}
@@ -512,6 +590,11 @@ export function CourseDetailScreen({ navigation, route }: Props) {
             onSubmitEdit={handleSubmitEditReview}
             onDelete={handleDeleteReview}
             onTogglePinned={handleTogglePinnedReview}
+            onStartReply={handleStartReply}
+            onCancelReply={handleCancelReply}
+            onReplyTextChange={setReplyText}
+            onSubmitReply={handleSubmitReply}
+            onDeleteReply={handleDeleteReply}
           />
         )}
       </View>
@@ -662,6 +745,10 @@ function ReviewsSection({
   editingComment,
   deletingReviewId,
   pinningReviewId,
+  replyingReviewId,
+  replyText,
+  replySubmittingId,
+  replyDeletingId,
   onRatingChange,
   onCommentChange,
   onSubmit,
@@ -672,6 +759,11 @@ function ReviewsSection({
   onSubmitEdit,
   onDelete,
   onTogglePinned,
+  onStartReply,
+  onCancelReply,
+  onReplyTextChange,
+  onSubmitReply,
+  onDeleteReply,
 }: {
   reviews: CourseReviewDto[];
   reviewsEnabled: boolean;
@@ -686,6 +778,10 @@ function ReviewsSection({
   editingComment: string;
   deletingReviewId: string | null;
   pinningReviewId: string | null;
+  replyingReviewId: string | null;
+  replyText: string;
+  replySubmittingId: string | null;
+  replyDeletingId: string | null;
   onRatingChange: (value: number) => void;
   onCommentChange: (value: string) => void;
   onSubmit: () => void;
@@ -696,6 +792,11 @@ function ReviewsSection({
   onSubmitEdit: () => void;
   onDelete: (review: CourseReviewDto) => void;
   onTogglePinned: (review: CourseReviewDto) => void;
+  onStartReply: (review: CourseReviewDto) => void;
+  onCancelReply: () => void;
+  onReplyTextChange: (value: string) => void;
+  onSubmitReply: () => void;
+  onDeleteReply: (review: CourseReviewDto, reply: CourseReviewReplyDto) => void;
 }) {
   if (!reviewsEnabled) {
     return (
@@ -751,6 +852,8 @@ function ReviewsSection({
             const canDeleteReview = canEditReview || courseAuthorId === currentUserId;
             const canPinReview = courseAuthorId === currentUserId && pinningReviewId !== review.id;
             const isEditing = editingReviewId === review.id;
+            const isReplying = replyingReviewId === review.id;
+            const replies = review.replies ?? [];
 
             return (
               <View key={review.id} style={styles.reviewItem}>
@@ -773,6 +876,79 @@ function ReviewsSection({
                   onDelete={() => onDelete(review)}
                   onTogglePin={() => onTogglePinned(review)}
                 />
+                <View style={styles.reviewReplyActions}>
+                  <Button
+                    label={isReplying ? 'Cancel reply' : 'Reply'}
+                    variant="ghost"
+                    size="sm"
+                    disabled={!currentUserId || replySubmittingId === review.id}
+                    onPress={isReplying ? onCancelReply : () => onStartReply(review)}
+                  />
+                  {replies.length > 0 ? (
+                    <Text variant="micro" color="muted">
+                      {replies.length} {replies.length === 1 ? 'reply' : 'replies'}
+                    </Text>
+                  ) : null}
+                </View>
+                {replies.length > 0 ? (
+                  <View style={styles.replyList}>
+                    {replies.map(reply => {
+                      const canDeleteReply = reply.userId === currentUserId || courseAuthorId === currentUserId;
+                      return (
+                        <View key={reply.id} style={styles.replyItem}>
+                          <Avatar source={getAvatarUrl(reply.userAvatarUrl)} size="xs" />
+                          <View style={styles.replyContent}>
+                            <View style={styles.replyHeader}>
+                              <Text variant="micro" weight="800" style={styles.replyName}>
+                                {reply.userDisplayName ?? 'Member'}
+                              </Text>
+                              {canDeleteReply ? (
+                                <IconButton
+                                  variant="ghost"
+                                  onPress={() => onDeleteReply(review, reply)}
+                                  disabled={replyDeletingId === reply.id}
+                                >
+                                  <Trash2 size={12} color={colors.danger} strokeWidth={2} />
+                                </IconButton>
+                              ) : null}
+                            </View>
+                            <Text variant="bodySmall" color="secondary" style={styles.replyText}>
+                              {reply.comment}
+                            </Text>
+                          </View>
+                        </View>
+                      );
+                    })}
+                  </View>
+                ) : null}
+                {isReplying ? (
+                  <View style={styles.replyForm}>
+                    <Textarea
+                      value={replyText}
+                      onChangeText={onReplyTextChange}
+                      placeholder="Write a reply"
+                      rows={2}
+                    />
+                    <View style={styles.reviewEditActions}>
+                      <Button
+                        label="Cancel"
+                        variant="outline"
+                        size="md"
+                        onPress={onCancelReply}
+                        style={styles.reviewEditButton}
+                      />
+                      <Button
+                        label="Reply"
+                        variant="primary"
+                        size="md"
+                        loading={replySubmittingId === review.id}
+                        disabled={!replyText.trim() || replySubmittingId === review.id}
+                        onPress={onSubmitReply}
+                        style={styles.reviewEditButton}
+                      />
+                    </View>
+                  </View>
+                ) : null}
                 {isEditing ? (
                   <View style={styles.reviewEditForm}>
                     <View style={styles.ratingPicker}>
@@ -968,6 +1144,43 @@ const styles = StyleSheet.create({
   },
   reviewEditActions: { flexDirection: 'row', gap: spacing.md },
   reviewEditButton: { flex: 1 },
+  reviewReplyActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    paddingHorizontal: spacing.md,
+  },
+  replyList: {
+    gap: spacing.sm,
+    marginLeft: spacing.lg,
+    paddingLeft: spacing.md,
+    borderLeftWidth: 2,
+    borderLeftColor: colors.line,
+  },
+  replyItem: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+    padding: spacing.md,
+    borderRadius: radii.md,
+    backgroundColor: colors.surfaceElevated,
+  },
+  replyContent: { flex: 1, minWidth: 0 },
+  replyHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: spacing.sm,
+    marginBottom: 2,
+  },
+  replyName: { color: colors.inkPrimary },
+  replyText: { lineHeight: 18 },
+  replyForm: {
+    gap: spacing.md,
+    marginLeft: spacing.lg,
+    padding: spacing.md,
+    borderRadius: radii.lg,
+    backgroundColor: colors.surfaceElevated,
+  },
   reviewsDisabled: {
     borderRadius: radii.lg,
     backgroundColor: colors.surfaceElevated,

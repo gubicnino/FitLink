@@ -133,6 +133,22 @@ public class CourseController {
         return courseService.setReviewPinned(id, reviewId, false, principal);
     }
 
+    @PostMapping("/{id}/reviews/{reviewId}/replies")
+    public CourseResponse addReviewReply(@PathVariable String id,
+                                         @PathVariable String reviewId,
+                                         @Valid @RequestBody CourseReviewReplyRequest request,
+                                         @AuthenticationPrincipal AuthPrincipal principal) {
+        return courseService.addReviewReply(id, reviewId, request, principal);
+    }
+
+    @DeleteMapping("/{id}/reviews/{reviewId}/replies/{replyId}")
+    public CourseResponse deleteReviewReply(@PathVariable String id,
+                                            @PathVariable String reviewId,
+                                            @PathVariable String replyId,
+                                            @AuthenticationPrincipal AuthPrincipal principal) {
+        return courseService.deleteReviewReply(id, reviewId, replyId, principal);
+    }
+
     @GetMapping
     public List<CourseResponse> getAllCourses(@AuthenticationPrincipal AuthPrincipal principal) {
         return courseService.getAllResponses(principal);

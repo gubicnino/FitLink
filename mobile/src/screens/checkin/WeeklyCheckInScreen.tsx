@@ -27,7 +27,7 @@ import {
     TextInput,
     View,
 } from 'react-native';
-import { launchCamera } from 'react-native-image-picker';
+import { launchCamera, launchImageLibrary } from 'react-native-image-picker';
 import { API_ORIGIN } from '../../api/apiClient';
 import { checkInApi } from '../../api/checkInApi';
 import { ScreenHeader } from '../../components/layout';
@@ -106,6 +106,25 @@ export function WeeklyCheckInScreen({ checkIn }: WeeklyCheckInScreenProps = {}) 
     return result === PermissionsAndroid.RESULTS.GRANTED;
   };
 
+  const requestPhotoPermission = async () => {
+    if (Platform.OS !== 'android') return true;
+    const permission =
+      Platform.Version >= 33
+        ? PermissionsAndroid.PERMISSIONS.READ_MEDIA_IMAGES
+        : PermissionsAndroid.PERMISSIONS.READ_EXTERNAL_STORAGE;
+    const result = await PermissionsAndroid.request(permission);
+    return result === PermissionsAndroid.RESULTS.GRANTED;
+  };
+
+  const toPhotoInput = (asset: { uri?: string; fileName?: string | null; type?: string | null }): CheckInPhotoInput | null => {
+    if (!asset.uri) return null;
+    return {
+      uri: asset.uri,
+      name: asset.fileName ?? `checkin.${asset.type?.split('/')[1] ?? 'jpg'}`,
+      type: asset.type ?? 'image/jpeg',
+    };
+  };
+
   const handleTakePhoto = async () => {
     if (isReadOnly) return;
     if (photos.length >= MAX_PHOTOS) {
@@ -134,15 +153,54 @@ export function WeeklyCheckInScreen({ checkIn }: WeeklyCheckInScreenProps = {}) 
       setError('No photo captured.');
       return;
     }
-    const captured: CheckInPhotoInput = {
-      uri: asset.uri,
-      name: asset.fileName ?? `checkin.${asset.type?.split('/')[1] ?? 'jpg'}`,
-      type: asset.type ?? 'image/jpeg',
-    };
+    const captured = toPhotoInput(asset);
+    if (!captured) {
+      setError('No photo captured.');
+      return;
+    }
     setPhotos((current) => {
       if (current.length >= MAX_PHOTOS) return current;
       return [...current, captured];
     });
+    setError(null);
+  };
+
+  const handlePickPhotos = async () => {
+    if (isReadOnly) return;
+    const remainingSlots = MAX_PHOTOS - photos.length;
+    if (remainingSlots <= 0) {
+      Alert.alert('Limit reached', `You can add up to ${MAX_PHOTOS} photos.`);
+      return;
+    }
+    const granted = await requestPhotoPermission();
+    if (!granted) {
+      setError('Photo permission is required to upload check-in photos.');
+      return;
+    }
+    const result = await launchImageLibrary({
+      mediaType: 'photo',
+      selectionLimit: remainingSlots,
+      includeBase64: false,
+      maxWidth: 1600,
+      maxHeight: 1600,
+      quality: 0.7,
+    });
+    if (result.didCancel) return;
+    if (result.errorCode) {
+      setError(result.errorMessage ?? 'Could not open photo library.');
+      return;
+    }
+    const selectedPhotos = (result.assets ?? [])
+      .map(toPhotoInput)
+      .filter((item): item is CheckInPhotoInput => Boolean(item))
+      .slice(0, remainingSlots);
+
+    if (selectedPhotos.length === 0) {
+      setError('No image was selected.');
+      return;
+    }
+
+    setPhotos((current) => [...current, ...selectedPhotos].slice(0, MAX_PHOTOS));
     setError(null);
   };
 
@@ -374,18 +432,32 @@ export function WeeklyCheckInScreen({ checkIn }: WeeklyCheckInScreenProps = {}) 
             ))}
 
             {!isReadOnly && photos.length < MAX_PHOTOS ? (
-              <Pressable
-                style={({ pressed }) => [styles.photoAddTile, pressed && { opacity: 0.85 }]}
-                onPress={handleTakePhoto}
-                accessibilityLabel="Add photo"
-              >
-                <View style={styles.photoAddIcon}>
-                  <ImagePlus size={20} color={colors.primary} strokeWidth={2.25} />
-                </View>
-                <Text variant="micro" weight="800" color="brand" style={styles.photoAddLabel}>
-                  ADD
-                </Text>
-              </Pressable>
+              <>
+                <Pressable
+                  style={({ pressed }) => [styles.photoAddTile, pressed && { opacity: 0.85 }]}
+                  onPress={handleTakePhoto}
+                  accessibilityLabel="Take photo"
+                >
+                  <View style={styles.photoAddIcon}>
+                    <Camera size={20} color={colors.primary} strokeWidth={2.25} />
+                  </View>
+                  <Text variant="micro" weight="800" color="brand" style={styles.photoAddLabel}>
+                    TAKE
+                  </Text>
+                </Pressable>
+                <Pressable
+                  style={({ pressed }) => [styles.photoAddTile, pressed && { opacity: 0.85 }]}
+                  onPress={handlePickPhotos}
+                  accessibilityLabel="Upload photo"
+                >
+                  <View style={styles.photoAddIcon}>
+                    <ImagePlus size={20} color={colors.primary} strokeWidth={2.25} />
+                  </View>
+                  <Text variant="micro" weight="800" color="brand" style={styles.photoAddLabel}>
+                    UPLOAD
+                  </Text>
+                </Pressable>
+              </>
             ) : null}
 
             {isReadOnly && previewUris.length === 0 ? (

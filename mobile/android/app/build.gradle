@@ -125,6 +125,7 @@ android {
 dependencies {
     // The version of react-native is set by the React Native Gradle Plugin
     implementation("com.facebook.react:react-android")
+    implementation project(':react-native-config')
 
     // AndroidX SplashScreen backport — provides Android 12's SplashScreen API
     // (Theme.SplashScreen, installSplashScreen()) all the way down to API 21.
