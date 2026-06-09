@@ -53,5 +53,19 @@ public class Course {
         private String originalComment;
         private Instant createdAt;
         private Instant editedAt;
+        private List<CourseReviewReply> replies;
+    }
+
+    @Data
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class CourseReviewReply {
+        private String id;
+        private String userId;
+        private String userDisplayName;
+        private String userAvatarUrl;
+        private String comment;
+        private Instant createdAt;
     }
 }

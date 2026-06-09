@@ -50,15 +50,16 @@ Funkcionalnosti so razvrščene po vlogah: **treniranec** (prejemnik mentorstva)
 
 ## Arhitektura
 
-<img width="1352" height="1001" alt="fitlinkdiagram3" src="https://github.com/user-attachments/assets/81ef1712-50ac-4c14-9bd0-fa506626bab7" />
+<img width="2030" height="1401" alt="architecture" src="https://github.com/user-attachments/assets/f320921b-0d35-4d0e-92dd-c6c04e65322f" />
+
 
 
 ---
 
 ## Screenshots
 
-<img width="1899" height="767" alt="image" src="https://github.com/user-attachments/assets/017d8bd0-88f1-4c55-ba71-661cef1e305c" />
-<img width="1910" height="765" alt="image" src="https://github.com/user-attachments/assets/708ca99e-d070-4f8b-97c3-abcb2686b948" />
+<img width="2694" height="1133" alt="screenshots2" src="https://github.com/user-attachments/assets/3ce7b9d2-b3c7-47f6-bc02-66005d86f69b" />
+<img width="1625" height="656" alt="screenshots1" src="https://github.com/user-attachments/assets/83ff2fe2-dd7e-4750-a04a-89e04f985632" />
 
 ---
 

@@ -1,22 +1,15 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96" fill="none">
   <defs>
     <linearGradient id="bg" x1="0.15" y1="0" x2="0.85" y2="1" gradientUnits="objectBoundingBox">
-      <stop offset="0" stop-color="#2E5B9F"/>
-      <stop offset="1" stop-color="#1E4275"/>
+      <stop offset="0" stop-color="#3B73C7"/>
+      <stop offset="1" stop-color="#2E5B9F"/>
     </linearGradient>
   </defs>
   <rect width="96" height="96" rx="22" ry="22" fill="url(#bg)"/>
-  <path d="M0 24 Q 0 0 24 0 L 60 0 Q 32 4 14 28 L 0 60 Z" fill="#FFFFFF" opacity="0.06"/>
-  <!-- bar -->
   <rect x="30" y="45" width="36" height="6" rx="1.5" fill="#FFFFFF"/>
-  <!-- left outer plate -->
   <rect x="11" y="34" width="6" height="28" rx="3" stroke="#FFFFFF" stroke-width="2.5" fill="none"/>
-  <!-- left inner plate -->
   <rect x="20" y="30" width="10" height="36" rx="5" stroke="#FFFFFF" stroke-width="2.5" fill="none"/>
-  <!-- right inner plate -->
   <rect x="66" y="30" width="10" height="36" rx="5" stroke="#FFFFFF" stroke-width="2.5" fill="none"/>
-  <!-- right outer plate -->
   <rect x="79" y="34" width="6" height="28" rx="3" stroke="#FFFFFF" stroke-width="2.5" fill="none"/>
-  <!-- accent dot -->
   <circle cx="48" cy="48" r="4" fill="#FF6B35"/>
 </svg>

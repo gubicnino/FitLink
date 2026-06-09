@@ -43,6 +43,16 @@ export interface CourseReviewDto {
   originalComment?: string | null;
   createdAt?: string;
   editedAt?: string | null;
+  replies?: CourseReviewReplyDto[] | null;
+}
+
+export interface CourseReviewReplyDto {
+  id: string;
+  userId: string;
+  userDisplayName?: string | null;
+  userAvatarUrl?: string | null;
+  comment: string;
+  createdAt?: string;
 }
 
 export type CoursePayload = Pick<
@@ -158,6 +168,16 @@ export const courseService = {
 
   unpinReview: async (id: string, reviewId: string) => {
     const response = await apiClient.delete<CourseDto>(`/courses/${id}/reviews/${reviewId}/pin`);
+    return response.data;
+  },
+
+  addReviewReply: async (id: string, reviewId: string, payload: { comment: string }) => {
+    const response = await apiClient.post<CourseDto>(`/courses/${id}/reviews/${reviewId}/replies`, payload);
+    return response.data;
+  },
+
+  deleteReviewReply: async (id: string, reviewId: string, replyId: string) => {
+    const response = await apiClient.delete<CourseDto>(`/courses/${id}/reviews/${reviewId}/replies/${replyId}`);
     return response.data;
   },
 };
