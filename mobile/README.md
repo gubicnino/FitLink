@@ -15,6 +15,11 @@ Android mobilna aplikacija zgrajena z **React Native**, ki je del FitLink platfo
 
 ---
 
+## Design mockup
+<img width="1910" height="765" alt="mockup2" src="https://github.com/user-attachments/assets/21e5f9d2-61ce-45cf-addc-90a429d3a66d" />
+<img width="1899" height="767" alt="mockup1" src="https://github.com/user-attachments/assets/db8ded25-10d4-47d0-a47c-b1b283d3b3fd" />
+
+---
 ## Struktura projekta
 mobile/
 ├── android/          # Android native projekt
