@@ -26,3 +26,5 @@ CLAUDE.md
 backend/certifications/
 .env
 node_modules
+
+_PROMOCIJA/*.pptx

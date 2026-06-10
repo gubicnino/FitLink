@@ -1,7 +1,4 @@
 # FitLink
-
-> Mobilna platforma za izmenjavo veščin in znanj na področju fitnesa, kjer trenerji delijo svoje strokovno znanje s treniranci, treniranci pa nudijo realne podatke o napredku in povratno informacijo.
-
 ---
 
 ## Vsebina
@@ -17,7 +14,7 @@
 
 ## Pregled
 
-FitLink je mobilna aplikacija, ki trenerjem omogoča celovit management trenirancev — treningi, zdravstveni podatki iz nosljivih naprav in tedenski check-ini vse na enem mestu. Ta centraliziran vpogled v napredek vsake stranke v realnem času trenerjem omogoča personalizirano vodenje, kar je glavna prednost FitLink od stalih fitnes aplikacij. Treniranci z aplikacijo beležijo treninge, spremljajo napredek in ostajajo v stiku s svojim trenerjem. Poleg tega lahko trenerji objavljajo brezplačne izobraževalne tečaje s področja fitnessa in prehrane, kar spodbuja izmenjavo znanja in veščin znotraj skupnosti.
+FitLink je  aplikacija, ki trenerjem omogoča celovit management trenirancev - treningi, zdravstveni podatki iz nosljivih naprav in tedenski check-ini vse na enem mestu. Ta centraliziran vpogled v napredek vsake stranke v realnem času trenerjem omogoča personalizirano vodenje, kar je glavna prednost FitLink od ostalih fitnes aplikacij. Treniranci z aplikacijo beležijo treninge, spremljajo napredek in ostajajo v stiku s svojim trenerjem. Poleg tega lahko trenerji objavljajo brezplačne izobraževalne tečaje s področja fitnessa in prehrane, kar spodbuja izmenjavo znanja in veščin znotraj skupnosti.
 
 ---
 
@@ -163,6 +160,9 @@ npx react-native run-android --no-packager
 5. Zaženi aplikacijo in se registriraj/prijavi.
 
 Aplikacija uporablja produkcijski backend, zato dodatna konfiguracija ni potrebna.
+
+Povezava za spletno aplikacijo:
+[FitLink](https://fit-link-alpha.vercel.app/)
 
 ### Sample uporabniki
 Uporabniki za namen pregleda in testiranja aplikacije
