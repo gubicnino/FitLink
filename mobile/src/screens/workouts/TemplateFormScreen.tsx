@@ -55,14 +55,18 @@ function defaultSets(count: number = DEFAULT_SET_COUNT): FormSet[] {
 
 export function TemplateFormScreen() {
   const navigation = useNavigation<Nav>();
-  const params = useRoute<Route>().params;
+  const route = useRoute<Route>();
+  const params = route.params;
   const isEdit = params.mode === 'edit';
   const editTemplateId = params.mode === 'edit' ? params.templateId : undefined;
   const createExerciseIds = params.mode === 'create' ? params.exerciseIds : undefined;
   const createForTraineeId = params.mode === 'create' ? params.traineeId : undefined;
   const canStart = params.canStart ?? true;
   const trainerContext = Boolean(createForTraineeId || !canStart);
-  const pendingExerciseIds = params.pendingExerciseIds;
+  const processingRef = React.useRef(false);
+  const pendingItemsRef = React.useRef<TemplateFormExercise[]>([]);
+
+
 
   const [name, setName] = useState('');
   const [items, setItems] = useState<TemplateFormExercise[]>([]);
@@ -98,11 +102,11 @@ export function TemplateFormScreen() {
         const sets: FormSet[] =
           e.sets.length > 0
             ? e.sets.map(s => ({
-                reps: s.targetReps,
-                weightKg: s.targetWeightKg,
-                restSeconds: s.restSeconds,
-                setType: s.setType ?? 'NORMAL',
-              }))
+              reps: s.targetReps,
+              weightKg: s.targetWeightKg,
+              restSeconds: s.restSeconds,
+              setType: s.setType ?? 'NORMAL',
+            }))
             : defaultSets(1);
         return {
           exerciseId: e.exerciseId,
@@ -125,11 +129,14 @@ export function TemplateFormScreen() {
           const result = await loadEdit(editTemplateId);
           if (cancelled) return;
           setName(result.name);
-          setItems(result.items);
+          // Merge any exercises that arrived from picker while we were loading
+          setItems([...result.items, ...pendingItemsRef.current]);
+          pendingItemsRef.current = [];
         } else if (createExerciseIds) {
           const list = await loadCreate(createExerciseIds);
           if (cancelled) return;
-          setItems(list);
+          setItems([...list, ...pendingItemsRef.current]);
+          pendingItemsRef.current = [];
         }
       } catch (err) {
         if (!cancelled) setError(extractMessage(err));
@@ -137,25 +144,33 @@ export function TemplateFormScreen() {
         if (!cancelled) setLoading(false);
       }
     })();
-    return () => {
-      cancelled = true;
-    };
+    return () => { cancelled = true; };
   }, []);
 
   // rehidracija kda user pride nazaj z ExercisePickera
   // (v ExercisePickerju lahko izbere več vaj, keri se potem appendajo na obstoječ seznam vaj v formi)
-
+  const knownIdsRef = React.useRef(knownIds);
+  useEffect(() => { knownIdsRef.current = knownIds; }, [knownIds]);
   useFocusEffect(
     useCallback(() => {
-      if (!pendingExerciseIds || pendingExerciseIds.length === 0) return;
-      const toAdd = pendingExerciseIds.filter(id => !knownIds.has(id));
+      const pendingIds = route.params?.pendingExerciseIds;
+      if (!pendingIds || pendingIds.length === 0 || processingRef.current) return;
+
+      processingRef.current = true;
+      const toAdd = pendingIds.filter(id => !knownIdsRef.current.has(id));
+
+      // Clear params immediately and synchronously before any async work
+      navigation.setParams({ pendingExerciseIds: undefined });
+
       if (toAdd.length === 0) {
-        navigation.setParams({ pendingExerciseIds: undefined });
+        processingRef.current = false;
         return;
       }
+
       (async () => {
         try {
           const fetched = await Promise.all(toAdd.map(id => exerciseApi.getById(id)));
+          console.log('[FOCUS] fetched:', fetched.map(e => e.id));
           const newItems = fetched.map<TemplateFormExercise>(e => ({
             exerciseId: e.id,
             name: e.name,
@@ -163,14 +178,22 @@ export function TemplateFormScreen() {
             thumbnailUrl: pickThumb(e.images),
             sets: defaultSets(),
           }));
-          setItems(prev => [...prev, ...newItems]);
+          if (loading) {
+            // Initial load still in flight — stash for merge
+            console.log('[FOCUS] still loading, stashing', newItems.length, 'items');
+            pendingItemsRef.current = [...pendingItemsRef.current, ...newItems];
+          } else {
+            console.log('[FOCUS] calling setItems with', newItems.length, 'new items');
+            setItems(prev => [...prev, ...newItems]);
+          }
         } catch (err) {
+          console.log('[FOCUS] fetch error:', err);
           Alert.alert('Could not add exercise', extractMessage(err));
         } finally {
-          navigation.setParams({ pendingExerciseIds: undefined });
+          processingRef.current = false;
         }
       })();
-    }, [pendingExerciseIds, knownIds, navigation]),
+    }, [route.params?.pendingExerciseIds, navigation]),
   );
 
 

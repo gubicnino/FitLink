@@ -1,35 +1,35 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import {
-  ActivityIndicator,
-  FlatList,
-  Keyboard,
-  Pressable,
-  RefreshControl,
-  StyleSheet,
-  View,
-} from 'react-native';
-import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
+import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { ChevronDown, ChevronLeft, Search, SlidersHorizontal, X } from 'lucide-react-native';
-import { colors, radii, shadows, spacing } from '../../theme';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-  Button,
-  IconButton,
-  Input,
-  Screen,
-  Text,
-} from '../../components/ui';
-import { ScreenHeader } from '../../components/layout';
+    ActivityIndicator,
+    FlatList,
+    Keyboard,
+    Pressable,
+    RefreshControl,
+    StyleSheet,
+    View,
+} from 'react-native';
 import { exerciseApi } from '../../api/exerciseApi';
+import { ALL_VALUE, FilterPickerSheet } from '../../components/filters/FilterPickerSheet';
+import { ScreenHeader } from '../../components/layout';
+import {
+    Button,
+    IconButton,
+    Input,
+    Screen,
+    Text,
+} from '../../components/ui';
 import { useDebouncedValue } from '../../hooks/useDebouncedValue';
+import type { RootStackParamList } from '../../navigation/types';
+import { colors, radii, shadows, spacing } from '../../theme';
 import type {
-  ExerciseFacets,
-  ExerciseSummary,
-  PageResponse,
+    ExerciseFacets,
+    ExerciseSummary,
+    PageResponse,
 } from '../../types/exercise';
 import { ExerciseRow } from './ExerciseRow';
-import type { RootStackParamList } from '../../navigation/types';
-import { ALL_VALUE, FilterPickerSheet } from '../../components/filters/FilterPickerSheet';
 
 const PAGE_SIZE = 30;
 
@@ -70,7 +70,9 @@ export function ExercisePickerScreen() {
           traineeId: forTraineeId,
         });
       }
+      console.log('handleContinue ids:', ids, 'appendToTemplateId:', appendToTemplateId);
     },
+    
     [navigation, appendToTemplateId, appendToLiveSession, forTraineeId],
   );
 
