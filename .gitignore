@@ -18,8 +18,6 @@ Thumbs.db
 **/.env.production
 **/.env.local
 
-# Claude Code session context (per-developer)
-CLAUDE.md
 
 # Build outputs
 **/uploads/
