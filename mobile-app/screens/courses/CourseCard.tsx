@@ -1,0 +1,96 @@
+import React from 'react';
+import { Image, Pressable, StyleSheet, View } from 'react-native';
+import { colors, radii, spacing } from '@/constants/theme';
+import { Text } from '@/components/ui';
+
+export interface Course {
+  id: string;
+  title: string;
+  description?: string;
+  author: string;
+  type: string;
+  imageUrl: string;
+  category?: string;
+  level?: string;
+  publishedAt?: string | null;
+}
+
+interface CourseCardProps {
+  course: Course;
+  onPress?: () => void;
+}
+
+export function CourseCard({ course, onPress }: CourseCardProps) {
+  return (
+    <Pressable onPress={onPress} style={({ pressed }) => [styles.card, pressed && { opacity: 0.9 }]}>
+      <View style={styles.imageWrap}>
+        <Image source={{ uri: course.imageUrl }} style={styles.image} />
+        <View style={styles.imageOverlay} />
+        <View style={styles.durationPill}>
+          <Text style={styles.durationText}>
+            {course.type}
+          </Text>
+        </View>
+      </View>
+      <View style={styles.body}>
+        <Text variant="bodySmall" weight="600" numberOfLines={2} style={styles.title}>
+          {course.title}
+        </Text>
+        {course.description ? (
+          <Text variant="micro" color="secondary" numberOfLines={2} style={styles.description}>
+            {course.description}
+          </Text>
+        ) : null}
+        <Text variant="micro" color="secondary">
+          {course.author}
+        </Text>
+        {course.publishedAt ? (
+          <Text variant="micro" color="muted" style={styles.date}>
+            {formatCourseDate(course.publishedAt)}
+          </Text>
+        ) : null}
+      </View>
+    </Pressable>
+  );
+}
+
+function formatCourseDate(value: string) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '';
+  return `Created ${date.toLocaleDateString(undefined, {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+  })}`;
+}
+
+const styles = StyleSheet.create({
+  card: {
+    flex: 1,
+    backgroundColor: colors.surface,
+    borderRadius: radii.lg,
+    borderWidth: 1,
+    borderColor: colors.line,
+    overflow: 'hidden',
+  },
+  imageWrap: { aspectRatio: 16 / 9, position: 'relative' },
+  image: { width: '100%', height: '100%' },
+  imageOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0,0,0,0.15)',
+  },
+  durationPill: {
+    position: 'absolute',
+    bottom: 6,
+    right: 6,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: radii.xs,
+    backgroundColor: 'rgba(0,0,0,0.7)',
+  },
+  durationText: { fontSize: 10, color: colors.white },
+  body: { padding: spacing.md + 2 },
+  title: { marginBottom: spacing.xs, lineHeight: 16 },
+  description: { marginBottom: spacing.xs, lineHeight: 14 },
+  date: { marginTop: spacing.xs },
+});

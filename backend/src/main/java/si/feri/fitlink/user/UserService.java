@@ -56,9 +56,17 @@ public class UserService {
         userRepo.save(user);
     }
 
+    public void setExpoPushToken(String firebaseUid, String token) {
+        User user = getByFirebaseUid(firebaseUid);
+        user.setExpoPushToken(token);
+        user.setUpdatedAt(Instant.now());
+        userRepo.save(user);
+    }
+
     public void clearFcmToken(String firebaseUid) {
         User user = getByFirebaseUid(firebaseUid);
         user.setFcmToken(null);
+        user.setExpoPushToken(null);
         user.setUpdatedAt(Instant.now());
         userRepo.save(user);
     }

@@ -28,6 +28,7 @@ public class User {
     private UserProfile profile;
     private TrainerInfo trainer;
     private String fcmToken;
+    private String expoPushToken;
     private String avatarUrl;
     private List<String> savedCourseIds;
 

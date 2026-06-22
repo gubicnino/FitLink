@@ -1,42 +1,112 @@
 {
   "expo": {
-    "name": "mobile-app",
-    "slug": "mobile-app",
+    "name": "FitLink",
+    "slug": "fitlink",
+    "scheme": "fitlink",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "mobileapp",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
-    "ios": {
-      "supportsTablet": true
-    },
     "android": {
+      "package": "si.feri.fitlink",
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
         "backgroundImage": "./assets/images/android-icon-background.png",
-        "monochromeImage": "./assets/images/android-icon-monochrome.png"
+        "backgroundColor": "#E6F4FE"
       },
       "edgeToEdgeEnabled": true,
-      "predictiveBackGestureEnabled": false
+      "permissions": [
+        "android.permission.CAMERA",
+        "android.permission.READ_MEDIA_IMAGES",
+        "android.permission.POST_NOTIFICATIONS",
+        "android.permission.VIBRATE",
+        "android.permission.health.READ_STEPS",
+        "android.permission.health.WRITE_STEPS",
+        "android.permission.health.READ_HEART_RATE",
+        "android.permission.health.WRITE_HEART_RATE",
+        "android.permission.health.READ_WEIGHT",
+        "android.permission.health.WRITE_WEIGHT",
+        "android.permission.health.READ_HEIGHT",
+        "android.permission.health.WRITE_HEIGHT",
+        "android.permission.health.READ_BODY_FAT",
+        "android.permission.health.WRITE_BODY_FAT",
+        "android.permission.health.READ_LEAN_BODY_MASS",
+        "android.permission.health.READ_BASAL_METABOLIC_RATE",
+        "android.permission.health.WRITE_BASAL_METABOLIC_RATE",
+        "android.permission.health.READ_ACTIVE_CALORIES_BURNED",
+        "android.permission.health.WRITE_ACTIVE_CALORIES_BURNED",
+        "android.permission.health.READ_TOTAL_CALORIES_BURNED",
+        "android.permission.health.WRITE_TOTAL_CALORIES_BURNED",
+        "android.permission.health.READ_DISTANCE",
+        "android.permission.health.WRITE_DISTANCE",
+        "android.permission.health.READ_FLOORS_CLIMBED",
+        "android.permission.health.WRITE_FLOORS_CLIMBED",
+        "android.permission.health.READ_ELEVATION_GAINED",
+        "android.permission.health.READ_EXERCISE",
+        "android.permission.health.WRITE_EXERCISE",
+        "android.permission.health.READ_SLEEP",
+        "android.permission.health.WRITE_SLEEP",
+        "android.permission.health.READ_HYDRATION",
+        "android.permission.health.WRITE_HYDRATION",
+        "android.permission.health.READ_NUTRITION",
+        "android.permission.health.READ_BLOOD_PRESSURE",
+        "android.permission.health.WRITE_BLOOD_PRESSURE",
+        "android.permission.health.READ_OXYGEN_SATURATION",
+        "android.permission.health.WRITE_OXYGEN_SATURATION",
+        "android.permission.health.READ_RESPIRATORY_RATE",
+        "android.permission.health.WRITE_RESPIRATORY_RATE",
+        "android.permission.health.READ_BODY_TEMPERATURE",
+        "android.permission.health.WRITE_BODY_TEMPERATURE",
+        "android.permission.health.READ_RESTING_HEART_RATE",
+        "android.permission.health.WRITE_RESTING_HEART_RATE",
+        "android.permission.health.READ_VO2_MAX",
+        "android.permission.health.WRITE_VO2_MAX",
+        "android.permission.health.READ_POWER",
+        "android.permission.health.READ_SPEED"
+      ]
     },
-    "web": {
-      "output": "static",
-      "favicon": "./assets/images/favicon.png"
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "si.feri.fitlink",
+      "infoPlist": {
+        "NSCameraUsageDescription": "FitLink needs camera access for check-in photos.",
+        "NSPhotoLibraryUsageDescription": "FitLink needs photo library access for check-in photos."
+      }
     },
     "plugins": [
       "expo-router",
+      "expo-font",
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/images/icon.png",
+          "color": "#3B82F6",
+          "androidMode": "default",
+          "androidCollapsedTitle": "FitLink"
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "FitLink needs photo library access for check-in photos.",
+          "cameraPermission": "FitLink needs camera access for check-in photos."
+        }
+      ],
+      [
+        "expo-build-properties",
+        {
+          "android": { "minSdkVersion": 26 }
+        }
+      ],
+      ["react-native-health-connect", { "healthConnectVersion": "1.1.0-alpha11" }],
       [
         "expo-splash-screen",
         {
           "image": "./assets/images/splash-icon.png",
           "imageWidth": 200,
           "resizeMode": "contain",
-          "backgroundColor": "#ffffff",
-          "dark": {
-            "backgroundColor": "#000000"
-          }
+          "backgroundColor": "#ffffff"
         }
       ]
     ],
