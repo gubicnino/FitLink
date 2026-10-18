@@ -150,6 +150,11 @@ public class VideoCallService {
     }
 
     public List<VideoCallRequest> listForConversation(String conversationId, String userId) {
+        Conversation conv = conversationRepo.findById(conversationId)
+            .orElseThrow(() -> new ResourceNotFoundException("Conversation not found"));
+        if (conv.getParticipantIds() == null || !conv.getParticipantIds().contains(userId)) {
+            throw new AccessDeniedException("Not a participant of this conversation");
+        }
         return repo.findByConversationIdOrderByScheduledForDesc(conversationId);
     }
 
