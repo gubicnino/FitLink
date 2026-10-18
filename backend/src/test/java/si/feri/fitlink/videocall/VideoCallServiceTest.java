@@ -2,12 +2,13 @@ package si.feri.fitlink.videocall;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.within;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -20,6 +21,9 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -28,6 +32,8 @@ import org.springframework.security.access.AccessDeniedException;
 
 import si.feri.fitlink.chat.domain.Conversation;
 import si.feri.fitlink.chat.domain.Message;
+import si.feri.fitlink.chat.domain.MessageType;
+import si.feri.fitlink.chat.event.ChatMessageSentEvent;
 import si.feri.fitlink.chat.repo.ConversationRepository;
 import si.feri.fitlink.chat.repo.MessageRepository;
 import si.feri.fitlink.common.NotificationService;
@@ -66,44 +72,72 @@ class VideoCallServiceTest {
     // ---------- schedule() ----------
 
     @Test
-    @DisplayName("schedule() with instant=true creates a LIVE call without scheduledFor input")
+    @DisplayName("schedule() with instant=true creates a LIVE call starting now, with a Jitsi room for the coaching")
     void schedule_instant_createsLiveCall() {
-        when(conversationRepo.findById(CONVERSATION_ID)).thenReturn(Optional.of(conv));
-        when(repo.save(any(VideoCallRequest.class))).thenAnswer(inv -> {
-            VideoCallRequest v = inv.getArgument(0);
-            if (v.getId() == null) v.setId("generated-id");
-            return v;
-        });
-        when(messageRepo.save(any(Message.class))).thenAnswer(inv -> inv.getArgument(0));
+        stubScheduleHappyPath("generated-id");
+        Instant before = Instant.now();
 
         VideoCallRequest result = service.schedule(TRAINER_ID, CONVERSATION_ID, null, true);
 
         assertThat(result.getStatus()).isEqualTo(VideoCallStatus.LIVE);
         assertThat(result.getTrainerId()).isEqualTo(TRAINER_ID);
         assertThat(result.getTraineeId()).isEqualTo(TRAINEE_ID);
-        assertThat(result.getMeetingUrl()).startsWith("https://meet.jit.si/fitlink-");
+        assertThat(result.getScheduledByUserId()).isEqualTo(TRAINER_ID);
+        assertThat(result.getCoachingId()).isEqualTo(COACHING_ID);
+        assertThat(result.getScheduledFor()).isBetween(before, Instant.now());
+        // coaching id is stripped of non-alphanumerics, followed by a random UUID room id
+        assertThat(result.getMeetingUrl())
+            .matches("https://meet\\.jit\\.si/fitlink-coaching1-[0-9a-f\\-]{36}");
         verify(notifications).notifyVideoCallScheduled(
-            eq(TRAINEE_ID), any(), eq(CONVERSATION_ID), anyString(), eq(true));
+            eq(TRAINEE_ID), any(), eq(CONVERSATION_ID), eq("generated-id"), eq(true));
     }
 
     @Test
-    @DisplayName("schedule() with future timestamp creates PENDING call")
+    @DisplayName("schedule() posts a SYSTEM chat message and publishes it to both participants")
+    void schedule_emitsSystemMessage() {
+        stubScheduleHappyPath("generated-id");
+
+        service.schedule(TRAINER_ID, CONVERSATION_ID, null, true);
+
+        ArgumentCaptor<Message> msg = ArgumentCaptor.forClass(Message.class);
+        verify(messageRepo).save(msg.capture());
+        assertThat(msg.getValue().getType()).isEqualTo(MessageType.SYSTEM);
+        assertThat(msg.getValue().getConversationId()).isEqualTo(CONVERSATION_ID);
+        assertThat(msg.getValue().getSystemEvent()).isEqualTo("video_call:generated-id:scheduled");
+        assertThat(msg.getValue().getText()).isEqualTo("Video call started — tap to join");
+
+        ArgumentCaptor<ChatMessageSentEvent> event = ArgumentCaptor.forClass(ChatMessageSentEvent.class);
+        verify(events).publishEvent(event.capture());
+        assertThat(event.getValue().recipientUserIds()).containsExactlyInAnyOrder(TRAINER_ID, TRAINEE_ID);
+    }
+
+    @Test
+    @DisplayName("schedule() with future timestamp creates a PENDING call at that time")
     void schedule_future_createsPendingCall() {
         Instant future = Instant.now().plus(1, ChronoUnit.HOURS);
-        when(conversationRepo.findById(CONVERSATION_ID)).thenReturn(Optional.of(conv));
-        when(repo.save(any(VideoCallRequest.class))).thenAnswer(inv -> {
-            VideoCallRequest v = inv.getArgument(0);
-            if (v.getId() == null) v.setId("generated-id-2");
-            return v;
-        });
-        when(messageRepo.save(any(Message.class))).thenAnswer(inv -> inv.getArgument(0));
+        stubScheduleHappyPath("generated-id-2");
 
         VideoCallRequest result = service.schedule(TRAINER_ID, CONVERSATION_ID, future, false);
 
         assertThat(result.getStatus()).isEqualTo(VideoCallStatus.PENDING);
         assertThat(result.getScheduledFor()).isEqualTo(future);
         verify(notifications).notifyVideoCallScheduled(
-            eq(TRAINEE_ID), any(), eq(CONVERSATION_ID), anyString(), eq(false));
+            eq(TRAINEE_ID), any(), eq(CONVERSATION_ID), eq("generated-id-2"), eq(false));
+    }
+
+    @Test
+    @DisplayName("schedule() still succeeds when the chat system message cannot be stored")
+    void schedule_messageFailure_doesNotBreakScheduling() {
+        when(conversationRepo.findById(CONVERSATION_ID)).thenReturn(Optional.of(conv));
+        when(repo.save(any(VideoCallRequest.class))).thenAnswer(inv -> inv.getArgument(0));
+        when(messageRepo.save(any(Message.class))).thenThrow(new RuntimeException("mongo down"));
+
+        VideoCallRequest result = service.schedule(TRAINER_ID, CONVERSATION_ID, null, true);
+
+        assertThat(result.getStatus()).isEqualTo(VideoCallStatus.LIVE);
+        verify(events, never()).publishEvent(any());
+        verify(notifications).notifyVideoCallScheduled(
+            eq(TRAINEE_ID), any(), eq(CONVERSATION_ID), any(), eq(true));
     }
 
     @Test
@@ -124,6 +158,7 @@ class VideoCallServiceTest {
         assertThatThrownBy(() -> service.schedule("stranger-uid", CONVERSATION_ID, null, true))
             .isInstanceOf(AccessDeniedException.class);
         verify(repo, never()).save(any());
+        verify(notifications, never()).notifyVideoCallScheduled(any(), any(), any(), any(), anyBoolean());
     }
 
     @Test
@@ -132,13 +167,7 @@ class VideoCallServiceTest {
         User trainer = new User();
         trainer.setFirebaseUid(TRAINER_ID);
         trainer.setDisplayName("Coach Carter");
-        when(conversationRepo.findById(CONVERSATION_ID)).thenReturn(Optional.of(conv));
-        when(repo.save(any(VideoCallRequest.class))).thenAnswer(inv -> {
-            VideoCallRequest v = inv.getArgument(0);
-            if (v.getId() == null) v.setId("generated-id-3");
-            return v;
-        });
-        when(messageRepo.save(any(Message.class))).thenAnswer(inv -> inv.getArgument(0));
+        stubScheduleHappyPath("generated-id-3");
         when(userRepo.findByFirebaseUid(TRAINER_ID)).thenReturn(Optional.of(trainer));
 
         service.schedule(TRAINER_ID, CONVERSATION_ID, null, true);
@@ -153,14 +182,13 @@ class VideoCallServiceTest {
     @DisplayName("accept() transitions PENDING → ACCEPTED for the trainee")
     void accept_pending_transitionsToAccepted() {
         VideoCallRequest call = pendingCall();
-        when(repo.findById(call.getId())).thenReturn(Optional.of(call));
-        when(repo.save(any(VideoCallRequest.class))).thenAnswer(inv -> inv.getArgument(0));
-        when(conversationRepo.findById(CONVERSATION_ID)).thenReturn(Optional.of(conv));
+        stubDecisionHappyPath(call);
 
         VideoCallRequest result = service.accept(call.getId(), TRAINEE_ID);
 
         assertThat(result.getStatus()).isEqualTo(VideoCallStatus.ACCEPTED);
         assertThat(result.getDecidedAt()).isNotNull();
+        verify(repo).save(call);
     }
 
     @Test
@@ -174,26 +202,27 @@ class VideoCallServiceTest {
         verify(repo, never()).save(any());
     }
 
-    @Test
-    @DisplayName("accept() on already-ACCEPTED call throws IllegalStateException")
-    void accept_alreadyAccepted_throws() {
+    @ParameterizedTest(name = "accept() on {0} call is rejected")
+    @EnumSource(value = VideoCallStatus.class, names = "PENDING", mode = EnumSource.Mode.EXCLUDE)
+    @DisplayName("accept() only works on PENDING calls")
+    void accept_notPending_throws(VideoCallStatus status) {
         VideoCallRequest call = pendingCall();
-        call.setStatus(VideoCallStatus.ACCEPTED);
+        call.setStatus(status);
         when(repo.findById(call.getId())).thenReturn(Optional.of(call));
 
         assertThatThrownBy(() -> service.accept(call.getId(), TRAINEE_ID))
             .isInstanceOf(IllegalStateException.class);
+        assertThat(call.getStatus()).isEqualTo(status);
+        verify(repo, never()).save(any());
     }
 
     @Test
-    @DisplayName("accept() on EXPIRED call throws IllegalStateException")
-    void accept_expired_throws() {
-        VideoCallRequest call = pendingCall();
-        call.setStatus(VideoCallStatus.EXPIRED);
-        when(repo.findById(call.getId())).thenReturn(Optional.of(call));
+    @DisplayName("accept() on missing call throws ResourceNotFound")
+    void accept_missing_throws() {
+        when(repo.findById("nope")).thenReturn(Optional.empty());
 
-        assertThatThrownBy(() -> service.accept(call.getId(), TRAINEE_ID))
-            .isInstanceOf(IllegalStateException.class);
+        assertThatThrownBy(() -> service.accept("nope", TRAINEE_ID))
+            .isInstanceOf(ResourceNotFoundException.class);
     }
 
     // ---------- decline() ----------
@@ -202,56 +231,81 @@ class VideoCallServiceTest {
     @DisplayName("decline() transitions PENDING → DECLINED and stores the reason")
     void decline_storesReason() {
         VideoCallRequest call = pendingCall();
-        when(repo.findById(call.getId())).thenReturn(Optional.of(call));
-        when(repo.save(any(VideoCallRequest.class))).thenAnswer(inv -> inv.getArgument(0));
-        when(conversationRepo.findById(CONVERSATION_ID)).thenReturn(Optional.of(conv));
+        stubDecisionHappyPath(call);
 
         VideoCallRequest result = service.decline(call.getId(), TRAINEE_ID, "Busy at gym");
 
         assertThat(result.getStatus()).isEqualTo(VideoCallStatus.DECLINED);
+        assertThat(result.getDecidedAt()).isNotNull();
         assertThat(result.getDeclineReason()).isEqualTo("Busy at gym");
     }
 
     @Test
-    @DisplayName("decline() truncates reasons longer than 280 chars")
+    @DisplayName("decline() keeps a reason of exactly 280 chars and truncates longer ones to the first 280")
     void decline_truncatesLongReason() {
-        VideoCallRequest call = pendingCall();
-        String longReason = "x".repeat(500);
-        when(repo.findById(call.getId())).thenReturn(Optional.of(call));
-        when(repo.save(any(VideoCallRequest.class))).thenAnswer(inv -> inv.getArgument(0));
-        when(conversationRepo.findById(CONVERSATION_ID)).thenReturn(Optional.of(conv));
+        String exact = "a".repeat(280);
+        String tooLong = "b".repeat(280) + "TAIL";
 
-        VideoCallRequest result = service.decline(call.getId(), TRAINEE_ID, longReason);
+        VideoCallRequest first = pendingCall();
+        stubDecisionHappyPath(first);
+        assertThat(service.decline(first.getId(), TRAINEE_ID, exact).getDeclineReason()).isEqualTo(exact);
 
-        assertThat(result.getDeclineReason()).hasSize(280);
+        VideoCallRequest second = pendingCall();
+        second.setId("call-2");
+        when(repo.findById("call-2")).thenReturn(Optional.of(second));
+        assertThat(service.decline("call-2", TRAINEE_ID, tooLong).getDeclineReason())
+            .isEqualTo("b".repeat(280));
     }
 
     @Test
     @DisplayName("decline() with blank reason leaves declineReason null")
     void decline_blankReason_ignored() {
         VideoCallRequest call = pendingCall();
-        when(repo.findById(call.getId())).thenReturn(Optional.of(call));
-        when(repo.save(any(VideoCallRequest.class))).thenAnswer(inv -> inv.getArgument(0));
-        when(conversationRepo.findById(CONVERSATION_ID)).thenReturn(Optional.of(conv));
+        stubDecisionHappyPath(call);
 
         VideoCallRequest result = service.decline(call.getId(), TRAINEE_ID, "   ");
 
         assertThat(result.getDeclineReason()).isNull();
     }
 
-    // ---------- cancel() ----------
-
     @Test
-    @DisplayName("cancel() by trainer on PENDING call transitions to CANCELLED")
-    void cancel_pending_byTrainer_ok() {
+    @DisplayName("decline() by trainer throws AccessDenied")
+    void decline_byTrainer_throws() {
         VideoCallRequest call = pendingCall();
         when(repo.findById(call.getId())).thenReturn(Optional.of(call));
-        when(repo.save(any(VideoCallRequest.class))).thenAnswer(inv -> inv.getArgument(0));
-        when(conversationRepo.findById(CONVERSATION_ID)).thenReturn(Optional.of(conv));
+
+        assertThatThrownBy(() -> service.decline(call.getId(), TRAINER_ID, "no"))
+            .isInstanceOf(AccessDeniedException.class);
+        verify(repo, never()).save(any());
+    }
+
+    @ParameterizedTest(name = "decline() on {0} call is rejected")
+    @EnumSource(value = VideoCallStatus.class, names = "PENDING", mode = EnumSource.Mode.EXCLUDE)
+    @DisplayName("decline() only works on PENDING calls")
+    void decline_notPending_throws(VideoCallStatus status) {
+        VideoCallRequest call = pendingCall();
+        call.setStatus(status);
+        when(repo.findById(call.getId())).thenReturn(Optional.of(call));
+
+        assertThatThrownBy(() -> service.decline(call.getId(), TRAINEE_ID, "no"))
+            .isInstanceOf(IllegalStateException.class);
+        verify(repo, never()).save(any());
+    }
+
+    // ---------- cancel() ----------
+
+    @ParameterizedTest(name = "cancel() on {0} call → CANCELLED")
+    @EnumSource(value = VideoCallStatus.class, names = {"PENDING", "LIVE"})
+    @DisplayName("cancel() by trainer works on PENDING and LIVE calls")
+    void cancel_byTrainer_ok(VideoCallStatus status) {
+        VideoCallRequest call = pendingCall();
+        call.setStatus(status);
+        stubDecisionHappyPath(call);
 
         VideoCallRequest result = service.cancel(call.getId(), TRAINER_ID);
 
         assertThat(result.getStatus()).isEqualTo(VideoCallStatus.CANCELLED);
+        assertThat(result.getDecidedAt()).isNotNull();
     }
 
     @Test
@@ -265,29 +319,18 @@ class VideoCallServiceTest {
         verify(repo, never()).save(any());
     }
 
-    @Test
-    @DisplayName("cancel() on already-DECLINED call throws IllegalStateException")
-    void cancel_declined_throws() {
+    @ParameterizedTest(name = "cancel() on finished {0} call is rejected")
+    @EnumSource(value = VideoCallStatus.class, names = {"DECLINED", "CANCELLED", "EXPIRED", "COMPLETED"})
+    @DisplayName("cancel() on an already finished call throws IllegalStateException")
+    void cancel_finished_throws(VideoCallStatus status) {
         VideoCallRequest call = pendingCall();
-        call.setStatus(VideoCallStatus.DECLINED);
+        call.setStatus(status);
         when(repo.findById(call.getId())).thenReturn(Optional.of(call));
 
         assertThatThrownBy(() -> service.cancel(call.getId(), TRAINER_ID))
             .isInstanceOf(IllegalStateException.class);
-    }
-
-    @Test
-    @DisplayName("cancel() works on LIVE call (instant in-progress)")
-    void cancel_live_ok() {
-        VideoCallRequest call = pendingCall();
-        call.setStatus(VideoCallStatus.LIVE);
-        when(repo.findById(call.getId())).thenReturn(Optional.of(call));
-        when(repo.save(any(VideoCallRequest.class))).thenAnswer(inv -> inv.getArgument(0));
-        when(conversationRepo.findById(CONVERSATION_ID)).thenReturn(Optional.of(conv));
-
-        VideoCallRequest result = service.cancel(call.getId(), TRAINER_ID);
-
-        assertThat(result.getStatus()).isEqualTo(VideoCallStatus.CANCELLED);
+        assertThat(call.getStatus()).isEqualTo(status);
+        verify(repo, never()).save(any());
     }
 
     // ---------- get() ----------
@@ -320,10 +363,56 @@ class VideoCallServiceTest {
             .isInstanceOf(AccessDeniedException.class);
     }
 
+    // ---------- listForConversation() ----------
+
+    @Test
+    @DisplayName("listForConversation() returns the calls of the conversation to a participant")
+    void listForConversation_participant_ok() {
+        VideoCallRequest call = pendingCall();
+        lenient().when(conversationRepo.findById(CONVERSATION_ID)).thenReturn(Optional.of(conv));
+        when(repo.findByConversationIdOrderByScheduledForDesc(CONVERSATION_ID)).thenReturn(List.of(call));
+
+        assertThat(service.listForConversation(CONVERSATION_ID, TRAINEE_ID)).containsExactly(call);
+    }
+
+    @Test
+    @DisplayName("listForConversation() by a non-participant throws AccessDenied")
+    void listForConversation_stranger_throws() {
+        lenient().when(conversationRepo.findById(CONVERSATION_ID)).thenReturn(Optional.of(conv));
+        lenient().when(repo.findByConversationIdOrderByScheduledForDesc(CONVERSATION_ID))
+            .thenReturn(List.of(pendingCall()));
+
+        assertThatThrownBy(() -> service.listForConversation(CONVERSATION_ID, "stranger-uid"))
+            .isInstanceOf(AccessDeniedException.class);
+    }
+
+    // ---------- windowForUser() ----------
+
+    @Test
+    @DisplayName("windowForUser() merges calls as trainee and as trainer without duplicates")
+    void windowForUser_mergesWithoutDuplicates() {
+        Instant from = Instant.now();
+        Instant to = from.plus(7, ChronoUnit.DAYS);
+        VideoCallRequest shared = pendingCall();
+        VideoCallRequest asTraineeOnly = pendingCall();
+        asTraineeOnly.setId("call-trainee");
+        VideoCallRequest asTrainerOnly = pendingCall();
+        asTrainerOnly.setId("call-trainer");
+        when(repo.findByTraineeIdAndScheduledForBetweenOrderByScheduledForAsc("u", from, to))
+            .thenReturn(List.of(shared, asTraineeOnly));
+        when(repo.findByTrainerIdAndScheduledForBetweenOrderByScheduledForAsc("u", from, to))
+            .thenReturn(List.of(shared, asTrainerOnly));
+
+        List<VideoCallRequest> result = service.windowForUser("u", from, to);
+
+        assertThat(result).extracting(VideoCallRequest::getId)
+            .containsExactlyInAnyOrder("call-1", "call-trainee", "call-trainer");
+    }
+
     // ---------- sweepStale() ----------
 
     @Test
-    @DisplayName("sweepStale() expires PENDING calls whose scheduledFor has passed")
+    @DisplayName("sweepStale() expires PENDING calls scheduled before now and posts an 'expired' message")
     void sweep_expiresPastPending() {
         VideoCallRequest stale = pendingCall();
         stale.setScheduledFor(Instant.now().minus(10, ChronoUnit.MINUTES));
@@ -332,18 +421,27 @@ class VideoCallServiceTest {
         when(repo.findByStatusInAndScheduledForBefore(
             eq(List.of(VideoCallStatus.ACCEPTED, VideoCallStatus.LIVE)), any()))
             .thenReturn(List.of());
-        when(repo.save(any(VideoCallRequest.class))).thenAnswer(inv -> inv.getArgument(0));
         when(conversationRepo.findById(CONVERSATION_ID)).thenReturn(Optional.of(conv));
+        Instant before = Instant.now();
 
         int touched = service.sweepStale();
 
         assertThat(touched).isEqualTo(1);
         assertThat(stale.getStatus()).isEqualTo(VideoCallStatus.EXPIRED);
         assertThat(stale.getDecidedAt()).isNotNull();
+        verify(repo).save(stale);
+
+        ArgumentCaptor<Instant> pendingCutoff = ArgumentCaptor.forClass(Instant.class);
+        verify(repo).findByStatusInAndScheduledForBefore(eq(List.of(VideoCallStatus.PENDING)), pendingCutoff.capture());
+        assertThat(pendingCutoff.getValue()).isBetween(before, Instant.now());
+
+        ArgumentCaptor<Message> msg = ArgumentCaptor.forClass(Message.class);
+        verify(messageRepo).save(msg.capture());
+        assertThat(msg.getValue().getSystemEvent()).isEqualTo("video_call:call-1:expired");
     }
 
     @Test
-    @DisplayName("sweepStale() completes ACCEPTED/LIVE calls older than 2 hours")
+    @DisplayName("sweepStale() completes ACCEPTED/LIVE calls whose start is more than 2 hours ago")
     void sweep_completesOldAccepted() {
         VideoCallRequest old = pendingCall();
         old.setStatus(VideoCallStatus.ACCEPTED);
@@ -353,13 +451,19 @@ class VideoCallServiceTest {
         when(repo.findByStatusInAndScheduledForBefore(
             eq(List.of(VideoCallStatus.ACCEPTED, VideoCallStatus.LIVE)), any()))
             .thenReturn(List.of(old));
-        when(repo.save(any(VideoCallRequest.class))).thenAnswer(inv -> inv.getArgument(0));
 
         int touched = service.sweepStale();
 
         assertThat(touched).isEqualTo(1);
         assertThat(old.getStatus()).isEqualTo(VideoCallStatus.COMPLETED);
         assertThat(old.getCompletedAt()).isNotNull();
+        verify(repo).save(old);
+
+        ArgumentCaptor<Instant> completedCutoff = ArgumentCaptor.forClass(Instant.class);
+        verify(repo).findByStatusInAndScheduledForBefore(
+            eq(List.of(VideoCallStatus.ACCEPTED, VideoCallStatus.LIVE)), completedCutoff.capture());
+        assertThat(completedCutoff.getValue())
+            .isCloseTo(Instant.now().minus(2, ChronoUnit.HOURS), within(5, ChronoUnit.SECONDS));
     }
 
     @Test
@@ -372,6 +476,22 @@ class VideoCallServiceTest {
     }
 
     // ---------- helpers ----------
+
+    private void stubScheduleHappyPath(String generatedId) {
+        when(conversationRepo.findById(CONVERSATION_ID)).thenReturn(Optional.of(conv));
+        when(repo.save(any(VideoCallRequest.class))).thenAnswer(inv -> {
+            VideoCallRequest v = inv.getArgument(0);
+            if (v.getId() == null) v.setId(generatedId);
+            return v;
+        });
+        when(messageRepo.save(any(Message.class))).thenAnswer(inv -> inv.getArgument(0));
+    }
+
+    private void stubDecisionHappyPath(VideoCallRequest call) {
+        when(repo.findById(call.getId())).thenReturn(Optional.of(call));
+        when(repo.save(any(VideoCallRequest.class))).thenAnswer(inv -> inv.getArgument(0));
+        when(conversationRepo.findById(CONVERSATION_ID)).thenReturn(Optional.of(conv));
+    }
 
     private VideoCallRequest pendingCall() {
         return VideoCallRequest.builder()
