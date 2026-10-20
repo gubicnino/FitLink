@@ -28,6 +28,25 @@ jobs:
           path: backend/target/site/jacoco/
           retention-days: 30
 
+  webapp:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: webapp/package-lock.json
+      - name: Install dependencies
+        working-directory: webapp
+        run: npm ci
+      - name: Lint webapp
+        working-directory: webapp
+        run: npm run lint
+      - name: Type-check and build webapp
+        working-directory: webapp
+        run: npm run build
+
   mobile:
     runs-on: ubuntu-latest
     steps:
@@ -49,4 +68,3 @@ jobs:
       - name: Lint mobile
         working-directory: mobile
         run: npm run lint
-        continue-on-error: true

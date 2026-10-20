@@ -65,8 +65,7 @@ All `.env` files and `firebase-adminsdk*.json` / `google-services.json` are giti
 
 | Workflow             | Trigger       | What it does                                        |
 |----------------------|---------------|-----------------------------------------------------|
-| `ci.yml`             | Pull requests | Backend `mvnw test` + Mobile lint                   |
-| `android.yml`        | Push to `main`| Builds signed release APK, publishes GitHub Release |
-| `backend-deploy.yml` | Push to `main`| Runs backend tests + builds JAR                     |
+| `ci.yml`             | Pull requests | Backend `mvnw test` + Webapp lint/build + Mobile lint |
+| `main-pipeline.yml`  | Push to `main`| Backend tests + JaCoCo report + JAR, then signed release APK + GitHub Release; Webapp lint/build in parallel |
 
 Before pushing: run `./mvnw test` for backend changes and `npm run lint` for frontend changes — CI runs both on PRs.
