@@ -76,6 +76,9 @@ public class TrainerApplicationService {
             if (existing.getStatus() == TrainerApplication.ApplicationStatus.PENDING) {
                 throw new IllegalStateException("Trainer application is already pending");
             }
+            if (existing.getStatus() == TrainerApplication.ApplicationStatus.APPROVED) {
+                throw new IllegalStateException("Trainer application is already approved");
+            }
         });
 
         TrainerApplication application = TrainerApplication.builder()
@@ -217,7 +220,7 @@ public class TrainerApplicationService {
 
         int index = originalFileName.lastIndexOf('.');
         String extension = originalFileName.substring(index).toLowerCase(Locale.ROOT);
-        return extension.isBlank() ? ".pdf" : extension;
+        return extension.length() <= 1 ? ".pdf" : extension;
     }
 
     private String sha256(Path file) throws IOException {

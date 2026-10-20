@@ -6,6 +6,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
@@ -20,9 +21,12 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.mock.web.MockFilterChain;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpServletResponse;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 
+import com.google.firebase.ErrorCode;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseAuthException;
 import com.google.firebase.auth.FirebaseToken;
@@ -58,7 +62,7 @@ class FirebaseAuthFilterTest {
 
     @Test
     @DisplayName("missing Authorization header leaves SecurityContext empty but still calls chain")
-    void noHeader_clearContext_proceedsChain() throws Exception {
+    void noHeader_proceedsChainUnauthenticated() throws Exception {
         filter.doFilter(req, res, chain);
 
         assertThat(SecurityContextHolder.getContext().getAuthentication()).isNull();
@@ -67,32 +71,49 @@ class FirebaseAuthFilterTest {
     }
 
     @Test
-    @DisplayName("non-Bearer Authorization header is ignored (no token verification)")
+    @DisplayName("non-Bearer Authorization header is ignored (no token verification) and chain continues")
     void nonBearer_ignored() throws Exception {
         req.addHeader("Authorization", "Basic dXNlcjpwYXNz");
 
         filter.doFilter(req, res, chain);
 
         assertThat(SecurityContextHolder.getContext().getAuthentication()).isNull();
+        assertThat(chain.getRequest()).isSameAs(req);
         verify(firebaseAuth, never()).verifyIdToken(anyString());
     }
 
     @Test
-    @DisplayName("invalid token clears the SecurityContext and still proceeds")
+    @DisplayName("invalid token clears a previously set authentication and still proceeds")
     void invalidToken_clearsContext() throws Exception {
+        SecurityContextHolder.getContext().setAuthentication(new UsernamePasswordAuthenticationToken(
+            new AuthPrincipal("stale-uid", null, "ADMIN"), null,
+            List.of(new SimpleGrantedAuthority("ROLE_ADMIN"))));
         req.addHeader("Authorization", "Bearer bad-token");
         when(firebaseAuth.verifyIdToken("bad-token"))
-            .thenThrow(new FirebaseAuthException(
-                com.google.firebase.ErrorCode.INVALID_ARGUMENT, "bad", null, null, null));
+            .thenThrow(new FirebaseAuthException(ErrorCode.INVALID_ARGUMENT, "bad", null, null, null));
 
         filter.doFilter(req, res, chain);
 
         assertThat(SecurityContextHolder.getContext().getAuthentication()).isNull();
         assertThat(chain.getRequest()).isSameAs(req);
+        verify(userRepository, never()).findByFirebaseUid(anyString());
     }
 
     @Test
-    @DisplayName("valid token with role claim binds AuthPrincipal with ROLE_TRAINER authority")
+    @DisplayName("token is trimmed before verification")
+    void bearerToken_isTrimmed() throws Exception {
+        req.addHeader("Authorization", "Bearer   good-token  ");
+        when(firebaseAuth.verifyIdToken("good-token")).thenReturn(decoded);
+        when(decoded.getUid()).thenReturn("uid-1");
+        when(decoded.getClaims()).thenReturn(Map.of("role", "TRAINEE"));
+
+        filter.doFilter(req, res, chain);
+
+        assertThat(SecurityContextHolder.getContext().getAuthentication()).isNotNull();
+    }
+
+    @Test
+    @DisplayName("valid token with role claim binds AuthPrincipal with ROLE_TRAINER authority (claim wins over DB)")
     void validToken_withRoleClaim_setsAuthority() throws Exception {
         req.addHeader("Authorization", "Bearer good-token");
         when(firebaseAuth.verifyIdToken("good-token")).thenReturn(decoded);
@@ -104,6 +125,7 @@ class FirebaseAuthFilterTest {
 
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
         assertThat(auth).isNotNull();
+        assertThat(auth.isAuthenticated()).isTrue();
         AuthPrincipal principal = (AuthPrincipal) auth.getPrincipal();
         assertThat(principal.uid()).isEqualTo("uid-1");
         assertThat(principal.email()).isEqualTo("t@x.com");
@@ -111,6 +133,7 @@ class FirebaseAuthFilterTest {
         assertThat(auth.getAuthorities()).extracting(Object::toString)
             .containsExactly("ROLE_TRAINER");
         verify(userRepository, never()).findByFirebaseUid(anyString());
+        assertThat(chain.getRequest()).isSameAs(req);
     }
 
     @Test
@@ -121,16 +144,33 @@ class FirebaseAuthFilterTest {
         when(decoded.getUid()).thenReturn("uid-2");
         when(decoded.getEmail()).thenReturn("u@x.com");
         when(decoded.getClaims()).thenReturn(Map.of());
-        User u = User.builder().id("u1").firebaseUid("uid-2").role(Role.TRAINEE).build();
+        User u = User.builder().id("u1").firebaseUid("uid-2").role(Role.ADMIN).build();
         when(userRepository.findByFirebaseUid("uid-2")).thenReturn(Optional.of(u));
 
         filter.doFilter(req, res, chain);
 
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
         AuthPrincipal principal = (AuthPrincipal) auth.getPrincipal();
-        assertThat(principal.role()).isEqualTo("TRAINEE");
+        assertThat(principal.role()).isEqualTo("ADMIN");
         assertThat(auth.getAuthorities()).extracting(Object::toString)
-            .containsExactly("ROLE_TRAINEE");
+            .containsExactly("ROLE_ADMIN");
+    }
+
+    @Test
+    @DisplayName("valid token + no claim + user without role → authenticated but with no authorities")
+    void validToken_noClaim_userWithoutRole_emptyAuthorities() throws Exception {
+        req.addHeader("Authorization", "Bearer good-token");
+        when(firebaseAuth.verifyIdToken("good-token")).thenReturn(decoded);
+        when(decoded.getUid()).thenReturn("uid-4");
+        when(decoded.getClaims()).thenReturn(Map.of());
+        when(userRepository.findByFirebaseUid("uid-4"))
+            .thenReturn(Optional.of(User.builder().firebaseUid("uid-4").build()));
+
+        filter.doFilter(req, res, chain);
+
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        assertThat(((AuthPrincipal) auth.getPrincipal()).role()).isNull();
+        assertThat(auth.getAuthorities()).isEmpty();
     }
 
     @Test
@@ -148,6 +188,7 @@ class FirebaseAuthFilterTest {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
         assertThat(auth).isNotNull();
         AuthPrincipal principal = (AuthPrincipal) auth.getPrincipal();
+        assertThat(principal.uid()).isEqualTo("uid-3");
         assertThat(principal.role()).isNull();
         assertThat(auth.getAuthorities()).isEmpty();
     }

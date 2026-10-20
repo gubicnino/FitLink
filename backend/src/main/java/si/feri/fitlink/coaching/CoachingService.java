@@ -70,6 +70,8 @@ public class CoachingService {
                 .orElseThrow(() -> new ResourceNotFoundException("Coaching not found"));
         if (!coaching.getTrainerId().equals(trainerId))
             throw new AccessDeniedException("Not your request");
+        if (coaching.getStatus() != CoachingStatus.PENDING)
+            throw new IllegalStateException("Only pending requests can be accepted");
 
         coaching.setStatus(CoachingStatus.ACTIVE);
         coaching.setStartedAt(Instant.now());
@@ -91,6 +93,8 @@ public class CoachingService {
 
         if (!coaching.getTrainerId().equals(trainerId))
             throw new AccessDeniedException("Not your request");
+        if (coaching.getStatus() != CoachingStatus.PENDING)
+            throw new IllegalStateException("Only pending requests can be rejected");
 
         coaching.setStatus(CoachingStatus.REJECTED);
         return coachingRepo.save(coaching);

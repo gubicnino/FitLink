@@ -1,5 +1,6 @@
 package si.feri.fitlink.common;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyMap;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -36,40 +37,46 @@ class NotificationServiceTest {
     // ---------- notifyCoachingRequest ----------
 
     @Test
-    @DisplayName("notifyCoachingRequest sends FCM to the trainer with trainee display name")
+    @DisplayName("notifyCoachingRequest sends FCM to the trainer with trainee name and coaching deep-link data")
     void notifyCoachingRequest_usesTraineeName() {
-        Coaching coaching = Coaching.builder()
-            .id("c1")
-            .trainerId("trainer-uid")
-            .traineeId("trainee-uid")
-            .build();
-        User trainee = User.builder()
-            .firebaseUid("trainee-uid")
-            .displayName("Alice")
-            .role(Role.TRAINEE)
-            .build();
-        when(userRepo.findByFirebaseUid("trainee-uid")).thenReturn(Optional.of(trainee));
+        when(userRepo.findByFirebaseUid("trainee-uid"))
+            .thenReturn(Optional.of(user("trainee-uid", "Alice", Role.TRAINEE)));
 
-        service.notifyCoachingRequest(coaching);
+        service.notifyCoachingRequest(coaching());
 
+        ArgumentCaptor<Map<String, String>> data = dataCaptor();
         verify(fcm).sendToUser(
             eq("trainer-uid"),
             eq("New coaching request"),
             contains("Alice"),
+            data.capture());
+        assertThat(data.getValue()).containsExactlyInAnyOrderEntriesOf(Map.of(
+            "route", "coaching",
+            "type", "coaching_request",
+            "coachingId", "c1"));
+    }
+
+    @Test
+    @DisplayName("notifyCoachingRequest falls back to default name when trainee is not in the database")
+    void notifyCoachingRequest_unknownTrainee_fallbackName() {
+        when(userRepo.findByFirebaseUid("trainee-uid")).thenReturn(Optional.empty());
+
+        service.notifyCoachingRequest(coaching());
+
+        verify(fcm).sendToUser(
+            eq("trainer-uid"),
+            eq("New coaching request"),
+            contains("A new trainee"),
             anyMap());
     }
 
     @Test
-    @DisplayName("notifyCoachingRequest falls back to default name when trainee has no display name")
-    void notifyCoachingRequest_fallbackName() {
-        Coaching coaching = Coaching.builder()
-            .id("c1")
-            .trainerId("trainer-uid")
-            .traineeId("trainee-uid")
-            .build();
-        when(userRepo.findByFirebaseUid("trainee-uid")).thenReturn(Optional.empty());
+    @DisplayName("notifyCoachingRequest falls back to default name when trainee display name is blank")
+    void notifyCoachingRequest_blankName_fallbackName() {
+        when(userRepo.findByFirebaseUid("trainee-uid"))
+            .thenReturn(Optional.of(user("trainee-uid", "   ", Role.TRAINEE)));
 
-        service.notifyCoachingRequest(coaching);
+        service.notifyCoachingRequest(coaching());
 
         verify(fcm).sendToUser(
             eq("trainer-uid"),
@@ -88,7 +95,7 @@ class NotificationServiceTest {
     @Test
     @DisplayName("notifyCoachingRequest no-ops when trainer id is null")
     void notifyCoachingRequest_nullTrainer_noop() {
-        Coaching coaching = Coaching.builder().id("c1").build();
+        Coaching coaching = Coaching.builder().id("c1").traineeId("trainee-uid").build();
         service.notifyCoachingRequest(coaching);
         verify(fcm, never()).sendToUser(any(), any(), any(), any());
     }
@@ -96,26 +103,36 @@ class NotificationServiceTest {
     // ---------- notifyCoachingAccepted ----------
 
     @Test
-    @DisplayName("notifyCoachingAccepted sends FCM to the trainee with trainer name")
+    @DisplayName("notifyCoachingAccepted sends FCM to the trainee with trainer name and deep-link data")
     void notifyCoachingAccepted_usesTrainerName() {
-        Coaching coaching = Coaching.builder()
-            .id("c1")
-            .trainerId("trainer-uid")
-            .traineeId("trainee-uid")
-            .build();
-        User trainer = User.builder()
-            .firebaseUid("trainer-uid")
-            .displayName("Coach Carter")
-            .role(Role.TRAINER)
-            .build();
-        when(userRepo.findByFirebaseUid("trainer-uid")).thenReturn(Optional.of(trainer));
+        when(userRepo.findByFirebaseUid("trainer-uid"))
+            .thenReturn(Optional.of(user("trainer-uid", "Coach Carter", Role.TRAINER)));
 
-        service.notifyCoachingAccepted(coaching);
+        service.notifyCoachingAccepted(coaching());
 
+        ArgumentCaptor<Map<String, String>> data = dataCaptor();
         verify(fcm).sendToUser(
             eq("trainee-uid"),
             eq("Coaching accepted"),
             contains("Coach Carter"),
+            data.capture());
+        assertThat(data.getValue()).containsExactlyInAnyOrderEntriesOf(Map.of(
+            "route", "coaching",
+            "type", "coaching_accepted",
+            "coachingId", "c1"));
+    }
+
+    @Test
+    @DisplayName("notifyCoachingAccepted falls back to 'Your trainer' when trainer is unknown")
+    void notifyCoachingAccepted_unknownTrainer_fallbackName() {
+        when(userRepo.findByFirebaseUid("trainer-uid")).thenReturn(Optional.empty());
+
+        service.notifyCoachingAccepted(coaching());
+
+        verify(fcm).sendToUser(
+            eq("trainee-uid"),
+            eq("Coaching accepted"),
+            contains("Your trainer"),
             anyMap());
     }
 
@@ -130,48 +147,59 @@ class NotificationServiceTest {
     // ---------- notifyChatMessage ----------
 
     @Test
-    @DisplayName("notifyChatMessage uses sender name as title and preview as body")
+    @DisplayName("notifyChatMessage uses sender name as title, preview as body and chat deep-link data")
     void notifyChatMessage_normalCase() {
         service.notifyChatMessage("recipient", "Bob", "Hey there", "conv-1");
 
-        ArgumentCaptor<Map<String, String>> dataCaptor = dataCaptor();
-        verify(fcm).sendToUser(
-            eq("recipient"),
-            eq("Bob"),
-            eq("Hey there"),
-            dataCaptor.capture());
-        Map<String, String> data = dataCaptor.getValue();
-        assertions(data, "chat", "chat_message", "conv-1", null);
+        ArgumentCaptor<Map<String, String>> data = dataCaptor();
+        verify(fcm).sendToUser(eq("recipient"), eq("Bob"), eq("Hey there"), data.capture());
+        assertThat(data.getValue()).containsExactlyInAnyOrderEntriesOf(Map.of(
+            "route", "chat",
+            "type", "chat_message",
+            "conversationId", "conv-1"));
     }
 
     @Test
-    @DisplayName("notifyChatMessage falls back to defaults when sender/preview missing")
+    @DisplayName("notifyChatMessage falls back to defaults when sender/preview are null")
     void notifyChatMessage_nullsFallback() {
         service.notifyChatMessage("recipient", null, null, "conv-1");
 
-        verify(fcm).sendToUser(
-            eq("recipient"),
-            eq("New message"),
-            eq("Sent you a message"),
-            anyMap());
+        verify(fcm).sendToUser(eq("recipient"), eq("New message"), eq("Sent you a message"), anyMap());
+    }
+
+    @Test
+    @DisplayName("notifyChatMessage falls back to defaults when sender/preview are blank")
+    void notifyChatMessage_blankFallback() {
+        service.notifyChatMessage("recipient", "  ", "   ", "conv-1");
+
+        verify(fcm).sendToUser(eq("recipient"), eq("New message"), eq("Sent you a message"), anyMap());
+    }
+
+    @Test
+    @DisplayName("notifyChatMessage sends an empty conversationId instead of failing when it is null")
+    void notifyChatMessage_nullConversation_emptyId() {
+        service.notifyChatMessage("recipient", "Bob", "Hi", null);
+
+        ArgumentCaptor<Map<String, String>> data = dataCaptor();
+        verify(fcm).sendToUser(eq("recipient"), eq("Bob"), eq("Hi"), data.capture());
+        assertThat(data.getValue()).containsEntry("conversationId", "");
     }
 
     // ---------- notifyVideoCallScheduled ----------
 
     @Test
-    @DisplayName("notifyVideoCallScheduled instant=true uses 'Calling you now' body")
+    @DisplayName("notifyVideoCallScheduled instant=true uses 'Calling you now' body and full call data")
     void notifyVideoCallScheduled_instant() {
         service.notifyVideoCallScheduled("trainee", "Coach", "conv-1", "call-1", true);
 
-        ArgumentCaptor<Map<String, String>> dataCaptor = dataCaptor();
-        verify(fcm).sendToUser(
-            eq("trainee"),
-            eq("Coach"),
-            eq("Calling you now"),
-            dataCaptor.capture());
-        Map<String, String> data = dataCaptor.getValue();
-        assertions(data, "chat", "video_call", "conv-1", "call-1");
-        org.assertj.core.api.Assertions.assertThat(data.get("instant")).isEqualTo("true");
+        ArgumentCaptor<Map<String, String>> data = dataCaptor();
+        verify(fcm).sendToUser(eq("trainee"), eq("Coach"), eq("Calling you now"), data.capture());
+        assertThat(data.getValue()).containsExactlyInAnyOrderEntriesOf(Map.of(
+            "route", "chat",
+            "type", "video_call",
+            "conversationId", "conv-1",
+            "callId", "call-1",
+            "instant", "true"));
     }
 
     @Test
@@ -179,11 +207,9 @@ class NotificationServiceTest {
     void notifyVideoCallScheduled_scheduled() {
         service.notifyVideoCallScheduled("trainee", "Coach", "conv-1", "call-1", false);
 
-        verify(fcm).sendToUser(
-            eq("trainee"),
-            eq("Coach"),
-            eq("Wants to schedule a video call"),
-            anyMap());
+        ArgumentCaptor<Map<String, String>> data = dataCaptor();
+        verify(fcm).sendToUser(eq("trainee"), eq("Coach"), eq("Wants to schedule a video call"), data.capture());
+        assertThat(data.getValue()).containsEntry("instant", "false");
     }
 
     @Test
@@ -191,29 +217,25 @@ class NotificationServiceTest {
     void notifyVideoCallScheduled_nullName() {
         service.notifyVideoCallScheduled("trainee", null, "conv-1", "call-1", true);
 
-        verify(fcm).sendToUser(
-            eq("trainee"),
-            eq("Video call"),
-            anyString(),
-            anyMap());
+        verify(fcm).sendToUser(eq("trainee"), eq("Video call"), anyString(), anyMap());
     }
 
     // ---------- helpers ----------
 
+    private Coaching coaching() {
+        return Coaching.builder()
+            .id("c1")
+            .trainerId("trainer-uid")
+            .traineeId("trainee-uid")
+            .build();
+    }
+
+    private User user(String uid, String name, Role role) {
+        return User.builder().firebaseUid(uid).displayName(name).role(role).build();
+    }
+
     @SuppressWarnings("unchecked")
     private ArgumentCaptor<Map<String, String>> dataCaptor() {
         return ArgumentCaptor.forClass(Map.class);
-    }
-
-    private void assertions(Map<String, String> data, String route, String type,
-                            String conversationId, String callId) {
-        org.assertj.core.api.Assertions.assertThat(data.get("route")).isEqualTo(route);
-        org.assertj.core.api.Assertions.assertThat(data.get("type")).isEqualTo(type);
-        if (conversationId != null) {
-            org.assertj.core.api.Assertions.assertThat(data.get("conversationId")).isEqualTo(conversationId);
-        }
-        if (callId != null) {
-            org.assertj.core.api.Assertions.assertThat(data.get("callId")).isEqualTo(callId);
-        }
     }
 }

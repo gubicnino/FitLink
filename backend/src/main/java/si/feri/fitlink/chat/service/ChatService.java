@@ -213,7 +213,7 @@ public class ChatService {
             if (r == null || r.getReadAt() != null) continue;
             r.setReadAt(now);
             receiptRepo.save(r);
-            if (++updated > 200) break;
+            if (++updated >= 200) break;
         }
 
         for (String uid : conv.getParticipantIds()) {

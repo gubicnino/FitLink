@@ -61,7 +61,7 @@ public class NotificationService {
 
 
     public void notifyChatMessage(String recipientUserId, String senderDisplayName, String preview, String conversationId) {
-        String title = senderDisplayName == null ? "New message" : senderDisplayName;
+        String title = senderDisplayName == null || senderDisplayName.isBlank() ? "New message" : senderDisplayName;
         String body = preview == null || preview.isBlank() ? "Sent you a message" : preview;
         fcm.sendToUser(recipientUserId, title, body, Map.of(
             "route", "chat",
