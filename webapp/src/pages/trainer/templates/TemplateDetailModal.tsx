@@ -13,7 +13,7 @@ import { workoutApi } from '../../../api/workoutApi';
 import Button from '../../../components/ui/Button';
 import LoadingSpinner from '../../../components/ui/LoadingSpinner';
 import SectionHeader from '../../../components/ui/SectionHeader';
-import { useToast } from '../../../components/ui/Toast';
+import { useToast } from '../../../components/ui/useToast';
 import { colors, radii, shadows, spacing, typography } from '../../../theme';
 import type { WorkoutTemplate } from '../../../types/workout';
 
@@ -45,12 +45,20 @@ export default function TemplateDetailModal({
   const [deleting, setDeleting] = useState(false);
   const [expandedIdx, setExpandedIdx] = useState<number | null>(0);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const activeTemplateId = open ? templateId : null;
+  const [prevTemplateId, setPrevTemplateId] = useState<string | null>(null);
+
+  if (activeTemplateId !== prevTemplateId) {
+    setPrevTemplateId(activeTemplateId);
+    if (activeTemplateId) {
+      setLoading(true);
+      setConfirmDelete(false);
+    }
+  }
 
   useEffect(() => {
     if (!open || !templateId) return;
     let cancelled = false;
-    setLoading(true);
-    setConfirmDelete(false);
     (async () => {
       try {
         const t = await workoutApi.getTemplate(templateId);

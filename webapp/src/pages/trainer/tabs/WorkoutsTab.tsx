@@ -1,5 +1,5 @@
 import { ChevronDown, Clock, Dumbbell, MessageSquareText, Plus } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { exerciseApi } from '../../../api/exerciseApi';
 import Button from '../../../components/ui/Button';
 import Card from '../../../components/ui/Card';
@@ -201,11 +201,10 @@ function WorkoutRow({
   const when = session.finishedAt ?? session.startedAt;
   const totalSets = session.exercises.reduce((sum, ex) => sum + ex.sets.length, 0);
 
-  useEffect(() => {
-    if (expanded) onExpand();
-  }, [expanded]);
-
-  const toggle = () => setExpanded((v) => !v);
+  const toggle = () => {
+    if (!expanded) onExpand();
+    setExpanded((v) => !v);
+  };
 
   return (
     <div

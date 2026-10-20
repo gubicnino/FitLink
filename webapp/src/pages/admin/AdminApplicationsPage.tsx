@@ -13,7 +13,7 @@ import HeroStat from '../../components/ui/HeroStat';
 import LoadingSpinner from '../../components/ui/LoadingSpinner';
 import SectionHeader from '../../components/ui/SectionHeader';
 import Tag from '../../components/ui/Tag';
-import { useToast } from '../../components/ui/Toast';
+import { useToast } from '../../components/ui/useToast';
 import { colors, radii, spacing, typography } from '../../theme';
 
 export default function AdminApplicationsPage() {

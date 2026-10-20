@@ -27,6 +27,17 @@ export default function ExercisePickerModal({
   const [loading, setLoading] = useState(false);
   const [picked, setPicked] = useState<Map<string, ExerciseSummary>>(new Map());
   const [facets, setFacets] = useState<string[]>([]);
+  const [wasOpen, setWasOpen] = useState(open);
+
+  // Reset state when closing
+  if (open !== wasOpen) {
+    setWasOpen(open);
+    if (!open) {
+      setPicked(new Map());
+      setQuery('');
+      setCategory(undefined);
+    }
+  }
 
   // Load facets once
   useEffect(() => {
@@ -57,15 +68,6 @@ export default function ExercisePickerModal({
     }, 200);
     return () => window.clearTimeout(handle);
   }, [open, query, category]);
-
-  // Reset state when closing
-  useEffect(() => {
-    if (!open) {
-      setPicked(new Map());
-      setQuery('');
-      setCategory(undefined);
-    }
-  }, [open]);
 
   // ESC closes
   useEffect(() => {

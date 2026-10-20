@@ -5,7 +5,7 @@ import { BrandMark } from '../components/ui/BrandMark';
 import Button from '../components/ui/Button';
 import Divider from '../components/ui/Divider';
 import Input from '../components/ui/Input';
-import { useAuth } from '../context/AuthContext';
+import { useAuth } from '../context/useAuth';
 import { authService } from '../services/authService';
 import { colors, fontFamily, radii, spacing, typography } from '../theme';
 
@@ -39,7 +39,7 @@ export default function LoginPage({
       else if (user.role === 'TRAINER') navigate('/trainer');
       else navigate('/no-access');
     }
-  }, [user]);
+  }, [user, navigate]);
   const handleLogin = async () => {
 
     setError('');

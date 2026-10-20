@@ -2,7 +2,7 @@ import { LogOut, ShieldCheck, Users } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { useState } from 'react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
-import { useAuth } from '../../context/AuthContext';
+import { useAuth } from '../../context/useAuth';
 import { authService } from '../../services/authService';
 import { colors, radii, spacing, typography } from '../../theme';
 import Avatar from '../ui/Avatar';

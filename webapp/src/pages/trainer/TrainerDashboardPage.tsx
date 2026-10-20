@@ -22,8 +22,8 @@ import HeroStat from '../../components/ui/HeroStat';
 import LoadingSpinner from '../../components/ui/LoadingSpinner';
 import SectionHeader from '../../components/ui/SectionHeader';
 import Tag from '../../components/ui/Tag';
-import { useToast } from '../../components/ui/Toast';
-import { useAuth } from '../../context/AuthContext';
+import { useToast } from '../../components/ui/useToast';
+import { useAuth } from '../../context/useAuth';
 import { colors, radii, spacing, typography } from '../../theme';
 import type { Coaching } from '../../types/coaching';
 import type { User } from '../../types/types';
@@ -68,6 +68,8 @@ export default function TrainerDashboardPage() {
   }, [toast]);
 
   useEffect(() => {
+    // load only sets state after its awaits resolve, not synchronously
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     load();
   }, [load]);
 
@@ -496,6 +498,7 @@ async function buildClientRow(coaching: Coaching): Promise<ClientRow> {
   try {
     client = await userApi.getUserByFirebaseUid(coaching.traineeId);
   } catch {
+    // Profile unavailable — row falls back to coaching data
   }
 
   try {
@@ -505,6 +508,7 @@ async function buildClientRow(coaching: Coaching): Promise<ClientRow> {
       weightSource = 'health';
     }
   } catch {
+    // No health snapshot — fall back to check-in weight below
   }
 
   if (latestWeightKg == null && coaching.checkIns && coaching.checkIns.length > 0) {

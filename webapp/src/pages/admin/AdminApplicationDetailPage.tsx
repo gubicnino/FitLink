@@ -12,7 +12,7 @@ import LoadingSpinner from '../../components/ui/LoadingSpinner';
 import Modal from '../../components/ui/Modal';
 import SectionHeader from '../../components/ui/SectionHeader';
 import Tag from '../../components/ui/Tag';
-import { useToast } from '../../components/ui/Toast';
+import { useToast } from '../../components/ui/useToast';
 import { colors, radii, shadows, spacing, typography } from '../../theme';
 
 export default function AdminApplicationDetailPage() {
@@ -29,7 +29,9 @@ export default function AdminApplicationDetailPage() {
 
   const [certUrl, setCertUrl] = useState<string | null>(null);
   const certBlobRef = useRef<string | null>(null);
-  const [certLoading, setCertLoading] = useState(false);
+  const [certSettledFor, setCertSettledFor] = useState<string | null>(null);
+  const certLoading =
+    !!app?.certificateFileName && certSettledFor !== app.certificateFileName;
 
   useEffect(() => {
     let cancelled = false;
@@ -57,7 +59,6 @@ export default function AdminApplicationDetailPage() {
     let cancelled = false;
     const fileName = app?.certificateFileName;
     if (!fileName) return;
-    setCertLoading(true);
     (async () => {
       try {
         const blob = await trainerApplicationApi.fetchCertificateBlob(fileName);
@@ -68,7 +69,7 @@ export default function AdminApplicationDetailPage() {
       } catch (err) {
         if (!cancelled) console.error('cert load failed', err);
       } finally {
-        if (!cancelled) setCertLoading(false);
+        if (!cancelled) setCertSettledFor(fileName);
       }
     })();
     return () => {

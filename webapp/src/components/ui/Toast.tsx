@@ -1,22 +1,12 @@
-import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from 'react';
+import { useCallback, useMemo, useState, type ReactNode } from 'react';
 import { colors, radii, shadows, spacing, typography } from '../../theme';
-
-type ToastTone = 'success' | 'error' | 'info';
+import { ToastContext, type ToastContextType, type ToastTone } from './useToast';
 
 interface ToastItem {
   id: number;
   tone: ToastTone;
   message: string;
 }
-
-interface ToastContextType {
-  push: (tone: ToastTone, message: string) => void;
-  success: (message: string) => void;
-  error: (message: string) => void;
-  info: (message: string) => void;
-}
-
-const ToastContext = createContext<ToastContextType | null>(null);
 
 const TONE_STYLE: Record<ToastTone, { bg: string; border: string; fg: string }> = {
   success: { bg: colors.successSoftStrong, border: 'rgba(16,185,129,0.40)', fg: colors.success },
@@ -84,10 +74,4 @@ export function ToastProvider({ children }: { children: ReactNode }) {
       </div>
     </ToastContext.Provider>
   );
-}
-
-export function useToast(): ToastContextType {
-  const ctx = useContext(ToastContext);
-  if (!ctx) throw new Error('useToast must be used inside <ToastProvider>');
-  return ctx;
 }

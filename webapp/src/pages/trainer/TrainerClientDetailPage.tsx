@@ -32,7 +32,7 @@ import SectionHeader from '../../components/ui/SectionHeader';
 import StatTile from '../../components/ui/StatTile';
 import TabButton from '../../components/ui/TabButton';
 import Tag from '../../components/ui/Tag';
-import { useToast } from '../../components/ui/Toast';
+import { useToast } from '../../components/ui/useToast';
 import { colors, radii, shadows, spacing, typography } from '../../theme';
 import type { CheckIn } from '../../types/checkin';
 import type { Coaching } from '../../types/coaching';
@@ -93,8 +93,9 @@ export default function TrainerClientDetailPage() {
   }, [traineeId]);
 
   useEffect(() => {
+    // loadAll only sets state after its awaits resolve, not synchronously
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     loadAll();
-    console.log(templates)
   }, [loadAll]);
 
   useEffect(() => {

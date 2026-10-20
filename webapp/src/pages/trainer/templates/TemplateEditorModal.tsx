@@ -17,7 +17,7 @@ import { workoutApi } from '../../../api/workoutApi';
 import Button from '../../../components/ui/Button';
 import LoadingSpinner from '../../../components/ui/LoadingSpinner';
 import SectionHeader from '../../../components/ui/SectionHeader';
-import { useToast } from '../../../components/ui/Toast';
+import { useToast } from '../../../components/ui/useToast';
 import { colors, radii, shadows, spacing, typography } from '../../../theme';
 import type { ExerciseSummary } from '../../../types/exercise';
 import type {
@@ -79,20 +79,28 @@ export default function TemplateEditorModal({
   const [pickerOpen, setPickerOpen] = useState(false);
 
   const isEdit = mode?.kind === 'edit';
+  const activeMode = open ? mode : null;
+  const [prevMode, setPrevMode] = useState<Mode | null>(null);
+
+  if (activeMode !== prevMode) {
+    setPrevMode(activeMode);
+    if (activeMode) {
+      setError(null);
+      setName('');
+      setItems([]);
+      setLoading(activeMode.kind === 'edit');
+    }
+  }
 
   // Reset / hydrate on open
   useEffect(() => {
     if (!open || !mode) return;
     let cancelled = false;
-    setError(null);
-    setName('');
-    setItems([]);
 
     if (mode.kind === 'create') {
       return;
     }
 
-    setLoading(true);
     (async () => {
       try {
         const tpl = await workoutApi.getTemplate(mode.templateId);
