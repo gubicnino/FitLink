@@ -1,0 +1,14 @@
+{
+  "name": "fitlink-seed-test-data",
+  "private": true,
+  "type": "module",
+  "description": "Pripravi testne podatke za funkcionalne teste webappa (docs/Testni-scenariji-webapp.md).",
+  "scripts": {
+    "seed": "node seed.mjs",
+    "web-config": "node firebase-web-config.mjs"
+  },
+  "dependencies": {
+    "firebase-admin": "^13.4.0",
+    "mongodb": "^6.17.0"
+  }
+}
