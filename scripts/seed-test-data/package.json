@@ -5,6 +5,7 @@
   "description": "Pripravi testne podatke za funkcionalne teste webappa (docs/Testni-scenariji-webapp.md).",
   "scripts": {
     "seed": "node seed.mjs",
+    "seed:stress": "node seed-stress.mjs",
     "web-config": "node firebase-web-config.mjs"
   },
   "dependencies": {
