@@ -1,7 +1,7 @@
 // Prebere Firebase web konfiguracijo projekta (prek service accounta iz backenda)
 // in zapiše webapp/.env.local, da lokalni webapp (npm run dev) uporablja
 // lokalni backend in pravi Firebase projekt. Obstoječega webapp/.env ne spreminja.
-import { readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import admin from 'firebase-admin';
@@ -20,6 +20,15 @@ async function getJson(url, token) {
   return res.json();
 }
 
+function readWebappEnvKey() {
+  const envPath = resolve(ROOT, 'webapp', '.env');
+  if (!existsSync(envPath)) return null;
+  const line = readFileSync(envPath, 'utf8')
+    .split(/\r?\n/)
+    .find((l) => l.startsWith('VITE_FIREBASE_API_KEY='));
+  return line?.slice(line.indexOf('=') + 1).trim().replace(/^["']|["']$/g, '') || null;
+}
+
 export async function writeWebappEnvLocal() {
   const serviceAccount = JSON.parse(readFileSync(SERVICE_ACCOUNT_PATH, 'utf8'));
   const { access_token: token } = await admin.credential.cert(serviceAccount).getAccessToken();
@@ -33,6 +42,10 @@ export async function writeWebappEnvLocal() {
     `${MGMT}/projects/${projectId}/webApps/${apps[0].appId}/config`,
     token,
   );
+
+  // Ključ, ki ga vrne Firebase, je lahko potekel ali zamenjan – prednost ima ročno nastavljen:
+  // spremenljivka okolja (cevovod), nato webapp/.env (lokalno).
+  config.apiKey = process.env.VITE_FIREBASE_API_KEY || readWebappEnvKey() || config.apiKey;
 
   const env = [
     '# Ustvaril scripts/seed-test-data/firebase-web-config.mjs – lokalno testno okolje.',

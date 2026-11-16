@@ -1,0 +1,21 @@
+{
+  "name": "fitlink-e2e",
+  "private": true,
+  "type": "module",
+  "description": "Avtomatizirani funkcionalni testi FitLink (WebdriverIO). web/ = webapp, mobile/ = rezervirano za Appium.",
+  "scripts": {
+    "test:web": "wdio run ./web/wdio.conf.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@types/node": "^24.12.3",
+    "@wdio/cli": "^10.2.0",
+    "@wdio/globals": "^10.2.0",
+    "@wdio/junit-reporter": "^10.2.0",
+    "@wdio/local-runner": "^10.2.0",
+    "@wdio/mocha-framework": "^10.2.0",
+    "@wdio/spec-reporter": "^10.2.0",
+    "tsx": "^4.23.15",
+    "typescript": "~6.0.2"
+  }
+}

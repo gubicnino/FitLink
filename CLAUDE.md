@@ -16,6 +16,7 @@ FitLink is a monorepo for a fitness coaching platform with four independently ru
 | `webapp/`    | React 19 + TypeScript + Vite       | Admin/trainer dashboard (deployed Vercel) |
 | `mobile/`    | React Native 0.85 (bare workflow)  | **Legacy** Android app — being replaced   |
 | `mobile-app/`| Expo 54 + expo-router              | **Migration target** — Android + iOS      |
+| `e2e/`       | WebdriverIO + Mocha (TypeScript)   | Functional tests: `web/` (webapp), `mobile/` (placeholder for Appium) |
 
 **New mobile features go in `mobile-app/`, not `mobile/`.** See `mobile-app/migration.md` for the migration plan.
 
@@ -66,6 +67,6 @@ All `.env` files and `firebase-adminsdk*.json` / `google-services.json` are giti
 | Workflow             | Trigger       | What it does                                        |
 |----------------------|---------------|-----------------------------------------------------|
 | `ci.yml`             | Pull requests | Backend `mvnw test` + Webapp lint/build + Mobile lint |
-| `main-pipeline.yml`  | Push to `main`| Backend tests + JaCoCo report + JAR, then signed release APK + GitHub Release; Webapp lint/build in parallel |
+| `main-pipeline.yml`  | Push to `main`| Backend tests + JaCoCo report + JAR, then signed release APK + GitHub Release; Webapp lint/build and WebdriverIO functional tests (`e2e/web/`, headless Chrome against Dockerized backend + MongoDB; uploads JUnit XML + failure screenshots) in parallel |
 
 Before pushing: run `./mvnw test` for backend changes and `npm run lint` for frontend changes — CI runs both on PRs.

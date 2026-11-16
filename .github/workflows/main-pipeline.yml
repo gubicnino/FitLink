@@ -103,6 +103,73 @@ jobs:
           path: webapp/dist/
           retention-days: 14
 
+  e2e-web:
+    name: Webapp functional tests (WebdriverIO)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    # Tests reset the same accounts in the dev Firebase project - one run at a time.
+    concurrency:
+      group: e2e-firebase-dev
+      cancel-in-progress: false
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Set up Firebase credentials
+        run: echo "$FIREBASE_CREDENTIALS_JSON" | base64 --decode > backend/src/main/resources/firebase-adminsdk.json
+        env:
+          FIREBASE_CREDENTIALS_JSON: ${{ secrets.FIREBASE_CREDENTIALS_JSON }}
+
+      - name: Start backend + MongoDB
+        run: docker compose up -d --build
+
+      - name: Set up Node 22
+        uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: |
+            webapp/package-lock.json
+            e2e/package-lock.json
+            scripts/seed-test-data/package-lock.json
+
+      - name: Install dependencies
+        run: |
+          npm ci --prefix scripts/seed-test-data
+          npm ci --prefix webapp
+          npm ci --prefix e2e
+
+      - name: Wait for backend
+        run: timeout 180 bash -c 'until curl -s -o /dev/null http://localhost:8080/actuator/health; do sleep 3; done'
+
+      - name: Write webapp/.env.local (Firebase web config)
+        run: npm run web-config --prefix scripts/seed-test-data
+        env:
+          VITE_FIREBASE_API_KEY: ${{ secrets.VITE_FIREBASE_API_KEY }}
+
+      - name: Start webapp
+        run: |
+          npm run dev --prefix webapp > webapp-dev.log 2>&1 &
+          timeout 60 bash -c 'until curl -s -o /dev/null http://localhost:5173; do sleep 2; done'
+
+      # Test data is seeded in onPrepare (e2e/web/wdio.conf.ts).
+      - name: Run E2E tests (headless Chrome)
+        run: npm run test:web --prefix e2e
+
+      - name: Upload test report (JUnit XML + screenshots)
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: e2e-web-report
+          path: e2e/reports/
+          retention-days: 30
+
+      - name: Dump logs on failure
+        if: failure()
+        run: |
+          docker compose logs --tail=200 backend
+          cat webapp-dev.log || true
+
   android:
     name: Build Android APK
     needs: backend
